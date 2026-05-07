@@ -3067,6 +3067,10 @@ function Game() {
     { id: "s4", nm: "The Broken Watch", ds: "Secure 5 frontier outposts and re-open the chain of holds that once kept caravans, pilgrims, and border soldiers alive. Every reclaimed hold is a real chapter of recovery, not just another fight.", goal: 5, prog: 0, done: false },
     { id: "s5", nm: "Ruins Below the Choir", ds: "Solve 4 ruins and recover sealed testimony from wardens, occult scholars, and failed kings. This is the investigative spine of the campaign, where the world finally starts to explain what the Veil is becoming.", goal: 4, prog: 0, done: false },
     { id: "s6", nm: "The Hollow Stair", ds: "Breach 5 Void Rifts and survive their layered chambers. Each successful ascent proves your line can keep climbing through unstable pocket-realms without losing itself to pressure, distance, and dream-rot.", goal: 5, prog: 0, done: false },
+    { id: "s8", nm: "Schoolyard Assessment", ds: "Pledge to a Covenant and complete 3 sanctioned duels in their training arena. The schools do not raise grades on rumor — every assessor wants to see your technique answered against another sorcerer who has trained under a different doctrine.", goal: 3, prog: 0, done: false },
+    { id: "s9", nm: "Echoes Across the Veil", ds: "Win 5 sparring matches in the Duelist's Circle. The veteran sorcerers say a technique is only truly yours after you have answered another's domain without flinching — these matches sharpen the reflexes the rifts will eventually demand.", goal: 5, prog: 0, done: false },
+    { id: "s10", nm: "The Inherited Technique", ds: "Reach grade 2 (rank: Warden) and let your bloodmark fully express itself in three different battles. Most lines never meet their own technique honestly — this milestone exists to mark the day yours stops being a rumor and starts being the answer to a problem.", goal: 3, prog: 0, done: false },
+    { id: "s11", nm: "Unfolded Territory", ds: "Survive an unfolded territory — a domain expansion projected by a stronger sorcerer onto the world. Whether you seal it, escape it, or break it from within, returning intact proves the line is no longer a candidate but a peer.", done: false },
     { id: "s7", nm: "Dream Devourer", ds: "Defeat the Dream Devourer, the abyssal intelligence nesting behind the fractures. By the time this final chapter opens, the bloodline should feel as though it has fought through a full month of attrition, reclaiming roads, winning shrines, recovering ruins, and breaking rifts before the last road reveals itself.", done: false },
   ]);
   const [tip, setTip] = useState(null);
@@ -5779,8 +5783,8 @@ const buildGroupedBattleLog = (entries) => {
 
   // TITLE
   if (scr === "title") return (
-    <div className="pg title-bg"><audio ref={introAudioRef} src={TITLE_THEME_SRC} autoPlay loop playsInline preload="auto" muted defaultMuted style={{display:"none"}} /><div className="wr intro-shell">{notiEl}
-      <div className="title-hero" style={{ textAlign: "center" }}>
+    <div className="pg title-bg title-bg-art" style={{ backgroundImage: "linear-gradient(180deg, rgba(4,6,14,0.55) 0%, rgba(4,6,14,0.35) 30%, rgba(4,6,14,0.78) 78%, rgba(4,6,14,0.96) 100%), url(" + (import.meta.env.BASE_URL || "/") + "title-veil.png)" }}><audio ref={introAudioRef} src={TITLE_THEME_SRC} autoPlay loop playsInline preload="auto" muted defaultMuted style={{display:"none"}} /><div className="wr intro-shell">{notiEl}
+      <div className="title-hero" style={{ textAlign: "center", position: "relative", zIndex: 2 }}>
         <div style={{ fontSize: 10, letterSpacing: 8, color: "#d7e1ff", textTransform: "uppercase", fontFamily: "'Cinzel',serif", marginBottom: 10 }}>Chronicles of the Rift</div>
         <h1 style={{ fontSize: 48, fontWeight: 900, fontFamily: "'Cinzel',serif", color: T.gd, lineHeight: 1.02, textShadow: "0 0 34px " + T.gd + "22", marginBottom: 8 }}>Shattered<br/>Veil</h1>
         <div style={{ width: 74, height: 2, background: "linear-gradient(90deg,transparent," + T.gd + ",transparent)", margin: "12px auto" }} />
@@ -6859,6 +6863,7 @@ const buildGroupedBattleLog = (entries) => {
       { id: "bank", nm: "Vault", ic: "🏦" },
       { id: "guild", nm: "Guild", ic: "📜" },
       { id: "arena", nm: "Arena", ic: "⚔️" },
+      { id: "duel", nm: "Duelist's Circle", ic: "🤺" },
       { id: "lib", nm: "Library", ic: "📚" },
       { id: "train", nm: "Training", ic: "🎯" },
       { id: "tavern", nm: "Tavern", ic: "🍺" },
@@ -6975,6 +6980,63 @@ const buildGroupedBattleLog = (entries) => {
             </div>}
 
             {svc === "arena" && <div style={{ textAlign: "center" }}><div style={{ fontSize: 9, color: T.dm, marginBottom: 6 }}>Win to earn gold, XP, and relic shards (40% chance)!</div>{arenaCD > timerNow ? <div style={{ fontSize: 10, color: T.wn }}>⏰ Cooldown: {getCountdownTo(arenaCD)}</div> : <button className="bt" style={{ background: T.bad }} onClick={() => { setArenaCD(timerNow + 300000); const oc = P(CLS); const lv = C(pl.level + R(-2,2),1,999); const s = 1+lv*0.12; const e = { id:ID(), name:P(["Aria","Kael","Vex","Nyx","Orion"])+" the "+oc.nm, hp:Math.floor(oc.st.hp*s), mhp:Math.floor(oc.st.hp*s), atk:Math.floor(oc.st.atk*s), def:Math.floor(oc.st.def*s), spd:Math.floor(oc.st.spd*s), mag:Math.floor(oc.st.mag*s), el:oc.el, el2:oc.el2 || null, xp:50+lv*6, gold:40+lv*5, skills:[{n:oc.el+" Strike",pow:15+lv*2,el:oc.el,fx:null},{n:(oc.el2 || oc.el)+" Blast",pow:20+lv*3,el:(oc.el2 || oc.el),fx:P(["burn","freeze","stun","bleed"])}], efx:[], boss:false, arena:true }; startBattle([e],"pvp"); setSvc(null); }}>⚔️ Fight!</button>}</div>}
+
+            {svc === "duel" && (function(){
+              const cov = pl.covenant ? getCV(pl.covenant) : null;
+              const tier = pl.duelTier || 0;
+              const tierNames = ["Initiate","Challenger","Contender","Veteran","Sanctioned"];
+              const tierName = tierNames[Math.min(tier, tierNames.length - 1)];
+              const lvAdj = Math.max(0, Math.floor(tier * 1.4));
+              const reward = { g: 60 + tier * 22, xp: 70 + tier * 18, sh: tier >= 2 ? 1 : 0 };
+              return <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: T.gd, fontFamily: "'Cinzel',serif", fontWeight: 700, marginBottom: 4 }}>🤺 Duelist's Circle</div>
+                <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.45, marginBottom: 6 }}>Sanctioned 1-on-1 sparring against another sorcerer. The covenants observe and grade. No deaths — only tested techniques and bruised pride.</div>
+                <div style={{ display: "flex", justifyContent: "center", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                  <span className="streak-badge" style={{ background: "linear-gradient(180deg,#3a1a55,#2a103e)", color: "#e0caff", borderColor: "#7a4ab8" }}>Tier {tier} · {tierName}</span>
+                  {cov && <span className="streak-badge" style={{ background: cov.cl + "22", color: cov.cl, borderColor: cov.cl + "66" }}>{cov.ic} {cov.nm}</span>}
+                </div>
+                <div style={{ fontSize: 9, color: T.gd, marginBottom: 8 }}>Win: +{reward.g}G · +{reward.xp} XP{reward.sh ? " · +1 Relic Shard" : ""}</div>
+                <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="bt" style={{ background: "linear-gradient(180deg,#7a3aa0,#4d2470)" }} onClick={() => {
+                    const oc = P(CLS);
+                    const lv = C(pl.level + lvAdj + R(-1, 2), 1, 999);
+                    const s = 1 + lv * 0.13;
+                    const opName = P(["Soren","Mirae","Iko","Vael","Ren","Yuki","Calix","Nori","Tova","Daro"]);
+                    const e = {
+                      id: ID(),
+                      name: opName + " · " + oc.nm,
+                      hp: Math.floor(oc.st.hp * s), mhp: Math.floor(oc.st.hp * s),
+                      atk: Math.floor(oc.st.atk * s), def: Math.floor(oc.st.def * s),
+                      spd: Math.floor(oc.st.spd * s), mag: Math.floor(oc.st.mag * s),
+                      el: oc.el, el2: oc.el2 || null,
+                      xp: reward.xp, gold: reward.g,
+                      skills: [
+                        { n: oc.el + " Strike", pow: 16 + lv * 2, el: oc.el, fx: null },
+                        { n: (oc.el2 || oc.el) + " Surge", pow: 22 + lv * 3, el: (oc.el2 || oc.el), fx: P(["burn","freeze","stun","bleed","silence"]) },
+                      ],
+                      efx: [], boss: false, arena: true, duel: true,
+                    };
+                    setPl(p => ({ ...p, duelTier: (p.duelTier || 0) + 1 }));
+                    setStory(st => st.map(q => {
+                      if (q.id === "s9" && !q.done) {
+                        const p2 = { ...q, prog: (q.prog || 0) + 1 };
+                        if (p2.prog >= (p2.goal || 5)) p2.done = true;
+                        return p2;
+                      }
+                      if (q.id === "s8" && !q.done && pl.covenant) {
+                        const p2 = { ...q, prog: (q.prog || 0) + 1 };
+                        if (p2.prog >= (p2.goal || 3)) p2.done = true;
+                        return p2;
+                      }
+                      return q;
+                    }));
+                    startBattle([e], "duel");
+                    setSvc(null);
+                  }}>🤺 Accept Sparring Match</button>
+                </div>
+                <div style={{ fontSize: 8, color: T.dm, marginTop: 6, fontStyle: "italic", lineHeight: 1.4 }}>Multiplayer note: when PvP servers are live, this circle becomes the matchmaking queue against real players. Tier and covenant standing carry over.</div>
+              </div>;
+            })()}
 
             {svc === "lib" && <div><div style={{ fontSize: 9, color: T.dm, marginBottom: 4 }}>Upgrade skills with relic fragments. Max Lv.10</div><div style={{ fontSize: 9, color: "#ce93d8", marginBottom: 4 }}>🔮 Fragments: {fragments}</div>{pl.skills.filter(s => s.unlocked).map(sk => <div key={sk.id} style={{ display: "flex", justifyContent: "space-between", padding: 4, background: T.c2, borderRadius: 4, marginBottom: 2, alignItems: "center", fontSize: 10 }}><div><span style={{ fontWeight: 700 }}>{sk.n}</span> <span style={{ color: T.dm }}>Lv.{sk.lvl}/10</span></div>{sk.lvl < 10 ? <button className="bt bs" style={{ background: fragments >= 1 ? T.ac : "#333" }} disabled={fragments < 1} onClick={() => { setPl(p => ({ ...p, skills: p.skills.map(s => s.id === sk.id ? upgradeSkillForBalance(s) : s) })); setFragments(f => f - 1); notify("Upgraded to Lv." + (sk.lvl + 1) + "!"); }}>🔮1 Frag</button> : <span style={{ color: T.gd, fontSize: 8 }}>MAX</span>}</div>)}</div>}
             {svc === "train" && <div style={{ textAlign: "center" }}>

@@ -71,6 +71,30 @@ A rich, single-page browser RPG with a 300×300 procedurally-generated world, 16
 
 - Visual style: parchment + navy + crimson (Veilbound-inspired)
 - Keep single-artifact architecture — all in one `Game.jsx`
+- JJK-flavor lore (innate techniques, sorcerer grades, domain expansions / unfolded territory) but kept subtle — no curse-energy or curse-user terminology
+- End goal is a multiplayer PvP adventure — design new systems with PvP in mind even while single-player remains the default
+
+## Story Quests (v29)
+
+11-quest spine, presented in playable order in the Codex. New JJK-flavored milestones:
+- `s8` Schoolyard Assessment — pledge a Covenant + win 3 sanctioned duels
+- `s9` Echoes Across the Veil — win 5 Duelist's Circle matches
+- `s10` The Inherited Technique — reach Warden grade + bloodmark expressions
+- `s11` Unfolded Territory — survive a domain expansion encounter
+The original `s7` Dream Devourer remains the final chapter.
+
+## Duelist's Circle (PvP-prep)
+
+Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer. Tracks `pl.duelTier` (0+) which scales opponent level and reward (gold/XP/relic shard). Wins also progress `s8` (when player has a Covenant) and `s9` story quests. Architecture sketch for live PvP:
+- Same client-side battle engine, same `startBattle([e], "duel")` entrypoint — only the opponent payload changes (AI rolled now, real-player snapshot later)
+- Server contract (TBD): match request with `{ tier, covenant, level }` → returns opponent snapshot `{ class, stats, skills, bloodmark }`
+- Result POST: `{ winnerId, turns, finalEf, opponentId }` for ladder/rank updates
+- Free tier: client-side only for now — UI explicitly says "matchmaking when PvP servers are live"
+
+## Visual assets
+
+- `src/assets/title-veil.png` — painted hero artwork (cloaked sorcerer, torn veil sky, glowing runes) used as the title screen background. Layered under a darkening gradient so the UI text remains readable. Generated 2026-05-07.
+- `src/assets/town-square.png` — twilight town backdrop, currently unused, available for future town/inn redesign.
 
 ## Gotchas
 

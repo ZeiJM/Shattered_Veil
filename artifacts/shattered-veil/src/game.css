@@ -100,6 +100,30 @@ html, body, #root {
   position: relative;
   overflow: hidden;
 }
+
+/* Hero painted artwork layer for the title screen.
+   The actual url() is supplied via inline style on the .title-bg-art element
+   (uses Vite BASE_URL so it works under any artifact path prefix). */
+.title-bg-art {
+  background-size: cover !important;
+  background-position: center 28% !important;
+  background-repeat: no-repeat !important;
+}
+.title-bg-art .intro-shell {
+  position: relative;
+  z-index: 2;
+}
+.title-bg-art .title-hero h1 {
+  text-shadow: 0 0 38px rgba(212,173,64,0.45), 0 4px 18px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.9) !important;
+}
+.title-bg-art .title-hero p,
+.title-bg-art .title-hero > div:not(.title-feature-row):not(.title-button-stack) {
+  text-shadow: 0 1px 8px rgba(0,0,0,0.85);
+}
+.title-bg-art .feature-chip {
+  backdrop-filter: blur(6px);
+  background: rgba(8,12,28,0.55) !important;
+}
 .title-bg::before, .create-bg::before {
   content: '';
   position: fixed; inset: -10%;

@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "m5mstvMVxL9Xm85Xdg8HR"
+uri = "file://artifacts/shattered-veil/src/assets/title-veil.png"
+type = "image"
+title = "veil tear hero"
+
+[[generated]]
+id = "DT4Eavw5rCv8vt4gtZ7jL"
+uri = "file://artifacts/shattered-veil/src/assets/town-square.png"
+type = "image"
+title = "town square twilight"
