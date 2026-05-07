@@ -269,7 +269,14 @@ Procedural sound-effect bank built into the same `music.js` engine — single Au
 
 - **Bank**: `hit` (filtered noise burst), `heal` (sine bell dyad), `levelup` (C-E-G-C square arpeggio fanfare), `victory` (held C-E-G triangle triad), `defeat` (descending sawtooth A3→A2), `menu` (short square click), `cast` (rising sine sweep).
 - **API additions on `createMusicPlayer()`**: `playSfx(name)`, `setSfxMuted(m)`, `isSfxMuted()`, `setMusicVolume(v)`, `setSfxVolume(v)`, `getMusicVolume()`, `getSfxVolume()`. All persistence via `localStorage` (`sv_sfx_muted`, `sv_music_vol`, `sv_sfx_vol`).
-- **Wired callsites in `Game.jsx`** (all wrapped in `try/catch` so audio failures never break gameplay): `giveXP` level-up (~line 3880) → `levelup`; both victory branches (~5160 + ~5328) → `victory`; defeat branch (~5326) → `defeat`; `useEffect` on `sub` change → `menu` chirp.
+- **Per-action wiring in `bAct` and the enemy turn** — every action now has audio feedback. All calls wrapped in `try/catch` so audio failures never break gameplay:
+  - `strike` / `w2` weapon attacks → `hit`
+  - `guard` → `menu` blip
+  - `mend` → `heal`
+  - `skill` → `heal` if `t === "heal"|"support"`, otherwise `cast`
+  - `copy` and `ult` → `cast`
+  - Enemy attack landing on player (`ed > 0`, non-train) → `hit`
+  - Meta cues (already in this version): `giveXP` level-up → `levelup`; both victory branches → `victory`; defeat branch → `defeat`; `useEffect` on `sub` change → `menu` chirp.
 - **Audio settings panel** lives in the menu sub-panel (`☰`). Two rows (Music + SFX), each with mute toggle + range slider (0-100%) + percent readout. Sliders use `accentColor: "#d4ad40"` for the gold theme. Toggling SFX off→on plays a feedback chirp.
 - **Compatible with the v41 HUD music toggle** — both surfaces now share state via `musicMuted` / `sfxMuted` React state mirrored from the engine getters.
 

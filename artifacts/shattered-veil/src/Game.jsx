@@ -4657,6 +4657,7 @@ function Game() {
     };
 
     if (act === "strike") {
+      try { musicRef.current.playSfx("hit"); } catch {}
       nextInteractionState.consecutiveGuards = 0;
       nextInteractionState.strikeCount = (nextInteractionState.strikeCount || 0) + 1;
       nextInteractionState.damageSkillUses = (nextInteractionState.damageSkillUses || 0) + 1;
@@ -4664,6 +4665,7 @@ function Game() {
       trackSkillName((eq.w1 || eq.w2)?.name || "Strike");
       attackWithWeapon(eq.w1 || eq.w2, eq.w1 ? "w1" : (eq.w2 ? "w2" : null), 4, "Fists");
     } else if (act === "w2" && eq.w2) {
+      try { musicRef.current.playSfx("hit"); } catch {}
       nextInteractionState.consecutiveGuards = 0;
       nextInteractionState.strikeCount = (nextInteractionState.strikeCount || 0) + 1;
       nextInteractionState.damageSkillUses = (nextInteractionState.damageSkillUses || 0) + 1;
@@ -4671,6 +4673,7 @@ function Game() {
       trackSkillName(eq.w2?.name || "Off-hand Strike");
       attackWithWeapon(eq.w2, "w2", 5, eq.w2.name);
     } else if (act === "guard") {
+      try { musicRef.current.playSfx("menu"); } catch {}
       // Guard: apply guard effect for 3 turns, 20% damage reduction
       const guardEfx = { id: "guard", nm: "Guard", ic: "🛡️", type: "shield", v: 20, dur: 3, tl: 3 };
       np.efx = [...(np.efx || []), guardEfx];
@@ -4699,6 +4702,7 @@ function Game() {
       nextInteractionState.consecutiveGuards = 0;
       // Basic Maled: costs 8 MP, applies Regen for 3 turns (small HoT)
       if (np.cmp < 8) { notify("Need 8 MP!"); return; }
+      try { musicRef.current.playSfx("heal"); } catch {}
       np.cmp -= 8;
       nextInteractionState.healUses = (nextInteractionState.healUses || 0) + 1;
       trackSkillName("Mend");
@@ -4716,6 +4720,7 @@ function Game() {
       const sk = eqSk[idx]; if (!sk) return;
       nextInteractionState.consecutiveGuards = 0;
       if (sk.mp > np.cmp) { notify("Not enough MP!"); return; }
+      try { musicRef.current.playSfx(sk.t === "heal" || sk.t === "support" ? "heal" : "cast"); } catch {}
       np.cmp -= sk.mp; ch.push(idx);
       const ml = eMult(sk.el, tgt);
       if (sk.t === "damage") {
@@ -4871,6 +4876,7 @@ function Game() {
         if (tgt.el && !(np.kagamiAttunedEnemyIds||[]).includes(tgt.id)) { np.tempBattleEl = tgt.el; np.tempBattleEl2 = tgt.el2 || null; np.tempBonusEls = tgt.bonusEls || []; np.kagamiAttunedEnemyIds = [...(np.kagamiAttunedEnemyIds||[]), tgt.id]; logFx("🧿 Mirror Element: Shōuei attunes to " + tgt.el + (tgt.el2 ? "/" + tgt.el2 : "") + " for this battle."); }
       }
     } else if (act === "copy" && copied && copyN > 0) {
+      try { musicRef.current.playSfx("cast"); } catch {}
       const copyCost = Math.max(0, Math.ceil((copied.copiedBaseMp != null ? copied.copiedBaseMp : copied.mp || 0) * 0.5));
       const stillMirrorReady = !!nextInteractionState.guardThenCopyPrimed;
       const finalCopyCost = stillMirrorReady ? 0 : copyCost;
@@ -4931,6 +4937,7 @@ function Game() {
       if (Math.random() < fleeChance) { logInfo(btl.type === "train" ? "Disengaged from training." : "Fled!"); if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setBtl(null); setPl({...np, tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: []}); setLog(l => [...l, ...playerTagged(lg)]); setScr(subMap ? "submap" : "map"); return; }
       logInfo("Can't escape!");
     } else if (act === "ult" && np.ult?.ready) {
+      try { musicRef.current.playSfx("cast"); } catch {}
       const ultBase = Math.min(np.ult.pow || 120, 150);
       const pow = (ultBase * 0.72 + st.mag * 1.24 + st.atk * 0.34) * encounterProfile.playerDamage * 0.95;
       en.filter(e => e.hp > 0).forEach(e => { const d = Math.max(1, Math.floor(pow - e.def * 0.12)); e.hp = Math.max(0, e.hp - d); if (np.ult.fx) { const ef = FX(np.ult.fx); if (ef) e.efx.push({ ...ef, tl: Math.min(5, (np.ult.fxDur || ef.dur) + (np.ult.chain >= 6 ? 1 : 0)), justApplied:true }); } });
@@ -5318,6 +5325,7 @@ function Game() {
           if (a2.hp <= 0) { el2.push("💀 " + ally.nm + " fell!"); setAlly(null); } else setAlly(a2); }
         else {
           if (btl.type !== "train") up.chp -= ed;
+          if (ed > 0 && btl.type !== "train") { try { musicRef.current.playSfx("hit"); } catch {} }
           el2.push("🔴 " + enemy.name + (sk ? " → " + sk.n : " attacks") + " on You for " + (btl.type === "train" ? "0 (blocked)" : ed));
           if (sk?.fx) {
             const ef = FX(sk.fx);
