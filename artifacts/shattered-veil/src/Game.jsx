@@ -3023,10 +3023,11 @@ function Game() {
   const [music] = useState(() => createMusicPlayer());
   const musicRef = useRef(music);
   const [musicMuted, setMusicMuted] = useState(() => music.isMuted());
+  const [btl, setBtl] = useState(null);
   // First user interaction unlocks the AudioContext (browser autoplay policy)
   useEffect(() => {
     const unlock = () => {
-      const t = trackForScreen(scr);
+      const t = trackForScreen(scr, { battleType: btl?.type });
       if (t) musicRef.current.play(t);
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
@@ -3038,21 +3039,20 @@ function Game() {
       window.removeEventListener("keydown", unlock);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Swap track on screen change
+  // Swap track on screen / battle-type change (boss vs wild battle music)
   useEffect(() => {
-    const t = trackForScreen(scr);
+    const t = trackForScreen(scr, { battleType: btl?.type });
     if (t) musicRef.current.play(t);
-  }, [scr]);
+  }, [scr, btl?.type]);
   const toggleMusicMute = useCallback(() => {
     const next = !musicRef.current.isMuted();
     musicRef.current.setMuted(next);
     setMusicMuted(next);
     if (!next) {
-      // Re-arm playback if we just unmuted (in case the loop had no audible tail)
-      const t = trackForScreen(scr);
+      const t = trackForScreen(scr, { battleType: btl?.type });
       if (t) musicRef.current.play(t);
     }
-  }, [scr]);
+  }, [scr, btl?.type]);
   const [mode, setMode] = useState("single");
   const [pl, setPl] = useState(null);
   const [gold, setGold] = useState(100);
@@ -3060,7 +3060,7 @@ function Game() {
   const [eq, setEq] = useState({ w1: null, w2: null, helm: null, body: null, glv: null, boot: null, c1: null, c2: null });
   const [pet, setPet] = useState(null);
   const [ally, setAlly] = useState(null);
-  const [btl, setBtl] = useState(null);
+  // btl declared earlier (above music hooks) so audio can react to btl?.type
   const [log, setLog] = useState([]);
   const [noti, setNoti] = useState(null);
   const [sub, setSub] = useState(null);
@@ -5230,11 +5230,38 @@ function Game() {
         const skipEf = (enemy.turnFx || enemy.efx || []).find(ef => ef.type === "skip" && !ef.justApplied && (ef.v >= 100 || Math.random() * 100 < ef.v));
         if (skipEf) { el2.push("⚡ " + enemy.name + " can't move this turn."); enemy.efx = (enemy.efx || []).map(ef => ef.id === skipEf.id ? { ...ef, justApplied:false } : ef); ue[enemyIndex] = enemy; return; }
         let sk = chooseEnemySkill(enemy, pfx, encounterProfile);
+        // v42: enemy AI movement (mirrors player positional combat).
+        // Melee enemies (no element / Null element) prefer distance 1; ranged
+        // enemies (any non-Null element) prefer distance ≥3. They can shift
+        // one lane within their side (3 ↔ 4) before acting.
+        const isSupportSkill = sk?.kind === 'support';
+        const isRangedSkill = !!(sk && sk.el && sk.el !== "Null");
+        const enemyPosCur = enemy.pos ?? (enemyIndex < 2 ? 3 : 4);
+        const playerLane = btl.plPos ?? 1;
+        let enemyDist = Math.abs(enemyPosCur - playerLane);
+        let enemyNewPos = enemyPosCur;
+        if (!isSupportSkill) {
+          if (!isRangedSkill && enemyDist > 2 && enemyPosCur > 3) {
+            enemyNewPos = enemyPosCur - 1;
+            el2.push("👣 " + enemy.name + " advances to the front line.");
+          } else if (isRangedSkill && enemyDist < 2 && enemyPosCur < 4) {
+            enemyNewPos = enemyPosCur + 1;
+            el2.push("👣 " + enemy.name + " falls back to keep distance.");
+          }
+        }
+        enemy.pos = enemyNewPos;
+        ue[enemyIndex] = enemy;
+        enemyDist = Math.abs(enemyNewPos - playerLane);
+        let enemyDistMult = 1;
+        if (!isSupportSkill) {
+          if (!isRangedSkill && enemyDist <= 1) enemyDistMult = 1.10;       // point-blank
+          else if (isRangedSkill && enemyDist >= 3) enemyDistMult = 1.12;   // long-shot
+        }
         const enemyDamageMult = enemy.damageMult || encounterProfile.enemyDamage || 1;
         const enemyLowHpBonus = enemy.lowHpDamage || 1;
         let ed = sk && sk.pow
-          ? Math.max(0, Math.floor((sk.pow * 0.62 + enemy.atk * 0.52 + enemy.mag * 0.26 - s2.def * 0.24) * enemyDamageMult * eMult(sk.el || enemy.el, up) * (enemy.hp < Math.floor(enemy.mhp * 0.4) ? enemyLowHpBonus : 1) + R(-3, 4)))
-          : Math.max(1, Math.floor((enemy.atk * 0.86 - s2.def * 0.28 + R(-2, 4)) * enemyDamageMult * eMult(enemy.el || "Null", up)));
+          ? Math.max(0, Math.floor((sk.pow * 0.62 + enemy.atk * 0.52 + enemy.mag * 0.26 - s2.def * 0.24) * enemyDamageMult * enemyDistMult * eMult(sk.el || enemy.el, up) * (enemy.hp < Math.floor(enemy.mhp * 0.4) ? enemyLowHpBonus : 1) + R(-3, 4)))
+          : Math.max(1, Math.floor((enemy.atk * 0.86 - s2.def * 0.28 + R(-2, 4)) * enemyDamageMult * enemyDistMult * eMult(enemy.el || "Null", up)));
         if (sk?.kind === 'support') ed = 0;
         // Guard effect: 20% reduction for 3 turns
         if (pfx.some(ef => ef.id === "guard")) ed = Math.max(0, Math.floor(ed * 0.8));

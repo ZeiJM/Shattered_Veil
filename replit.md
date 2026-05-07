@@ -158,6 +158,38 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
+## v42 — Enemy AI movement + boss-variant battle music
+
+### Enemy AI movement (closes the v40 positional-combat loop)
+
+v40 gave the player real lane-based mechanics; v42 makes enemies use the same system. Each enemy makes a free movement decision before its action, based on the skill it just chose:
+
+- **Melee enemies** (no element / `Null` element on the chosen skill) prefer distance 1. If they're at distance > 2 and standing on lane 4 (Backline), they step forward to lane 3 (Skirmish). Logged: "👣 X advances to the front line."
+- **Ranged enemies** (any non-Null element on the chosen skill) prefer distance ≥ 3. If they're already at distance < 2 and standing on lane 3, they fall back to lane 4. Logged: "👣 X falls back to keep distance."
+- **Support skills** never trigger movement (the enemy is buffing itself, position doesn't matter).
+- **Symmetric distance damage modifier** mirrors the player's: melee at distance 1 → ×1.10 (point-blank), ranged at distance ≥ 3 → ×1.12 (long-shot). Multiplied directly into `ed` (enemy damage) for both `sk.pow` and basic-attack branches.
+- Movement happens regardless of target (player/pet/ally), but the distance bonus only applies meaningfully to player-targeted hits since pet/ally don't have lanes (their damage is multiplied by 0.7 in a separate branch and never reads `enemyDistMult`).
+
+Enemies still don't cross to the player's side (lanes 0-2) and can only shift one lane per turn — keeps the system readable for the player and prevents AI thrashing. Lane bar UI auto-reflects the new positions because it already reads `e.pos` from each enemy.
+
+Implementation lives entirely inside the existing enemy `forEach` (~line 5235 in `Game.jsx`) — no new state, no new effects.
+
+### Boss-variant battle music
+
+Added a 5th procedural track `boss` to `music.js`:
+
+- **158 BPM, E natural minor, Em - Bm - C - D progression.** Aggressive 16th-feel square lead with the same chord-tone arpeggio shape as the wild battle track but pitched darker and faster. Sawtooth counter-melody at -9 cents detune for extra grit, pounding 8th-note triangle bass that emphasizes root + octave-up + fifth (instead of the wild track's root+fifth pattern), kick on every beat.
+- `BOSS_BATTLE_TYPES = new Set(["boss", "fieldboss", "rift", "outpost"])` — these encounter types route to the boss track.
+- `trackForScreen(scr, opts = {})` now takes an options object: `{ battleType }`. Wild/beast/duel/pvp/train still get the standard battle loop; boss-tier encounters get the heavier track.
+- `Game.jsx` passes `{ battleType: btl?.type }` at all three callsites (unlock effect, scr-change effect, mute toggle). The scr-change effect's deps array now includes `btl?.type` so the music swaps mid-battle if the encounter type ever changes.
+- Required hoisting `const [btl, setBtl] = useState(null)` above the music hooks (~line 3029) so `btl?.type` is in lexical scope when the deps arrays evaluate. The original declaration at line 3063 was removed.
+
+### Future positional-combat hooks
+
+- Enemy lane-1 (cross-side) charge attack — strong skill that lets a boss step into the player's Front lane for one big hit, then retreats. Easy to add as a special skill flag.
+- Player "back-step" interrupt — a defensive option that triggers when a melee enemy tries to advance.
+- Per-skill range overrides — `sk.range` field on enemy skills (and player skills) for finer-grained control than the current el-based heuristic.
+
 ## v41 — Background music (Chrono Trigger flavor)
 
 Procedural chiptune-style music engine. **No external assets, no licensing concerns** — entirely synthesized via the Web Audio API at runtime. Four hand-written looping tracks (title, travel, battle, town), each in the SNES JRPG mold.

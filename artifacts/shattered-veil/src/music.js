@@ -165,7 +165,48 @@ const TOWN = {
   ],
 };
 
-const TRACKS = { title: TITLE, travel: TRAVEL, battle: BATTLE, town: TOWN };
+// ───── BOSS: darker, faster, menacing (Em - Bm - C - D, E natural minor) ─────
+const BOSS = {
+  bpm: 158, bars: 8,
+  instruments: [
+    { type: "square", gain: 0.14, detune: 0, pattern: [
+      // Em 2bars - aggressive 16th-feel
+      ["E5",0.5],["G5",0.5],["B5",0.5],["G5",0.5],["E5",0.5],["B4",0.5],["G5",0.5],["B5",0.5],
+      ["A5",1],["G5",0.5],["E5",0.5],["B4",1],["E5",1],
+      // Bm 2bars
+      ["B4",0.5],["D5",0.5],["Fs5",0.5],["D5",0.5],["B4",0.5],["Fs4",0.5],["D5",0.5],["Fs5",0.5],
+      ["G5",1],["Fs5",0.5],["D5",0.5],["B4",1],["D5",1],
+      // C 2bars
+      ["C5",0.5],["E5",0.5],["G5",0.5],["E5",0.5],["C5",0.5],["G4",0.5],["E5",0.5],["G5",0.5],
+      ["A5",1],["G5",0.5],["E5",0.5],["C5",1],["E5",1],
+      // D 2bars
+      ["D5",0.5],["Fs5",0.5],["A5",0.5],["Fs5",0.5],["D5",0.5],["A4",0.5],["Fs5",0.5],["A5",0.5],
+      ["B5",1],["A5",0.5],["Fs5",0.5],["D5",1],["A5",1],
+    ]},
+    { type: "sawtooth", gain: 0.07, detune: -9, pattern: [
+      // Tritone-tinted counter-melody for menace
+      ["B4",2],["E4",2],["B4",2],["G5",2],
+      ["Fs4",2],["B3",2],["Fs4",2],["D5",2],
+      ["G4",2],["C4",2],["G4",2],["E5",2],
+      ["A4",2],["D4",2],["A4",2],["Fs5",2],
+    ]},
+    { type: "triangle", gain: 0.32, detune: 0, pattern: rep([
+      // Pounding 8th-note bass — root, octave-up, fifth
+      ["E2",0.5],["E3",0.5],["B2",0.5],["E2",0.5],["E2",0.5],["E3",0.5],["B2",0.5],["G2",0.5],
+    ], 2).concat(rep([
+      ["B2",0.5],["B3",0.5],["Fs3",0.5],["B2",0.5],["B2",0.5],["B3",0.5],["Fs3",0.5],["D3",0.5],
+    ], 2)).concat(rep([
+      ["C3",0.5],["C3",0.5],["G3",0.5],["C3",0.5],["E3",0.5],["C3",0.5],["G3",0.5],["E3",0.5],
+    ], 2)).concat(rep([
+      ["D3",0.5],["D3",0.5],["A3",0.5],["D3",0.5],["Fs3",0.5],["D3",0.5],["A3",0.5],["Fs3",0.5],
+    ], 2)),
+    },
+  ],
+  // Heavier kick: every beat plus an off-beat double on the &-of-1 each bar
+  drumPattern: { bpm: 158, perBeat: 1, bars: 8 },
+};
+
+const TRACKS = { title: TITLE, travel: TRAVEL, battle: BATTLE, town: TOWN, boss: BOSS };
 
 function scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain) {
   const osc = ctx.createOscillator();
@@ -309,9 +350,16 @@ export function createMusicPlayer() {
   };
 }
 
-export function trackForScreen(scr) {
+// Boss-tier battle types get the heavier BOSS track. Wild encounters and
+// duels use the standard battle loop.
+const BOSS_BATTLE_TYPES = new Set(["boss", "fieldboss", "rift", "outpost"]);
+
+export function trackForScreen(scr, opts = {}) {
   if (scr === "title" || scr === "create") return "title";
-  if (scr === "battle") return "battle";
+  if (scr === "battle") {
+    if (opts.battleType && BOSS_BATTLE_TYPES.has(opts.battleType)) return "boss";
+    return "battle";
+  }
   if (scr === "town") return "town";
   if (scr === "map" || scr === "submap") return "travel";
   return null; // shell / stats / etc → keep current track playing
