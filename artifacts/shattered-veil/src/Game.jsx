@@ -5750,6 +5750,187 @@ const buildGroupedBattleLog = (entries) => {
     });
   };
 
+  // ── VEILCOURT (global chat) ──
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatLatestId, setChatLatestId] = useState(0);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatStatus, setChatStatus] = useState("");
+  const [chatOnline, setChatOnline] = useState(0);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatLogRef = useRef(null);
+  const chatPollRef = useRef(null);
+  const chatLastIdRef = useRef(0);
+
+  const veilcourtId = useMemo(() => {
+    try {
+      let id = localStorage.getItem("sv_chat_id");
+      if (!id) {
+        id = "v_" + Math.random().toString(36).slice(2, 8) + "_" + Date.now().toString(36);
+        localStorage.setItem("sv_chat_id", id);
+      }
+      return id;
+    } catch (_) { return "v_anon_" + Math.random().toString(36).slice(2, 10); }
+  }, []);
+
+  const veilcourtFetch = useCallback(async () => {
+    try {
+      const r = await fetch("/api/veilcourt/messages?since=" + chatLastIdRef.current);
+      if (!r.ok) return;
+      const data = await r.json();
+      if (Array.isArray(data.messages) && data.messages.length > 0) {
+        setChatMsgs(prev => {
+          const seen = new Set(prev.map(m => m.id));
+          const fresh = data.messages.filter(m => !seen.has(m.id));
+          if (fresh.length === 0) return prev;
+          return [...prev, ...fresh].slice(-100);
+        });
+        const incomingMaxId = data.messages.reduce((mx, m) => m.id > mx ? m.id : mx, 0);
+        const newLatest = Math.max(data.latestId || 0, incomingMaxId, chatLastIdRef.current);
+        chatLastIdRef.current = newLatest;
+        setChatLatestId(newLatest);
+        if (!chatOpen) {
+          const unread = data.messages.filter(m => m.playerId !== veilcourtId).length;
+          if (unread > 0) setChatUnread(u => Math.min(99, u + unread));
+        }
+      }
+      if (typeof data.online === "number") setChatOnline(data.online);
+    } catch (_) { /* offline; silent */ }
+  }, [chatOpen, veilcourtId]);
+
+  useEffect(() => {
+    if (["title", "create"].includes(scr)) return;
+    veilcourtFetch();
+    chatPollRef.current = setInterval(veilcourtFetch, chatOpen ? 3000 : 8000);
+    return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
+  }, [scr, chatOpen, veilcourtFetch]);
+
+  useEffect(() => {
+    if (chatOpen && chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [chatOpen, chatMsgs]);
+
+  const sendVeilcourtMessage = useCallback(async () => {
+    const text = chatDraft.trim();
+    if (!text || !pl) return;
+    setChatStatus("Sending…");
+    try {
+      const rk = getRank(pl.level);
+      const bm = pl.bloodmark ? getBM(pl.bloodmark) : null;
+      const cv = pl.covenant ? getCV(pl.covenant) : null;
+      const myCls = CLS.find(c => c.id === (pl.cid || cls?.id));
+      const portraitFull = pl.portrait && isValidPortraitURL(pl.portrait) ? pl.portrait : classPortraitUrl(pl.cid || cls?.id, pl.sex);
+      const r = await fetch("/api/veilcourt/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerId: veilcourtId,
+          name: (pl.name || "Sorcerer").slice(0, 24),
+          text,
+          classId: pl.cid || myCls?.id || null,
+          className: myCls?.nm || null,
+          classColor: myCls?.cl || null,
+          sex: pl.sex || null,
+          portrait: portraitFull,
+          rank: rk?.nm || null,
+          bloodmark: bm?.nm || null,
+          covenant: cv?.nm || null,
+        }),
+      });
+      if (r.status === 429) {
+        const data = await r.json().catch(() => ({}));
+        setChatStatus(data.error || "Slow down…");
+        setTimeout(() => setChatStatus(""), 1500);
+        return;
+      }
+      if (!r.ok) {
+        setChatStatus("Send failed.");
+        setTimeout(() => setChatStatus(""), 1500);
+        return;
+      }
+      setChatDraft("");
+      setChatStatus("");
+      veilcourtFetch();
+    } catch (_) {
+      setChatStatus("Veil unreachable.");
+      setTimeout(() => setChatStatus(""), 1800);
+    }
+  }, [chatDraft, pl, cls, veilcourtId, veilcourtFetch]);
+
+  const openVeilcourt = useCallback(() => { setChatOpen(true); setChatUnread(0); }, []);
+
+  const chatEl = chatOpen && pl ? (
+    <div>
+      <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(2,4,12,0.78)", backdropFilter: "blur(3px)" }} onClick={() => setChatOpen(false)} />
+      <div className="veilcourt-modal" onClick={e => e.stopPropagation()}>
+        <div className="veilcourt-header">
+          <div className="veilcourt-title">
+            <span className="veilcourt-icon">🜂</span>
+            <div>
+              <div className="veilcourt-name">The Veilcourt</div>
+              <div className="veilcourt-sub">Global scrying · {chatOnline} active sorcerer{chatOnline === 1 ? "" : "s"}</div>
+            </div>
+          </div>
+          <button className="bt bs veilcourt-close" onClick={() => setChatOpen(false)}>✕</button>
+        </div>
+        <div className="veilcourt-log" ref={chatLogRef}>
+          {chatMsgs.length === 0 && <div className="veilcourt-empty">The basin is silent. Be the first voice across the rift.</div>}
+          {chatMsgs.map(m => {
+            const mine = m.playerId === veilcourtId;
+            const isSystem = m.channel === "system";
+            const portraitSrc = m.portrait && /^(https?:|data:image\/)/i.test(m.portrait) ? m.portrait : (m.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + m.classId + (m.sex === "female" ? "_f" : "") + ".png") : null);
+            return (
+              <div key={m.id} className={"veilcourt-msg" + (mine ? " is-mine" : "") + (isSystem ? " is-system" : "")}>
+                <div className="veilcourt-portrait" style={{ borderColor: m.classColor || (isSystem ? "#d4ad40" : "#7a89c2") }}>
+                  {portraitSrc ? <img src={portraitSrc} alt="" onError={e => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; if (m.classId) t.src = (import.meta.env.BASE_URL || "/") + "class/" + m.classId + ".png"; else t.style.display = "none"; } else { t.style.display = "none"; } } catch (_) {} }} /> : <span className="veilcourt-portrait-fallback">{isSystem ? "🜂" : "✦"}</span>}
+                </div>
+                <div className="veilcourt-bubble">
+                  <div className="veilcourt-meta">
+                    <span className="veilcourt-author" style={{ color: m.classColor || (isSystem ? "#d4ad40" : "#e8eeff") }}>{m.name}</span>
+                    {m.className && <span className="veilcourt-tag" style={{ color: m.classColor || "#cfd6ee", borderColor: (m.classColor || "#7a89c2") + "55" }}>{m.className}</span>}
+                    {m.rank && <span className="veilcourt-tag">{m.rank}</span>}
+                    {m.covenant && <span className="veilcourt-tag" style={{ color: "#ffd77a", borderColor: "rgba(212,173,64,0.45)" }}>🏛 {m.covenant}</span>}
+                    {m.bloodmark && <span className="veilcourt-tag" style={{ color: "#c2a8ff", borderColor: "rgba(160,120,220,0.45)" }}>✦ {m.bloodmark}</span>}
+                  </div>
+                  <div className="veilcourt-text">{m.text}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="veilcourt-composer">
+          <div className="veilcourt-self">
+            <div className="veilcourt-portrait sm" style={{ borderColor: cls?.cl || "#d4ad40" }}>
+              {playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)}
+            </div>
+            <div className="veilcourt-self-meta">
+              <div className="veilcourt-self-name" style={{ color: cls?.cl || "#e8eeff" }}>{pl.name}</div>
+              <div className="veilcourt-self-sub">Speaking as {cls?.nm}{pl.covenant ? " · " + (getCV(pl.covenant)?.nm || "") : ""}</div>
+            </div>
+          </div>
+          <div className="veilcourt-input-row">
+            <input
+              type="text"
+              className="veilcourt-input"
+              maxLength={280}
+              placeholder="Speak across the veil…"
+              value={chatDraft}
+              onChange={e => setChatDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendVeilcourtMessage(); } }}
+            />
+            <button className="bt veilcourt-send" disabled={!chatDraft.trim()} onClick={sendVeilcourtMessage}>Send</button>
+          </div>
+          <div className="veilcourt-status">
+            <span>{chatDraft.length}/280</span>
+            {chatStatus && <span className="veilcourt-status-msg">{chatStatus}</span>}
+            <span className="veilcourt-hint">Enter to send · accessible anywhere via 💬</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   const popupEl = popup ? <div><div style={{ position: "fixed", inset: 0, zIndex: 1001, background: "rgba(0,0,0,0.65)" }} onClick={() => { if (!popup.choices && !popupJustOpenedRef.current) setPopup(null); }} onTouchStart={(ev) => { if (!popup.choices && !popupJustOpenedRef.current) { ev.stopPropagation(); setPopup(null); } }} /><div className="popup-modal" style={popup.fullscreen ? { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", borderRadius: 10, padding: 14, zIndex: 1002, maxWidth: 360, width: "88%", maxHeight: "72vh", overflowY: "auto", overflowX: "hidden" } : { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", borderRadius: 10, padding: 16, zIndex: 1002, maxWidth: 340, width: "90%" }} onClick={e => e.stopPropagation()}>
     {popup.title ? <div className="popup-title" style={{ fontSize: popup.fullscreen ? 14 : 12, fontWeight: 800, textAlign: "center", marginBottom: 10 }}>{popup.title}</div> : null}
     <div className="popup-body" style={{ fontSize: popup.fullscreen ? 13 : 12, marginBottom: 10, lineHeight: 1.5, whiteSpace: "normal", display: "flex", justifyContent: "center", width: "100%" }}>{popup.node ? <div style={{ width: "100%", minWidth: 0 }}>{popup.node}</div> : renderPopupText(popup.text)}</div>
@@ -5791,6 +5972,7 @@ const buildGroupedBattleLog = (entries) => {
       {pl.efx && pl.efx.length > 0 && <div style={{ display: "flex", gap: 2, marginTop: 4, flexWrap: "wrap" }}>{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}<details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", fontSize: 8, color: "#9fd6ff" }}>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
       {scr !== "battle" && <div className="hud-quick-nav" style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         {[["📊","stats"],["🎒","items"],["📖","spells"],["📜","story"],["📘","manual"],["☰","menu"]].map(([i, s]) => <button key={s} className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(sub === s ? null : s)}>{i}</button>)}
+        <button className="bt bs hud-veilcourt-btn" style={{ background: "linear-gradient(160deg,#1a2860,#0e1a38)", color: "#f5e8b8", border: "1px solid rgba(212,173,64,0.55)", position: "relative" }} onClick={openVeilcourt} title="The Veilcourt — global chat">💬{chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>}</button>
       </div>}
     </div>
   ) : null;
@@ -5935,7 +6117,7 @@ const buildGroupedBattleLog = (entries) => {
 
   // SUB-SCREENS
   if (sub) return (
-    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{hud}<div className="cd page-panel">
+    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{hud}<div className="cd page-panel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>{sub === "items" ? "🎒 Equipment" : sub === "spells" ? "📖 Veil Archive" : sub === "stats" ? "📊 Stats" : sub === "story" ? "📜 Story" : sub === "manual" ? "📘 Game Manual" : "☰ Menu"}</div><button className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(null)}>←</button></div>
       {sub === "skills" && <div className="sb-panel"><div className="sb-title">Veil Archive</div><div className="sb-kv sb-muted">Veil Magic management has been folded into Veil Archive. Use that page for active Veil Magic, passive selection, and Veil Expansion management.</div><button className="bt bs" style={{ background: T.gd, marginTop: 6 }} onClick={() => setSub("spells")}>Open Veil Archive</button></div>}
 {sub === "items" && (() => {
@@ -6510,7 +6692,7 @@ const buildGroupedBattleLog = (entries) => {
     })();
 
     return (
-      <div className="pg map-bg"><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{hud}
+      <div className="pg map-bg"><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
           <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
           <div style={{ display: "flex", gap: 3, marginBottom: 4, flexWrap: "wrap" }}>
@@ -6586,7 +6768,7 @@ const buildGroupedBattleLog = (entries) => {
       <div className="pg battle-bg">
         <div className="battle-arena-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}${(btl.type === "rift" || btl.type === "boss" || btl.type === "fieldboss") ? "battle-rift.png" : (btl.type === "wild" || btl.type === "beast") ? "battle-forest.png" : "battle-arena.png"}')` }} />
         <div className="battle-arena-veil" />
-        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}
+        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
@@ -6866,7 +7048,7 @@ const buildGroupedBattleLog = (entries) => {
     const bossStatus = !bossTile ? "None" : sm.bossAlive ? (remainingEncounters > 0 ? "Locked" : "Ready") : "Defeated";
     const smBg = isRift ? "linear-gradient(180deg, rgba(50,18,78,0.98), rgba(12,8,28,0.98))" : "linear-gradient(180deg, rgba(66,33,16,0.98), rgba(20,12,8,0.98))";
     return (
-      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{hud}
+      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd" style={{ padding: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <div><div style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: isRift ? "#9c27b0" : T.bad }}>{isRift ? "🌀" : "⛺"} {sm.name}</div><div style={{ fontSize: 9, color: T.dm }}>{sm.type === "hostile" ? "Outpost" : "Dimensional Rift"} · ({sm.pos.x},{sm.pos.y})</div></div>
@@ -6957,7 +7139,7 @@ const buildGroupedBattleLog = (entries) => {
     ].map(s => ({ ...s, cat: SVC_CAT[s.id] || "mystic" }));
 
     return (
-      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{hud}<div className="cd page-panel">
+      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{hud}<div className="cd page-panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 16, color: T.gd }}>🏘️ {tn}</div>
           <button className="bt bs" style={{ background: T.ac }} onClick={() => { setSvc(null); setScr("map"); }}>Leave</button>

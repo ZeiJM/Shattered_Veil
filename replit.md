@@ -104,6 +104,44 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## The Veilcourt — global chat (v38)
+
+First real multiplayer-aware system. Lore framing: a shared scrying basin where sorcerers commune across the rift — accessible **anywhere** (not gated to towns like NinjaRPG's Tavern). Persistent messaging via the api-server, no auth required.
+
+### Backend (`artifacts/api-server/src/routes/veilcourt.ts`)
+
+- `GET  /api/veilcourt/messages?since=<id>` — returns `{ messages, latestId, online }` for messages newer than `since`. Last 100 only.
+- `POST /api/veilcourt/messages` — accepts `{ playerId, name, text, classId, className, classColor, sex, portrait, rank, bloodmark, covenant }` validated by zod. Sanitizes control chars, enforces 280 char text / 24 char name caps.
+- **In-memory ring buffer** of last 200 messages. No DB yet — wipes on server restart. Easy upgrade path to drizzle/postgres when persistence matters.
+- **Rate limit**: 1.5s between sends per `playerId`. Returns 429 with friendly error.
+- **Online count**: tracked via `lastSendByPlayer` Map; pruned to entries newer than 30 min when it grows beyond 500.
+- Seeded with one welcome system message on startup ("The scrying basin stirs…").
+- `zod` added as runtime dep (`catalog:` version).
+
+### Frontend (`artifacts/shattered-veil/src/Game.jsx`)
+
+- **HUD button** `💬` appended to `.hud-quick-nav` (~line 5977). Navy gradient with gold border. Shows red animated `.hud-veilcourt-badge` with unread count when chat is closed.
+- **Stable identity**: `veilcourtId` stored in `localStorage["sv_chat_id"]` — survives deaths, successions, and character swaps so other players consistently recognize you.
+- **State**: `chatOpen`, `chatMsgs`, `chatLatestId`, `chatDraft`, `chatStatus`, `chatOnline`, `chatUnread` + refs (`chatLogRef`, `chatPollRef`, `chatLastIdRef`).
+- **Polling**: 8s when modal closed (passive unread badge), 3s when open (live feel). Stops on title/create screens. Silent-fails when offline (game stays playable).
+- **Send payload** packs the player's name, class id/name/color, sex, portrait URL (custom if set, else `classPortraitUrl(cid, sex)`), rank, bloodmark, covenant — so other clients render the full identity card without a profile lookup.
+- **Modal** (`.veilcourt-modal`) — fixed-position 560×720 max card with three regions:
+  - **Header** with the 🜂 sigil, "The Veilcourt" Cinzel title, online count, gold-to-crimson hairline divider.
+  - **Log** — flex column of `.veilcourt-msg`. Each message renders a **56×56 portrait** (the user's actual class png with female/male variant + `_f` fallback chain, or custom portrait if they set one) next to a parchment-on-navy bubble with class-colored author name, class tag, rank tag, covenant tag (gold), bloodmark tag (violet). Own messages flip to row-reverse for chat-app feel. System messages get a warm amber bubble + italic text.
+  - **Composer** — own portrait + name/class line at top (so the player sees how others see them), then input + gold "Send" button. Status row shows char count, send errors, and the Enter-to-send hint.
+- **Render integration**: `chatEl` JSX added next to every `{popupEl}` mount (5 sites: shell, map, battle viewport, outpost/rift, town) via a single sed pass.
+
+### Why "The Veilcourt" (not Tavern)
+
+NinjaRPG's Tavern locks chat to physical village locations, which forces immersion-breaking travel just to talk. The Veilcourt is **always-on** because in-fiction it's a magical broadcast (the veil itself), not a building. This also keeps the game pleasant for players in solo dungeons / rifts who want to chat between fights. Lore hook for future: covenant-only sub-channels, whisper, and a higher-tier "Domain" channel only Wardens+ can speak in.
+
+### Future (not built yet)
+
+- DB persistence (drizzle + postgres) — current ring buffer is fine for low-traffic launch, swap when sessions need to outlive deploys.
+- Optional moderation queue / report flag on each message.
+- Per-covenant private channels (the data model already carries `covenant`).
+- WebSocket upgrade — polling is honest for now (3s feels alive without a socket layer).
+
 ## Color polish pass (v37)
 
 Focused, additive polish on the highest-traffic non-battle screens. No identity change — still parchment+navy+crimson. All new rules live in a single `v37 — COLOR POLISH PASS` block at the end of `game.css` (~line 1370+).
