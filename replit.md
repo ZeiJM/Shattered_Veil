@@ -158,6 +158,46 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
+## v41 — Background music (Chrono Trigger flavor)
+
+Procedural chiptune-style music engine. **No external assets, no licensing concerns** — entirely synthesized via the Web Audio API at runtime. Four hand-written looping tracks (title, travel, battle, town), each in the SNES JRPG mold.
+
+### `artifacts/shattered-veil/src/music.js`
+
+Self-contained module exporting `createMusicPlayer()` and `trackForScreen(scr)`.
+
+- **Note frequency table** — equal-tempered A4=440 from C2 to C6, including all sharps used by the four tracks.
+- **`scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain)`** — schedules one oscillator note with a soft chiptune ADSR (12 ms attack, gentle decay, ramp-down release). Used by every melodic part.
+- **`scheduleKick(ctx, dest, startT, peakGain)`** — pitched-down sine sweep (140 Hz → 45 Hz over 100 ms) for the battle track's kick drum.
+- **Track data** — each track is `{ bpm, bars, instruments[], drumPattern? }`. Each instrument is `{ type, gain, detune, pattern }` where pattern is `[["NOTE", beats], ...]`. `null` notes = rests. Lead uses `square` (bright NES-ish), counter-melody/pads use `sine` or `sawtooth`, bass uses `triangle` (soft, SNES-ish).
+- **`createMusicPlayer()`** returns `{ play(track), stop(), setMuted(m), isMuted(), currentTrack() }`.
+  - Lazy-creates AudioContext on first `play()` (browser autoplay rules).
+  - Schedules one full loop ahead, then re-arms via `setTimeout` 300 ms before loop end. Smooth seamless looping.
+  - Mute persists in `localStorage["sv_music_muted"]`.
+  - `play(null)` is a no-op so transitional screens (stats, equip, story) don't interrupt music.
+- **`trackForScreen(scr)`** maps: `title`/`create` → title, `battle` → battle, `town` → town, `map`/`submap` → travel, anything else → `null` (keeps current track).
+
+### Track design (Chrono Trigger nods)
+
+- **Title (70 BPM, A minor)** — slow Aeolian progression `Am - F - G - Em` over 8 bars. Triangle lead with sustained 2-beat notes, sine pad on chord 3rd/5th, triangle bass alternating root/fifth. Atmospheric & contemplative — kin to "Schala's Theme" / the Chrono Trigger main intro.
+- **Travel (116 BPM, C major)** — bright `C - G - Am - F` (the eternal classic). Square lead with 8th-note arpeggios + a held melodic phrase per bar, walking triangle bass on quarters. Hopeful adventure — "Wind Scene" energy.
+- **Battle (144 BPM, E minor)** — driving `Em - C - D - B7`. Square lead with rhythmic 8ths and a longer phrase per 2-bar chord, sawtooth counter-melody at -7 cents detune for grit, pulsing 8th-note triangle bass alternating root + fifth + octave-up, and a kick on every beat. Tense but climbable.
+- **Town (92 BPM, F major)** — warm `F - C - G - Am`. Triangle lead with a lilting melodic phrase per chord, sine pad, triangle bass arpeggiating root → fifth → octave → third. Cozy & inviting — "Peaceful Days" feel.
+
+### Game.jsx integration
+
+- Single `useRef(createMusicPlayer())` lives at the top of `Game()` (~line 3024).
+- Two `useEffect`s: one registers a one-shot `pointerdown`/`keydown` listener that resumes the AudioContext on first user interaction; another swaps tracks whenever `scr` changes.
+- HUD gets a `🎵`/`🔇` toggle next to the Veilcourt button (~line 6079). Mute persists across sessions.
+- Audio is gated behind first user gesture per browser autoplay policy — title music begins the moment the user clicks anywhere on the title screen (which they will, to enter the rift).
+
+### Future
+
+- Per-encounter battle variant (boss vs wild) — easy: add `boss` track and route via `btl.type` in `trackForScreen`.
+- Volume slider in the menu sub-panel — engine already exposes a `volume` constant and ramps cleanly.
+- Custom track for the Veilcourt modal (mystic ambient pad).
+- Layered intensity (e.g. add a tom layer when player HP < 30%) — the scheduling model supports stacking instruments mid-loop.
+
 ## v40 — Positional combat + viewport fit
 
 Two big asks landed in one pass:

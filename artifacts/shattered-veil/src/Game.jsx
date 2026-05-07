@@ -3013,8 +3013,46 @@ function mkMap() {
 // ═══════════════════════════════════
 // MAIN GAME COMPONENT
 // ═══════════════════════════════════
+import { createMusicPlayer, trackForScreen } from "./music.js";
+
 function Game() {
   const [scr, setScr] = useState("title");
+  // ── v41 background music ──────────────────────────────────────────
+  // Lazy-init via useState to be StrictMode/concurrent-render safe
+  // (guarantees a single AudioContext even with double-invoke renders).
+  const [music] = useState(() => createMusicPlayer());
+  const musicRef = useRef(music);
+  const [musicMuted, setMusicMuted] = useState(() => music.isMuted());
+  // First user interaction unlocks the AudioContext (browser autoplay policy)
+  useEffect(() => {
+    const unlock = () => {
+      const t = trackForScreen(scr);
+      if (t) musicRef.current.play(t);
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Swap track on screen change
+  useEffect(() => {
+    const t = trackForScreen(scr);
+    if (t) musicRef.current.play(t);
+  }, [scr]);
+  const toggleMusicMute = useCallback(() => {
+    const next = !musicRef.current.isMuted();
+    musicRef.current.setMuted(next);
+    setMusicMuted(next);
+    if (!next) {
+      // Re-arm playback if we just unmuted (in case the loop had no audible tail)
+      const t = trackForScreen(scr);
+      if (t) musicRef.current.play(t);
+    }
+  }, [scr]);
   const [mode, setMode] = useState("single");
   const [pl, setPl] = useState(null);
   const [gold, setGold] = useState(100);
@@ -6037,6 +6075,7 @@ const buildGroupedBattleLog = (entries) => {
       {scr !== "battle" && <div className="hud-quick-nav" style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         {[["📊","stats"],["🎒","items"],["📖","spells"],["📜","story"],["📘","manual"],["☰","menu"]].map(([i, s]) => <button key={s} className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(sub === s ? null : s)}>{i}</button>)}
         <button className="bt bs hud-veilcourt-btn" style={{ background: "linear-gradient(160deg,#1a2860,#0e1a38)", color: "#f5e8b8", border: "1px solid rgba(212,173,64,0.55)", position: "relative" }} onClick={openVeilcourt} title="The Veilcourt — global chat">💬{chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>}</button>
+        <button className="bt bs" style={{ background: "linear-gradient(160deg,#1a2860,#0e1a38)", color: "#f5e8b8", border: "1px solid rgba(212,173,64,0.55)" }} onClick={toggleMusicMute} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? "🔇" : "🎵"}</button>
       </div>}
     </div>
   ) : null;
