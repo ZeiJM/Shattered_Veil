@@ -158,6 +158,39 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
+## v40 — Positional combat + viewport fit
+
+Two big asks landed in one pass:
+
+### Positional combat (battle)
+
+Builds on v31's visual lane bar — now real tactical mechanics. Lanes 0-2 are the player/ally side (Vanguard / Front / Mid), 3-4 are the enemy side (Skirmish / Backline). Player default `pos = 1` (Front), pet drops on Vanguard, ally lands behind. Enemies seed at `pos: 3` (first 2) and `pos: 4` (rest) in `startBattle` (~line 4348).
+
+- **Battle state** carries `plPos` and `moved` (one free move per turn). Reset to `false` whenever turn flips back to player — handled in `previewBattleState` (~line 5083) + the timer-skip setBtl (~line 3544).
+- **`actionRange(act, idx)` helper** (~line 4374) returns 1 for melee (plain weapon strike, Null-element physical skill) or 4 for any ranged/elemental/AoE/copy/ult/heal/buff. Auto-derived from existing skill data — no per-skill annotation needed.
+- **`bMove(toLane)` helper** (~line 4391) — repositions the player to lanes 0-2, sets `moved: true`, doesn't end turn.
+- **Range gate** in `bAct` (~line 4406): if a melee strike/w2/skill is selected with distance > range, log "Out of range — move closer or use a ranged ability." and abort. Copy + ult are never gated (story/forbidden magic always reaches).
+- **Distance damage modifier** (~line 4420) multiplies `encounterProfile.playerDamage` once at the top of bAct: `+10%` point-blank when range 1 + distance 1 ("Point-blank" log line), `+12%` long-shot when range ≥ 4 + distance ≥ 3 ("Long-shot" log line). Cleanly threads through every existing damage path because they all read from `encounterProfile.playerDamage`.
+- **Lane bar UI** (~line 6838) now uses real `plPos` + foe `pos`. Allied lanes 0-2 are clickable to move when `!btl.moved`; foe tokens click to set target. Player-current lane gets a cyan glow (`.lane-player-here`); clickable lanes get a gold hover lift (`.battle-lane-tile.lane-clickable`).
+- **`.battle-range-readout` strip** below the lane bar shows current lane, target name + distance, contextual point-blank/long-shot bonus chips, and move-availability status.
+
+**Scope honest:** enemies don't move and are always treated as in-range for their own attacks. Adding enemy AI movement is the next focused round — current change touches only the player turn so the existing combat flow is unaffected.
+
+### Fit-to-viewport pass
+
+Goal: every screen fits 100dvh with no page-level scrolling. Achieved via a single appended CSS block (`v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS` at end of `game.css`, ~line 1782+):
+
+- `html, body, #root { overflow: hidden }` + `.pg { height: 100dvh; max-height: 100dvh; overflow: hidden }`.
+- All wrapper variants (`.shell-bg .wr`, `.town-bg .wr`, `.map-bg .wr`, `.outpost-bg .wr`, `.rift-bg .wr`) become flex-column, viewport-locked containers. Their child `.cd.page-panel` is the internal scroller (`flex: 1; overflow-y: auto; min-height: 0`).
+- `.battle-bg .wr.battle-viewport` switches from `min-height: 100vh` to `height: 100dvh` — battle log, action card, lane bar all share the screen via flex sizing.
+- Town `.svc-grid` tightened to `minmax(72px, 1fr)` columns + smaller padding/icon so all 12+ services fit without scrolling.
+- `.title-bg .wr / .create-bg .wr` keep `overflow-y: auto` as a fallback so character creation still works on tiny viewports.
+- `@media (max-height: 720px)` compresses battle padding/lane height further for laptops.
+
+### Future PvP hook for positional combat
+
+The new `pos`, `plPos`, `moved`, and `actionRange` are all serializable + deterministic — drop them into the eventual server payload `{ class, stats, skills, bloodmark, pos, plPos }` and the existing battle engine becomes PvP-ready without further refactor.
+
 ## Crossfade portraits + Sien Risetsu rework (v39)
 
 - **`CrossfadePortrait` helper** (~line 3050, inside `Game`) — layered portrait component used for the M/F preview rotation in Forge Your Hero. Renders both the male and female pngs absolutely-positioned in the same wrapper, toggles `opacity` (480ms ease) instead of swapping `src` via React `key`. Result: gentle dissolve instead of a hard cut. Three sites use it: class-pick thumbnails (~6048), Identity preview card (~6091), custom-portrait fallback bg (~6120). Female `onError` auto-falls back to the male png via the same `data-sex`/`data-fb` pattern as `playerAvatar`.

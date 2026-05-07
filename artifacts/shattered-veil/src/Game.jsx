@@ -3538,7 +3538,7 @@ function Game() {
     if (!skipEf) return;
     setLog(l => [...l, "⚡ " + pl.name + " can't move!"]);
     setPl(p => p ? ({ ...p, efx: (p.efx || []).map(ef => ef.id === skipEf.id ? { ...ef, justApplied:false } : ef) }) : p);
-    setBtl(bb => bb ? ({ ...bb, turn: "e", tn: bb.tn + 1 }) : bb);
+    setBtl(bb => bb ? ({ ...bb, turn: "e", tn: bb.tn + 1, moved: false }) : bb);
   }, [scr, btl?.turn, btl?.tn, pl]);
 
   // Natural HP/MP regen / drowning drain
@@ -4342,7 +4342,8 @@ function Game() {
     const tunedEnemies = (enemies || []).slice(0, 4).map(e => normalizeEnemyForBattle(e, battleType, pl?.level || 1));
     const prep = applyBattleStartPassive(pl, tunedEnemies);
     setPl(p => ({...prep.player, efx: prep.player.efx || [], lowHpBarrierUsed: false}));
-    setBtl({ en: prep.enemies, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
+    const enemiesWithPos = prep.enemies.map((e, i) => ({ ...e, pos: i < 2 ? 3 : 4 }));
+    setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
     setBattleBonus(null);
     setBtlPanel(null);
     setBtlTarget(prep.enemies.find(e => e.hp > 0)?.id || null);
@@ -4364,17 +4365,66 @@ function Game() {
     executeMult: role === "damage" ? 1.16 : 1,
   });
 
+  // ── v40 positional combat helpers ─────────────────────────────────
+  // Lanes: 0=Vanguard, 1=Front, 2=Mid, 3=Skirmish, 4=Backline.
+  // Player + allies live in 0–2, foes in 3–4. Lane 2 is the contested middle.
+  const actionRange = useCallback((act, idx) => {
+    if (act === "strike") {
+      const w = eq.w1 || eq.w2;
+      return (w && w.el && w.el !== "Null") ? 4 : 1;
+    }
+    if (act === "w2") return (eq.w2 && eq.w2.el && eq.w2.el !== "Null") ? 4 : 1;
+    if (act === "skill") {
+      const list = pl ? pl.skills.filter(s => s.equipped && s.unlocked) : [];
+      const sk = list[idx];
+      if (!sk) return 4;
+      if (sk.aoe) return 4;
+      if (sk.t !== "damage") return 4;
+      return (sk.el && sk.el !== "Null") ? 4 : 1;
+    }
+    return 4; // copy / ult / mend / guard / items / aux all reach any lane
+  }, [eq, pl]);
+
+  const bMove = useCallback((toLane) => {
+    if (!btl || btl.turn !== "p" || btl.moved) return;
+    if (toLane < 0 || toLane > 2) return;
+    if (toLane === (btl.plPos ?? 1)) return;
+    const laneNm = ["Vanguard","Front","Mid"][toLane] || "lane " + toLane;
+    setBtl(b => b ? ({ ...b, plPos: toLane, moved: true }) : b);
+    setLog(l => [...l, "PLAYER|› Repositioned to " + laneNm + "."]);
+  }, [btl]);
+
   const bAct = useCallback((act, idx) => {
     if (!btl || btl.turn !== "p") return;
     let np = { ...pl }, en = btl.en.map(e => ({ ...e, efx: [...e.efx] }));
     const st = effSt(np), tgt = (btlTarget ? en.find(e => e.id === btlTarget && e.hp > 0) : null) || en.find(e => e.hp > 0);
     if (!tgt) return;
+    // ── v40 positional combat: range gate + distance damage modifier ──
+    if (["strike","w2","skill","copy","ult"].includes(act) && tgt) {
+      const _r = actionRange(act, idx);
+      const _d = Math.abs((btl.plPos ?? 1) - (tgt.pos ?? 3));
+      if (_r < _d && (act === "strike" || act === "w2" || act === "skill")) {
+        setLog(l => [...l, "PLAYER|› Out of range — move closer or use a ranged ability."]);
+        return;
+      }
+    }
     const wornArmor = [eq.helm, eq.body, eq.glv, eq.boot].filter(Boolean);
     const armorCritChance = wornArmor.reduce((sum, a) => sum + (gearHas(a, 'crit_boost') ? 0.08 : 0), 0);
     const armorLuckDodge = wornArmor.reduce((sum, a) => sum + (gearHas(a, 'lck_boost') ? 0.05 : 0), 0);
     let lg = [], ch = [...btl.chain];
     const eqSk = np.skills.filter(s => s.equipped && s.unlocked);
     const encounterProfile = battleProfile(btl.type);
+    // v40: distance modifier — point-blank melee + long-shot magic.
+    // Safe to mutate: battleProfile() returns a fresh {...base} per call,
+    // and playerDamage is a primitive — mutation does NOT leak into BATTLE_PROFILES.
+    {
+      const _r = actionRange(act, idx);
+      const _d = Math.abs((btl.plPos ?? 1) - (tgt.pos ?? 3));
+      let _distMult = 1;
+      if (_r === 1 && _d === 1) { _distMult = 1.10; lg.push("⚡ Point-blank +10%"); }
+      else if (_r >= 4 && _d >= 3) { _distMult = 1.12; lg.push("🎯 Long-shot +12%"); }
+      encounterProfile.playerDamage = encounterProfile.playerDamage * _distMult;
+    }
     let nextInteractionState = { ...(btl.interactionState || {}) };
     if (!Array.isArray(nextInteractionState.freezeAppliedIds)) nextInteractionState.freezeAppliedIds = [];
     if (!Array.isArray(nextInteractionState.usedElements)) nextInteractionState.usedElements = [];
@@ -5076,7 +5126,7 @@ function Game() {
     const resolvedLastSkillEl = act === "skill" ? eqSk[idx]?.el : (act === "copy" ? (copied?.el || btl.lastSkillEl) : (act === "mend" ? "Null" : btl.lastSkillEl));
     const resolvedLastSkillType = act === "skill" ? eqSk[idx]?.t : (act === "guard" ? "guard" : act === "strike" ? "strike" : act === "mend" ? "heal" : act === "copy" ? (copied?.t || "copy") : btl.lastSkillType);
     const previewTarget = (tgt && tgt.hp > 0 ? tgt : en.find(e => e.hp > 0)) || null;
-    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1 };
+    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1, moved: false };
     const nextReadyList = getReadyInteractions(np.inter, previewBattleState, previewTarget).filter(ai => ai.isReady);
     nextInteractionState.readyKeys = nextReadyList.map(ai => String(ai.k || "").toLowerCase());
     nextReadyList.forEach(ai => {
@@ -6786,24 +6836,52 @@ const buildGroupedBattleLog = (entries) => {
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
-          const allyTokens = [{ k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, sex: pl?.sex, cls: "ally" }]
-            .concat((pet && (pet.chp ?? pet.hp ?? 0) > 0) ? [{ k: "pet", ic: pet.ic || "🐾", cls: "ally" }] : [])
-            .concat((ally && ally.hp > 0) ? [{ k: "ally", ic: ally.ic || "🤝", cls: "ally" }] : []);
+          // v40: positional combat. Player lane = btl.plPos; allies fill nearby allied lanes; foes use their pos.
+          const plLane = btl.plPos ?? 1;
+          const playerTok = { k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, sex: pl?.sex, cls: "ally" };
+          const petTok = (pet && (pet.chp ?? pet.hp ?? 0) > 0) ? { k: "pet", ic: pet.ic || "🐾", cls: "ally" } : null;
+          const allyTok = (ally && ally.hp > 0) ? { k: "ally", ic: ally.ic || "🤝", cls: "ally" } : null;
+          // Place pet & ally on the Vanguard if player is on Front/Mid, else just behind player.
+          const petLane = petTok ? (plLane === 0 ? 1 : 0) : -1;
+          const allyLane = allyTok ? (plLane === 0 ? 2 : (petLane === 0 ? (plLane === 1 ? 2 : 1) : 0)) : -1;
+          const laneTokens = [[],[],[],[],[]];
+          laneTokens[plLane].push(playerTok);
+          if (petTok) laneTokens[Math.max(0, Math.min(2, petLane))].push(petTok);
+          if (allyTok) laneTokens[Math.max(0, Math.min(2, allyLane))].push(allyTok);
+          livingFoes.forEach(e => { const fp = Math.max(3, Math.min(4, e.pos ?? 3)); laneTokens[fp].push({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id, foePos: fp }); });
           const tiles = [
-            { label: "Vanguard", role: "lane-melee", tokens: [], hint: "Melee" },
-            { label: "Front",    role: "lane-melee", tokens: allyTokens, hint: "Adjacent" },
-            { label: "Mid",      role: "lane-mid",   tokens: [], hint: "Mid-range" },
-            { label: "Skirmish", role: "lane-far",   tokens: livingFoes.slice(0,2).map(e => ({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id })), hint: "Engaged" },
-            { label: "Backline", role: "lane-far",   tokens: livingFoes.slice(2).map(e => ({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id })), hint: "Far" },
+            { label: "Vanguard", role: "lane-melee" },
+            { label: "Front",    role: "lane-melee" },
+            { label: "Mid",      role: "lane-mid"   },
+            { label: "Skirmish", role: "lane-far"   },
+            { label: "Backline", role: "lane-far"   },
           ];
-          return <div className="battle-lane" title="Tactical positions — full movement & range modifiers coming next update">
-            {tiles.map((t, i) => <div key={i} className={"battle-lane-tile " + t.role}>
-              <div className="battle-lane-tokens">
-                {t.tokens.length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : t.tokens.map(tok => <div key={tok.k} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden" }}>{tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}</div>)}
-              </div>
-              <div className="battle-lane-label">{t.label}</div>
-            </div>)}
-          </div>;
+          const tgtFoe = btlTarget ? livingFoes.find(e => e.id === btlTarget) : null;
+          const tgtDist = tgtFoe ? Math.abs(plLane - (tgtFoe.pos ?? 3)) : null;
+          return <>
+            <div className="battle-lane" title="Click an allied lane (Vanguard / Front / Mid) to reposition. One free move per turn.">
+              {tiles.map((t, i) => {
+                const isAllyLane = i <= 2;
+                const isPlayerHere = i === plLane;
+                const canMove = isPT && !btl.moved && isAllyLane && !isPlayerHere;
+                return <div key={i}
+                  className={"battle-lane-tile " + t.role + (canMove ? " lane-clickable" : "") + (isPlayerHere ? " lane-player-here" : "")}
+                  onClick={canMove ? () => bMove(i) : undefined}>
+                  <div className="battle-lane-tokens">
+                    {laneTokens[i].length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : laneTokens[i].map(tok => <div key={tok.k} onClick={tok.cls === "foe" && tok.k && isPT ? (ev) => { ev.stopPropagation(); setBtlTarget(tok.k); } : undefined} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden", cursor: tok.cls === "foe" ? "pointer" : (canMove ? "pointer" : "default") }}>{tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}</div>)}
+                  </div>
+                  <div className="battle-lane-label">{t.label}</div>
+                </div>;
+              })}
+            </div>
+            <div className="battle-range-readout">
+              <span>📍 Lane: <b>{["Vanguard","Front","Mid"][plLane] || "?"}</b></span>
+              {tgtFoe && <span>🎯 Target: <b>{tgtFoe.name}</b> (dist {tgtDist})</span>}
+              {tgtFoe && tgtDist === 1 && <span style={{ color: "#ffb066" }}>⚡ Point-blank bonus on melee</span>}
+              {tgtFoe && tgtDist >= 3 && <span style={{ color: "#88c5ff" }}>🎯 Long-shot bonus on magic</span>}
+              <span style={{ color: btl.moved ? "#9aa1b8" : "#ffd77a" }}>{btl.moved ? "✓ Moved this turn" : "↔ Move available"}</span>
+            </div>
+          </>;
         })()}
         <div className="battle-top-grid">
           <div className="battle-team-col">

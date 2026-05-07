@@ -1759,3 +1759,108 @@ html, body, #root {
   .veilcourt-modal { height: calc(100vh - 24px); }
   .veilcourt-portrait { width: 48px; height: 48px; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS
+   Lock every screen to 100dvh, scroll only inside content panels.
+   Enable lane click-to-move feedback for the new tactical combat.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── App shell: prevent body scroll ─────────────────────────── */
+html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
+
+/* ── Page container: cap to viewport ────────────────────────── */
+.pg { height: 100dvh; max-height: 100dvh; overflow: hidden; }
+
+/* ── World/town/outpost/rift wrappers: flex column, content scrolls inside .cd ── */
+.shell-bg .wr, .town-bg .wr, .map-bg .wr,
+.outpost-bg .wr, .rift-bg .wr {
+  height: 100dvh !important; max-height: 100dvh !important;
+  min-height: 0 !important;
+  display: flex; flex-direction: column;
+  padding: 6px 10px !important; gap: 4px;
+  overflow: hidden;
+}
+.shell-bg .wr > .cd, .town-bg .wr > .cd,
+.map-bg .wr > .cd, .outpost-bg .wr > .cd, .rift-bg .wr > .cd {
+  min-height: 0; flex-shrink: 0;
+}
+.shell-bg .wr > .cd.page-panel,
+.town-bg .wr > .cd.page-panel,
+.outpost-bg .wr > .cd:not(.feed-log-card),
+.rift-bg .wr > .cd:not(.feed-log-card) {
+  flex: 1 1 auto; overflow-y: auto; min-height: 0;
+}
+.feed-log-card { flex: 0 0 auto !important; }
+
+/* HUD must stay pinned, never scroll */
+.hud-shell { flex: 0 0 auto !important; }
+
+/* ── Title / Create: short padding, scroll only if device is tiny ── */
+.title-bg .wr, .create-bg .wr {
+  height: 100dvh !important; max-height: 100dvh !important;
+  min-height: 0 !important;
+  overflow-y: auto;
+  padding: 14px 16px !important;
+}
+
+/* ── Battle viewport: lock to screen, internal panels scroll ── */
+.battle-bg .wr.battle-viewport {
+  height: 100dvh !important; max-height: 100dvh !important;
+  min-height: 0 !important;
+  padding: 6px 10px 8px !important;
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.battle-bg .battle-top-grid { flex: 0 0 auto; margin-bottom: 4px !important; }
+.battle-bg .battle-info-card { flex: 0 0 auto; }
+.battle-bg .battle-lower-grid { flex: 1 1 auto; min-height: 0; margin-top: 4px !important; }
+.battle-bg .battle-main-stack,
+.battle-bg .battle-side-stack { min-height: 0; height: 100%; }
+.battle-bg .battle-actions-card { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.battle-bg .battle-log-card { max-height: 100% !important; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.battle-bg .battle-log-card .blog-sel { max-height: none !important; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* Tighter team rows so player+enemies+lane fit above the action card */
+.battle-bg .battle-team-col > div, .battle-bg .battle-enemy-col > div { min-height: 0 !important; }
+
+/* ── Town: tighter service grid so all 12+ tiles fit without scrolling ── */
+.svc-grid { grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)) !important; gap: 3px !important; }
+.svc-card { padding: 6px 3px !important; }
+.svc-card .svc-ic { font-size: 17px !important; }
+.svc-card .svc-nm { font-size: 8px !important; }
+
+/* ── Lane: click-to-move affordances (v40 positional combat) ── */
+.battle-lane-tile.lane-clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease; }
+.battle-lane-tile.lane-clickable:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212,173,64,0.55) !important;
+  box-shadow: 0 0 0 1px rgba(212,173,64,0.40), 0 0 14px rgba(212,173,64,0.30);
+  background: radial-gradient(ellipse at 50% 50%, rgba(212,173,64,0.18) 0%, rgba(28,22,12,0.55) 70%) !important;
+}
+.battle-lane-tile.lane-player-here {
+  border-color: rgba(120,200,255,0.65) !important;
+  box-shadow: 0 0 0 1px rgba(120,200,255,0.45), 0 0 12px rgba(120,200,255,0.30);
+}
+
+/* Tactical readout below the lane bar */
+.battle-range-readout {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 4px 10px; margin-bottom: 4px;
+  background: linear-gradient(180deg, rgba(14,22,52,0.75), rgba(8,14,30,0.85));
+  border: 1px solid rgba(212,173,64,0.20);
+  border-radius: 7px;
+  font-size: 9px; color: #c9d3ee;
+  font-family: 'Cinzel', serif; letter-spacing: 0.04em;
+}
+.battle-range-readout b { color: #f2c45c; font-weight: 700; }
+
+/* On very short screens, compress further */
+@media (max-height: 720px) {
+  .battle-bg .wr.battle-viewport { padding: 4px 8px 6px !important; gap: 3px !important; }
+  .battle-bg .battle-lane { padding: 4px 6px !important; margin-bottom: 3px !important; }
+  .battle-lane-tile { min-height: 38px !important; }
+  .battle-range-readout { padding: 3px 8px; font-size: 8px; }
+  .battle-bg .battle-section { padding: 4px !important; margin-top: 3px !important; }
+  .battle-bg .battle-action-grid { gap: 3px !important; }
+}
