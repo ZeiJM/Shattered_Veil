@@ -171,6 +171,13 @@ Compact appendix. All five rounds layered on the same battle loop without state-
 - Symmetric mirror of v44 on the enemy turn (~line 5331 area, immediately before `up.chp -= ed`). One roll per enemy attack: `enemyCritChance = min(0.20, (enemy.lck || enemy.lvl * 0.6) × 0.010)` — slightly tamer than the player cap (20% vs 25%) since enemies attack more often. On crit, `ed = floor(ed * 1.5)`, log `💥 Enemy critical!`, plays the `crit` SFX. Gated `ed > 0 && btl.type !== "train"` matching the existing damage-application condition.
 - No new state, no new fields — uses `enemy.lck` if present, otherwise derives a soft estimate from `enemy.lvl`. Pet/ally-targeted enemy hits skip the crit branch (those go through the separate ×0.7 path and don't read `ed` for the player's chp).
 
+### v46 — Layout compaction + swim icon + fish-while-swimming
+- **Swim icon**: replaced the bare 🏊 emoji on the map's player tile with a generated painted PNG (`public/swim-icon.png`). Layered as a full-cell `<img>` with `objectFit: cover` + cyan drop-shadow; preserves the existing custom-portrait overlay on top so player identity still reads through when in ocean tiles.
+- **Fishing while swimming**: previously the action button explicitly excluded ocean tiles (`!tile || tile.bio !== "ocean"`), so once you stepped into the water you couldn't cast. Now `canFish = nearOcean || onOcean` — the button shows "Fish" both adjacent to and standing in ocean, with the same cooldown countdown.
+- **World map vertical fit** (the actual fix for "can't scroll past the up arrow"): the map grid was uncapped and stretched to 500px square at full width, pushing the d-pad + status + log offscreen below the viewport (and `.pg` is `overflow: hidden` from v40). Capped via CSS to `min(46dvh, 360px)`, with a `@media (max-height: 720px)` step down to `min(40dvh, 300px)`. D-pad tiles 34→30px (28px on short screens), action bar (HP/MP/music) buttons shrunk to 24px tall single-line, log card maxHeight 132→96 (72 on short screens), legend pills 8→7px, status card padding tightened.
+- **Battle compaction**: lane tile min-height 38→36 on short screens, tokens 30→26→22px, action buttons min-height 38→32px, range readout font 9→8px, combat title 14→11px. Layered onto the v40 viewport-fit block.
+- All rules in a single appended `v46 — WORLD + BATTLE LAYOUT COMPACTION PASS` block at end of `game.css`. JSX touched only at the swim icon line (~6915) and the action button (~6921, wrapped in IIFE for the new `canFish` derived value).
+
 ### Future combat hooks (queued, not built)
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
 - Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).

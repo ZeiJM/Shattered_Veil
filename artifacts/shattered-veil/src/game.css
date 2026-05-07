@@ -1864,3 +1864,87 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-section { padding: 4px !important; margin-top: 3px !important; }
   .battle-bg .battle-action-grid { gap: 3px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v46 — WORLD + BATTLE LAYOUT COMPACTION PASS
+   Goal: every screen fits 100dvh without losing any control. Cap the world
+   map grid (was uncapped → pushed everything else offscreen), shrink the
+   action bar, tighten battle internals beyond the v40 first pass.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── World map: cap grid height so nav, status, log all stay visible ── */
+.map-bg .page-panel { padding: 6px 10px !important; gap: 4px; display: flex; flex-direction: column; }
+.map-bg .battle-world-grid {
+  /* Was uncapped (stretched to 500px square at full width). Now bounded by
+     viewport height — the map fits between header (~24px) + action bar (~30px)
+     and the nav grid (~96px) + status (~30px) + log (~100px). */
+  max-height: min(46dvh, 360px) !important;
+  width: auto !important;
+  max-width: min(46dvh, 360px) !important;
+  margin: 2px auto 4px !important;
+  aspect-ratio: 1 / 1;
+}
+.map-bg .map-top-head { margin-bottom: 2px !important; }
+.map-bg .map-top-head .map-heading { font-size: 13px !important; }
+.map-bg .map-coords { font-size: 9px !important; }
+
+/* World action bar (HP/MP/music): smaller pills so they never wrap past one row */
+.map-bg .page-panel > div:nth-child(2) > .bt.bs {
+  padding: 3px 7px !important;
+  font-size: 10px !important;
+  min-height: 24px !important;
+  line-height: 1 !important;
+}
+
+/* Nav d-pad: 30px tiles instead of 34 (saves 12px vertical) */
+.map-bg .page-panel > div > div[style*="34px 34px 34px"] {
+  grid-template-columns: 30px 30px 30px !important;
+  grid-template-rows: 30px 30px 30px !important;
+}
+.map-bg .page-panel > div > div[style*="34px 34px 34px"] > .bt.bs {
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 12px !important;
+}
+
+/* World log: shorter so the map controls breathe */
+.map-bg .map-log-card { max-height: 96px !important; padding: 5px 8px !important; }
+.map-bg .map-log-card .feed-entry { font-size: 10px !important; padding: 2px 4px !important; }
+
+/* Status pill row + legend — compress vertical rhythm */
+.map-bg .sb-line-card { padding: 5px 8px !important; font-size: 11px !important; margin-bottom: 4px !important; }
+.map-bg .map-legend-row { gap: 2px !important; }
+.map-bg .legend-pill { font-size: 7px !important; padding: 1px 4px !important; }
+
+/* Tighter still on short screens */
+@media (max-height: 720px) {
+  .map-bg .battle-world-grid { max-height: min(40dvh, 300px) !important; max-width: min(40dvh, 300px) !important; }
+  .map-bg .map-log-card { max-height: 72px !important; }
+  .map-bg .page-panel > div > div[style*="34px 34px 34px"] {
+    grid-template-columns: 28px 28px 28px !important;
+    grid-template-rows: 28px 28px 28px !important;
+  }
+  .map-bg .page-panel > div > div[style*="34px 34px 34px"] > .bt.bs {
+    width: 28px !important; height: 28px !important; font-size: 11px !important;
+  }
+}
+
+/* ── Battle: tighten beyond the v40 pass ── */
+.battle-bg .battle-combat-title { font-size: 12px !important; margin-bottom: 3px !important; }
+.battle-bg .battle-lane { padding: 4px 6px !important; margin-bottom: 3px !important; gap: 3px !important; }
+.battle-lane-tile { min-height: 42px !important; padding: 3px 4px !important; }
+.battle-lane-token { width: 26px !important; height: 26px !important; font-size: 13px !important; }
+.battle-lane-label { font-size: 7px !important; margin-top: 1px !important; }
+.battle-bg .battle-range-readout { padding: 3px 8px !important; font-size: 8px !important; margin-bottom: 3px !important; gap: 5px !important; }
+.battle-bg .battle-action-card-wrap { padding: 0 !important; }
+.battle-bg .battle-action-btn { min-height: 38px !important; padding: 4px 6px !important; font-size: 10px !important; }
+.battle-bg .battle-entity-row { padding: 4px 6px !important; }
+.battle-bg .battle-entity-row .battle-entity-stats { font-size: 9px !important; }
+.battle-bg .battle-element-summary-btn { padding: 2px 5px !important; font-size: 9px !important; }
+
+@media (max-height: 720px) {
+  .battle-bg .battle-combat-title { font-size: 11px !important; margin-bottom: 2px !important; }
+  .battle-lane-tile { min-height: 36px !important; }
+  .battle-lane-token { width: 22px !important; height: 22px !important; font-size: 11px !important; }
+  .battle-bg .battle-action-btn { min-height: 32px !important; font-size: 9px !important; }
+}

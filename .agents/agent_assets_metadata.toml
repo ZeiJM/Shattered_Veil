@@ -282,3 +282,9 @@ id = "FYDljAgExGDXMqVlqLjm7"
 uri = "file://artifacts/shattered-veil/public/class/gambler_f.png"
 type = "image"
 title = "gambler female portrait"
+
+[[generated]]
+id = "RGCzOreg5PtsKhke21yRm"
+uri = "file://attached_assets/generated_images/generated_image.png"
+type = "image"
+title = "generated_image"
