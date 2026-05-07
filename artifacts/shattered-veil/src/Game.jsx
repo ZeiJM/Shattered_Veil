@@ -5821,11 +5821,16 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 0: CLASS */}
       {cStep === 0 && <div>
         <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
-          {CLS.map(c => <div key={c.id} className="cd" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid " + T.bd, background: selCls === c.id ? c.cl + "10" : T.c1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 16 }}>{c.ic}</span><span style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif" }}>{c.nm}</span></div>
-            <div style={{ fontSize: 7, color: T.dm, lineHeight: 1.2, marginBottom: 2 }}>{c.ds}</div>
-            <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginBottom: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "22", color: ELC[c.el]||"#999", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "22", color: ELC[c.el2]||"#999", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0022", color: "#ff6f00", fontSize: 7 }}>4 Random</span>}</div>
-            <div style={{ fontSize: 7, color: T.dm }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.skR)}</span></div>
+          {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+              <img src={(import.meta.env.BASE_URL || "/") + "class/" + c.id + ".png"} alt={c.nm} style={{ width: 32, height: 32, borderRadius: 5, objectFit: "cover", border: "1px solid " + c.cl + "55", flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif", lineHeight: 1.1 }}>{c.ic} {c.nm}</div>
+                <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 7 }}>4 Random</span>}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 7, color: "#bcc6e6", lineHeight: 1.25, marginBottom: 2 }}>{c.ds}</div>
+            <div style={{ fontSize: 7, color: "#9aa6c8" }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.skR)}</span></div>
           </div>)}
         </div>
         <div style={{ textAlign: "center", marginTop: 10 }}><button className="bt" style={{ background: T.gd, opacity: selCls ? 1 : 0.4 }} disabled={!selCls} onClick={() => setCStep(1)}>Next: Bloodmark →</button></div>
@@ -5838,18 +5843,18 @@ const buildGroupedBattleLog = (entries) => {
           <div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: "56vh", overflowY: "auto" }}>
-          {BLOODMARKS.map(bm => <div key={bm.id} className="cd" onClick={() => setSelBloodmark(selBloodmark === bm.id ? null : bm.id)} style={{ padding: 8, cursor: "pointer", border: selBloodmark === bm.id ? "2px solid " + bm.cl : "1px solid " + T.bd, background: selBloodmark === bm.id ? bm.cl + "12" : T.c1 }}>
+          {BLOODMARKS.map(bm => <div key={bm.id} className="cd" onClick={() => setSelBloodmark(selBloodmark === bm.id ? null : bm.id)} style={{ padding: 8, cursor: "pointer", border: selBloodmark === bm.id ? "2px solid " + bm.cl : "1px solid rgba(212,173,64,0.18)", background: selBloodmark === bm.id ? "linear-gradient(155deg, " + bm.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
               <span style={{ fontSize: 20 }}>{bm.ic}</span>
               <div>
                 <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700, color: bm.cl }}>{bm.nm}</div>
-                <div style={{ fontSize: 8, color: T.dm }}>
-                  {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? T.ok : T.bad }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
+                <div style={{ fontSize: 8, color: "#bcc6e6" }}>
+                  {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
                 </div>
               </div>
             </div>
-            <div style={{ fontSize: 8, color: T.dm, lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
-            <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "18", border: "1px solid " + bm.cl + "44", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+            <div style={{ fontSize: 8, color: "#cfd6ee", lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
+            <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
           </div>)}
         </div>
         <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 10 }}>
@@ -5861,8 +5866,8 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 2: IDENTITY */}
       {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 40 }}>{CLS.find(c => c.id === selCls)?.ic}</div>
-          <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700 }}>{CLS.find(c => c.id === selCls)?.nm}</div>
+          {selCls && <img src={(import.meta.env.BASE_URL || "/") + "class/" + selCls + ".png"} alt={CLS.find(c => c.id === selCls)?.nm} style={{ width: 96, height: 96, borderRadius: 10, objectFit: "cover", border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }} />}
+          <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700, marginTop: 6 }}>{CLS.find(c => c.id === selCls)?.ic} {CLS.find(c => c.id === selCls)?.nm}</div>
           {selBloodmark && (() => { const bm = getBM(selBloodmark); return bm ? <div style={{ marginTop: 4, fontSize: 10, color: bm.cl }}>{bm.ic} {bm.nm}</div> : null; })()}
         </div>
         {(() => {
@@ -5874,7 +5879,7 @@ const buildGroupedBattleLog = (entries) => {
             <div style={{ display: "grid", gap: 5 }}>
               {previewInteractions.map((it, idx) => {
                 const parts = splitInteractionDescription(it.ds || "");
-                return <button key={idx} type="button" className="bt bs" style={{ background: T.c2, color: T.tx, textAlign: "left", padding: "6px 8px", lineHeight: 1.4 }} onClick={() => setPopup({ text: interactionPopupText(it) })}>
+                return <button key={idx} type="button" className="bt bs" style={{ background: "linear-gradient(155deg, rgba(14,22,46,0.95) 0%, rgba(6,12,28,0.95) 100%)", color: "#e8eeff", border: "1px solid " + pickedClass.cl + "55", textAlign: "left", padding: "6px 8px", lineHeight: 1.4 }} onClick={() => setPopup({ text: interactionPopupText(it) })}>
                   <div style={{ color: pickedClass.cl, fontWeight: 800, fontSize: 8, marginBottom: 2 }}>{it.nm || interactionDisplayName(it.k, it.ds)}</div>
                   <div style={{ fontSize: 7, color: "#9fd6ff" }}>Trigger: {parts.trigger}</div>
                   <div style={{ fontSize: 7, color: "#ffd77a", marginTop: 1 }}>Effect: {parts.effect}</div>
@@ -5883,12 +5888,13 @@ const buildGroupedBattleLog = (entries) => {
             </div>
           </div> : null;
         })()}
-        <label style={{ fontSize: 10, color: T.dm, display: "block", marginBottom: 3 }}>Hero Name</label>
-        <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Enter name..." maxLength={16} style={{ width: "100%", background: T.c2, border: "1px solid " + T.bd, borderRadius: 7, padding: "9px 12px", color: T.tx, fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "center", marginBottom: 10 }} />
-        <label style={{ fontSize: 10, color: T.dm, display: "block", marginBottom: 3 }}>Personal Quote</label>
-        <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Your motto..." maxLength={60} style={{ width: "100%", background: T.c2, border: "1px solid " + T.bd, borderRadius: 7, padding: "9px 12px", color: T.tx, fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 10 }} />
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}><button className="bt bs" style={{ background: cSex === "male" ? T.ac : T.c2 }} onClick={() => setCSex("male")}>Male</button><button className="bt bs" style={{ background: cSex === "female" ? T.ac : T.c2 }} onClick={() => setCSex("female")}>Female</button></div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(1)}>←</button><button className="bt" style={{ background: T.gd, opacity: cName.trim() ? 1 : 0.4 }} disabled={!cName.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
+        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Hero Name <span style={{ color: "#ff8a80" }}>*</span></label>
+        <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Enter name..." maxLength={16} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (cName.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "center", marginBottom: 10 }} />
+        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Personal Quote <span style={{ color: "#ff8a80" }}>*</span></label>
+        <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Speak your motto..." maxLength={60} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (quote.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 10 }} />
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}><button className="bt bs" style={{ background: cSex === "male" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "male" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("male")}>Male</button><button className="bt bs" style={{ background: cSex === "female" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "female" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("female")}>Female</button></div>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: "rgba(14,22,46,0.85)", color: "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCStep(1)}>←</button><button className="bt" style={{ background: T.gd, color: "#1a1206", opacity: (cName.trim() && quote.trim()) ? 1 : 0.4 }} disabled={!cName.trim() || !quote.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
+        {!quote.trim() && <div style={{ marginTop: 8, fontSize: 9, color: "#ffb074", textAlign: "center", fontStyle: "italic" }}>A sorcerer is shaped by what they would die saying. Choose your words.</div>}
       </div>}
     </div></div>
   );

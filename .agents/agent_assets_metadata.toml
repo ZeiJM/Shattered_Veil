@@ -12,3 +12,129 @@ id = "DT4Eavw5rCv8vt4gtZ7jL"
 uri = "file://artifacts/shattered-veil/src/assets/town-square.png"
 type = "image"
 title = "town square twilight"
+
+[[generated]]
+id = "4B3nwDPmyUdruEkJf6eKs"
+uri = "file://artifacts/shattered-veil/public/class/paladin.png"
+type = "image"
+title = "paladin portrait"
+
+[[generated]]
+id = "Ql-2SSWCGPiBLY1DmcVCm"
+uri = "file://artifacts/shattered-veil/public/class/assassin.png"
+type = "image"
+title = "assassin portrait"
+
+[[generated]]
+id = "DKClnH2QZ6HHsYB9LdtQ8"
+uri = "file://artifacts/shattered-veil/public/class/sorcerer.png"
+type = "image"
+title = "sorcerer portrait"
+
+[[generated]]
+id = "dsPxXFJsmWC5MTGJscLr-"
+uri = "file://artifacts/shattered-veil/public/class/priest.png"
+type = "image"
+title = "priest portrait"
+
+[[generated]]
+id = "ZJSf00bm05oQrvqdxOL_D"
+uri = "file://artifacts/shattered-veil/public/class/ranger.png"
+type = "image"
+title = "ranger portrait"
+
+[[generated]]
+id = "RKtkx6_Ck-Kbnet6i97oP"
+uri = "file://artifacts/shattered-veil/public/class/koen.png"
+type = "image"
+title = "koen portrait"
+
+[[generated]]
+id = "Vsq5WTwoz4XBSRkm0toBk"
+uri = "file://artifacts/shattered-veil/public/class/shouei.png"
+type = "image"
+title = "shouei portrait"
+
+[[generated]]
+id = "sKYbvnbt1QcERCKw_hpEw"
+uri = "file://artifacts/shattered-veil/public/class/phoenix.png"
+type = "image"
+title = "phoenix portrait"
+
+[[generated]]
+id = "0hjRVzm4Gq8SDk2T8EcUh"
+uri = "file://artifacts/shattered-veil/public/class/chrono.png"
+type = "image"
+title = "chrono portrait"
+
+[[generated]]
+id = "9xut5XZGhu8lIQ93Bjv9O"
+uri = "file://artifacts/shattered-veil/public/class/dream.png"
+type = "image"
+title = "dream portrait"
+
+[[generated]]
+id = "MxG03SqYnZfOsJ6rZnmNa"
+uri = "file://artifacts/shattered-veil/public/class/voidmage.png"
+type = "image"
+title = "voidmage portrait"
+
+[[generated]]
+id = "SETAwFuGILkYu91MNid3P"
+uri = "file://artifacts/shattered-veil/public/class/rune.png"
+type = "image"
+title = "rune portrait"
+
+[[generated]]
+id = "Kino_MyFdOlIeCH7VigIw"
+uri = "file://artifacts/shattered-veil/public/class/bard.png"
+type = "image"
+title = "bard portrait"
+
+[[generated]]
+id = "_S2Hds4h-eQ8qn2unnESq"
+uri = "file://artifacts/shattered-veil/public/class/gravity.png"
+type = "image"
+title = "gravity portrait"
+
+[[generated]]
+id = "DbFRWS2rrhzmbqJ6gkEL4"
+uri = "file://artifacts/shattered-veil/public/class/sound.png"
+type = "image"
+title = "sound portrait"
+
+[[generated]]
+id = "g6uP33x7l1C4fOQUT8ekV"
+uri = "file://artifacts/shattered-veil/public/class/puppet.png"
+type = "image"
+title = "puppet portrait"
+
+[[generated]]
+id = "9vRwoMPakQW_tG8exmMkP"
+uri = "file://artifacts/shattered-veil/public/class/tide.png"
+type = "image"
+title = "tide portrait"
+
+[[generated]]
+id = "I2k3q495zzJ1GPSawT1u6"
+uri = "file://artifacts/shattered-veil/public/class/monk.png"
+type = "image"
+title = "monk portrait"
+
+[[generated]]
+id = "DcY1fFnqZS7oNxqRtJxwU"
+uri = "file://artifacts/shattered-veil/public/class/primal.png"
+type = "image"
+title = "primal portrait"
+
+[[generated]]
+id = "oelXH0LZH3ZR2NUknrdp1"
+uri = "file://artifacts/shattered-veil/public/class/hexblade.png"
+type = "image"
+title = "hexblade portrait"
+
+[[generated]]
+id = "QkGlkgL_V1J0JgErqSHFo"
+uri = "file://artifacts/shattered-veil/public/class/gambler.png"
+type = "image"
+title = "gambler portrait"

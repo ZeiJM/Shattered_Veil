@@ -93,8 +93,13 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 
 ## Visual assets
 
-- `src/assets/title-veil.png` — painted hero artwork (cloaked sorcerer, torn veil sky, glowing runes) used as the title screen background. Layered under a darkening gradient so the UI text remains readable. Generated 2026-05-07.
-- `src/assets/town-square.png` — twilight town backdrop, currently unused, available for future town/inn redesign.
+- `public/title-veil.png` — painted hero artwork (cloaked sorcerer, torn veil sky, glowing runes) used as the title screen background. Layered under a darkening gradient so the UI text remains readable. Generated 2026-05-07.
+- `public/town-square.png` — twilight town backdrop, currently unused, available for future town/inn redesign.
+- `public/class/<id>.png` — 21 unique painted class portraits (one per CLS entry: paladin, assassin, sorcerer, priest, ranger, koen, shouei, phoenix, chrono, dream, voidmage, rune, bard, gravity, sound, puppet, tide, monk, primal, hexblade, gambler). Used in the class-pick grid (32×32 thumbnails) and Identity step (96×96 hero card). Wired via `import.meta.env.BASE_URL + "class/" + id + ".png"` so the URL works under any artifact path prefix.
+
+## Forge Your Hero contrast (v30)
+
+Inline `T.c1`/`T.c2` (parchment) backgrounds on cards inside `.create-bg` were defeating the dark-navy `.cd` baseline and making yellow/light-blue text unreadable. All class cards, bloodmark cards, name/quote inputs, and the interaction preview buttons now force a dark navy gradient with light text (`#e8eeff` body, `#cfd6ee` labels, class color for headers). Personal Quote is now **required** alongside Hero Name to begin — Begin button stays disabled until both are filled, with a poetic prompt under the button when the quote is empty.
 
 ## Gotchas
 
