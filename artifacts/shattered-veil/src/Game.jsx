@@ -4578,6 +4578,10 @@ function Game() {
       strikeInteractions.forEach(ai => { if (ai.logMsg) lg.push(ai.logMsg); });
       if (!isShieldWeapon) d = Math.max(1, Math.floor(d * strikeMult));
       if (!armorCritTriggered && armorCritChance > 0 && Math.random() < Math.min(0.24, armorCritChance * 0.75)) { d = Math.floor(d * 1.28); logInfo("Armor precision critical!"); }
+      // v44: luck-based critical hit (stacks with armor crit)
+      const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
+      const isLuckCrit = !isShieldWeapon && Math.random() < luckCritChance;
+      if (isLuckCrit) { d = Math.floor(d * 1.5); logInfo("💥 Critical hit! ×1.5"); try { musicRef.current.playSfx("crit"); } catch {} }
       const kagamiCanAttune = !!(w && pl.cid === "shouei" && /kagami/i.test(w.name||"") && tgt.el && !(np.kagamiAttunedEnemyIds||[]).includes(tgt.id));
       let totalDamage = 0;
       for (let hi = 0; hi < hits; hi++) {
@@ -4766,6 +4770,10 @@ function Game() {
         if (gambleMult < 0.82) nextInteractionState.luckyLowCount = (nextInteractionState.luckyLowCount || 0) + 1;
         if (gambleMult !== 1) logInfo(gambleMult > 1.18 ? "🎲 Lucky! ×" + gambleMult.toFixed(1) : gambleMult < 0.82 ? "🎲 Bad luck ×" + gambleMult.toFixed(1) : "🎲 ×" + gambleMult.toFixed(1));
         if (armorCritChance > 0 && Math.random() < Math.min(0.22, armorCritChance * 0.7)) { base *= 1.22; logInfo("Armor precision surge!"); }
+        // v44: luck-based critical hit on damage skills (one roll per cast, applies to all AoE targets)
+        const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
+        const skillIsCrit = Math.random() < luckCritChance;
+        if (skillIsCrit) { base *= 1.5; logInfo("💥 Critical hit! ×1.5"); try { musicRef.current.playSfx("crit"); } catch {} }
         const targets = sk.aoe ? en.filter(e => e.hp > 0) : [tgt];
         const levelScale = skillLevelScale(sk);
         const statusChance = skillEffectChance(sk);
@@ -4915,6 +4923,9 @@ function Game() {
         const copyMl = eMult(copied.el, tgt);
         let copyBase = (((copied.pow || 0) * 0.92) + (copied.el === "Physical" ? st.atk * 0.84 : st.mag * 0.82));
         copyBase *= copyMult;
+        // v44: luck-based critical hit on copied skill damage
+        const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
+        if (Math.random() < luckCritChance) { copyBase *= 1.5; logInfo("💥 Critical hit! ×1.5"); try { musicRef.current.playSfx("crit"); } catch {} }
         const d = Math.max(1, Math.floor((copyBase - tgt.def * 0.16) * copyMl * encounterProfile.playerDamage));
         tgt.hp = Math.max(0, tgt.hp - d);
         nextInteractionState.killCount = (nextInteractionState.killCount || 0) + ((tgt.hp || 0) <= 0 ? 1 : 0);

@@ -323,6 +323,29 @@ function sfxMenu(ctx, dest, t0, gain) {
   osc.start(t0); osc.stop(t0 + 0.06);
 }
 
+function sfxCrit(ctx, dest, t0, gain) {
+  // Sharp high square stab + bright noise burst — instant impact
+  const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.setValueAtTime(1760, t0);
+  osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.08);
+  const og = ctx.createGain();
+  og.gain.setValueAtTime(gain * 0.5, t0);
+  og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
+  osc.connect(og).connect(dest);
+  osc.start(t0); osc.stop(t0 + 0.12);
+  // Noise crack on top
+  const dur = 0.08;
+  const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const filt = ctx.createBiquadFilter(); filt.type = "highpass"; filt.frequency.value = 2000;
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(gain * 0.6, t0);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(filt).connect(ng).connect(dest);
+  src.start(t0); src.stop(t0 + dur + 0.02);
+}
+
 function sfxCast(ctx, dest, t0, gain) {
   // Rising sine sweep — magical
   const osc = ctx.createOscillator(); osc.type = "sine";
@@ -336,7 +359,7 @@ function sfxCast(ctx, dest, t0, gain) {
   osc.start(t0); osc.stop(t0 + 0.25);
 }
 
-const SFX_BANK = { hit: sfxHit, heal: sfxHeal, levelup: sfxLevelUp, victory: sfxVictory, defeat: sfxDefeat, menu: sfxMenu, cast: sfxCast };
+const SFX_BANK = { hit: sfxHit, heal: sfxHeal, levelup: sfxLevelUp, victory: sfxVictory, defeat: sfxDefeat, menu: sfxMenu, cast: sfxCast, crit: sfxCrit };
 
 export function createMusicPlayer() {
   let ctx = null;

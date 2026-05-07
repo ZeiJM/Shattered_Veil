@@ -158,6 +158,21 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
+## v44 — Critical hits (luck-based)
+
+Player damage actions can now critically hit, dealing **×1.5 damage** with a dedicated audio cue. Crit chance scales off the player's `lck` stat: `min(0.25, lck × 0.012)` — capped at 25%, so a level-1 character with 8 lck has ~9.6% crit, and a high-lck endgame build (~20+ lck) reaches the cap.
+
+- **Wired into three damage paths**:
+  - `attackWithWeapon` (strike / w2) — single d3 multiplier applied before the multi-hit loop, so all hits in that swing crit together.
+  - `skill` damage branch — one roll per cast, multiplier applied to `base` so AoE targets all crit on the same roll (avoids spammy SFX).
+  - `copy` damage branch — same single-roll pattern.
+- **Skipped on purpose**: ult (already a power-fantasy moment), heal skills (no analog), and the gambler class's existing gamble multiplier (separate identity, would double-roll).
+- **Stacks with the existing armor crit** (`armorCritChance` from gear). A swing can be both an armor-precision critical (×1.28) and a luck crit (×1.5), making lucky players in good gear genuinely terrifying.
+- **Audio**: new `crit` SFX in `music.js` — sharp high-pitch square stab (1760 → 880 Hz) layered with a high-passed noise crack. Sits on top of the regular `hit` cue without muddying it.
+- **Log line**: `💥 Critical hit! ×1.5` via `logInfo` so it visually pops in the battle log alongside other status info.
+
+Future hooks: enemy crits (mirror the same formula on the enemy turn), crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix's burning targets always crit, etc).
+
 ## v42 — Enemy AI movement + boss-variant battle music
 
 ### Enemy AI movement (closes the v40 positional-combat loop)
