@@ -3715,16 +3715,23 @@ function Game() {
     notify("Defeated... " + (subMap ? "You are forced out and recover at your last safe refuge." : "Your body gives way, but fate returns you to familiar ground.") + " -" + lost + "G");
   }, [gold, lastTown, effSt, notify, subMap]);
 
-  // Inject CSS
-  useEffect(() => {
-    if (document.getElementById("sv-css")) return;
-    const s = document.createElement("style"); s.id = "sv-css";
-    s.textContent = `@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Nunito:wght@400;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}body{background:#0b0d18}::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#252a42;border-radius:3px}@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.pg{min-height:100vh;background:linear-gradient(160deg,#0b0d18,#0e1128,#0b0d18);color:#e4e4f0;font-family:'Nunito',sans-serif}.wr{max-width:480px;margin:0 auto;padding:6px 10px}.cd{background:#12152a;border:1px solid #252a42;border-radius:10px;padding:14px;animation:su .25s ease;margin-bottom:6px}.bt{font-family:'Nunito',sans-serif;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:12px;color:#fff;transition:all .15s}.bt:hover{filter:brightness(1.12)}.bs{padding:5px 10px;font-size:10px;border-radius:5px}.tg{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-right:3px}.blog-p{color:#7eb8ff;font-weight:600}.blog-e{color:#ff6b6b}.blog-h{color:#66bb6a}.blog-b{color:#ffd54f}.blog-s{color:#ce93d8}.blog-u{color:#ffd600;font-weight:700}.blog-i{color:#4dd0e1}.blog-f{color:#78909c}.blog-v{color:#66bb6a;font-weight:700}.blog-d{color:#5d6280}@media (max-width:900px){.wr{max-width:100vw;padding:4px 6px}.cd{padding:8px;border-radius:9px}.bt{padding:6px 8px;font-size:10px}.bs{padding:4px 6px;font-size:8px}}`;
-    document.head.appendChild(s);
-  }, []);
-
-  // THEME
-  const T = useMemo(() => ({ bg:"#0b0d18",c1:"#121a35",c2:"#1a2346",bd:"#33406a",gd:"#f2c45c",ac:"#82a6ff",tx:"#eef3ff",dm:"#b6c1e2",hp:"#ff6b6b",mp:"#4da3ff",xp:"#c07bff",ok:"#5ccf83",bad:"#ff6b6b",wn:"#f9c74f" }), []);
+  // THEME — Parchment Codex palette
+  const T = useMemo(() => ({
+    bg:  "#f5ead0",  // parchment light — panel backgrounds
+    c1:  "#ecdfc0",  // parchment mid
+    c2:  "#dfd0aa",  // parchment dark — nested cards
+    bd:  "#c0a87a",  // tan border
+    gd:  "#8c6a10",  // dark gold — currency, headings
+    ac:  "#1e3570",  // navy blue — accent
+    tx:  "#18120a",  // dark ink — primary text
+    dm:  "#6a5840",  // dim ink — secondary text
+    hp:  "#941a1a",  // crimson — HP
+    mp:  "#1e3570",  // navy — MP
+    xp:  "#6b1f9e",  // purple — XP
+    ok:  "#1a6b32",  // forest green — success
+    bad: "#941a1a",  // crimson — danger/bad
+    wn:  "#8c6a10",  // dark gold — warning
+  }), []);
 
   const xpFor = l => Math.floor(50 * Math.pow(l, 1.42));
 

@@ -1,44 +1,55 @@
-# [Project name]
+# Shattered Veil — Chronicles of the Rift
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A rich, single-page browser RPG with a 300×300 procedurally-generated world, 16 classes, 16 elements, towns, rifts, turn-based combat, spellbooks, pets, equipment, dynasty succession, and story quests — all in one React component.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/shattered-veil run dev` — run the game (workflow: `artifacts/shattered-veil: web`)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Game: React 18 + Vite 7 (port from `PORT` env, default 21515)
+- No backend — localStorage saves (3 slots)
+- Fonts: Cinzel (headers), Crimson Text (body narrative), Nunito (UI)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/shattered-veil/src/Game.jsx` — entire game logic + JSX (~6900 lines)
+- `artifacts/shattered-veil/src/game.css` — complete visual stylesheet (~1060 lines), parchment/navy/crimson aesthetic
+- `artifacts/shattered-veil/src/App.tsx` — renders `<Game />`
+- `artifacts/shattered-veil/src/main.tsx` — React entry point
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Single massive component: all game state (player, map, battle, UI) lives in one `Game` component using many `useState`/`useCallback`/`useMemo` hooks.
+- Theme object `T` controls inline style colors throughout: parchment palette (`bg:#f5ead0`, `tx:#18120a`, etc.) for non-battle screens; battle screen forced dark via `!important` CSS.
+- No build-time CSS-in-JS — theme colors are applied inline via JSX, with `.game.css` setting structural/layout rules and using `!important` to override inline styles for context-specific sections (`.battle-bg`, `.hud-shell`).
+- Map: 300×300 tile grid (90000 tiles), biome-based generation, stored in state.
+- Saves: JSON-serialized to `localStorage` (`sv_save_0/1/2`).
 
-## Product
+## Visual Aesthetic (Veilbound-inspired)
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Background**: Deep navy/void starfield with crimson + gold aurora glows
+- **Panels**: Parchment gradient cards (`#f5ead0 → #ecdfc0`) with tan borders and dark ink text
+- **HUD**: Always dark navy (overrides parchment context via `!important`)
+- **Battle screen**: Dark navy/void with crimson borders, forced via `!important` on `.battle-bg .cd`
+- **Fonts**: Cinzel 900 for titles, Cinzel 600 for section headers, Crimson Text for narrative, Nunito for UI
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Visual style: parchment + navy + crimson (Veilbound-inspired)
+- Keep single-artifact architecture — all in one `Game.jsx`
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- `Game.jsx` exceeds Babel's 500KB deoptimization threshold — HMR is slower than normal, be patient after edits.
+- Battle screen colors must use `!important` in CSS to override inline `T.*` parchment colors.
+- `hud-shell` must use `!important` — it's inside `.shell-bg .cd` which would otherwise apply parchment styling.
+- `startSuccession` must be declared before line ~3550 (was a TDZ bug when first migrated).
+- `index.css` is intentionally minimal — no Tailwind (the original template had placeholder `red` values).
 
 ## Pointers
 
