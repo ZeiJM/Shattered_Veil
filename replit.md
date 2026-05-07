@@ -104,6 +104,14 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## Avatar & icon polish (v34)
+
+- **`playerAvatar(cid, fallbackIc, portraitUrl)` helper** (~line 3046) — single source of truth for rendering the player figure. Layers (bottom→top, all `position:absolute`): emoji fallback → class portrait png (with `onError` that hides itself) → custom-URL overlay. Parent must be `position:relative; overflow:hidden`. If the class png 404s the emoji shows; if the custom URL fails the class png shows.
+- **Where it renders**: HUD avatar (~5764, bumped to 36×36 with class-color glow ring), battle player row (~6616, bumped to 32×32 with class-color border), battle lane ally token (~6605, only the player token uses `tok.classId`; pet/foe tokens still emoji+overlay), world map "you are here" (~6534, suppressed when swimming → falls back to 🏊+overlay), submap "you are here" (~6898).
+- **Why this matters**: previously the HUD/map showed the class *emoji* (e.g. 🛡 for paladin) as the visible identity even after the player picked a portrait at character creation. Now they always see the same painted class portrait (or their custom one) across creation → HUD → map → battle.
+- **Class picker (Forge Your Hero)** ~line 5848: portrait thumbnails bumped from 32×32 → 40×40 with class-color glow shadow + thicker border. Removed the redundant emoji prefix on class names since the portrait already carries the visual identity.
+- **Bloodmark icons** ~line 5870: emoji is now wrapped in a 36×36 circular badge with a radial bloodmark-color glow, ring border, inset highlight, and `drop-shadow` filter — much more "premium" feel than the bare 20px emoji.
+
 ## Title screen (v33)
 
 Stripped to a single CTA in anticipation of the online migration. **Removed**: Multiplayer button, Admin Panel button + entire admin modal JSX block, the three Load Save buttons, version number, WASD/spacebar instructions. The `loadGame()` function and save persistence remain in the codebase (used by post-death continue flows); only the title-screen entrypoint to manual loads was cut.
