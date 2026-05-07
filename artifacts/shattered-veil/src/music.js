@@ -240,12 +240,118 @@ function scheduleKick(ctx, dest, startT, peakGain) {
   osc.stop(startT + 0.22);
 }
 
+// ─── SFX bank (short percussive cues, all synthesized) ───
+function sfxHit(ctx, dest, t0, gain) {
+  // Noise burst with low-pass filter for a satisfying "thwack"
+  const dur = 0.12;
+  const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const filt = ctx.createBiquadFilter(); filt.type = "lowpass";
+  filt.frequency.setValueAtTime(2400, t0);
+  filt.frequency.exponentialRampToValueAtTime(400, t0 + dur);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(filt).connect(g).connect(dest);
+  src.start(t0); src.stop(t0 + dur + 0.02);
+}
+
+function sfxHeal(ctx, dest, t0, gain) {
+  // Bell-like dyad
+  [880, 1320].forEach((f, i) => {
+    const osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain * (i ? 0.5 : 1), t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+    osc.connect(g).connect(dest);
+    osc.start(t0); osc.stop(t0 + 0.5);
+  });
+}
+
+function sfxLevelUp(ctx, dest, t0, gain) {
+  // Ascending major arpeggio C5-E5-G5-C6
+  const notes = [523.25, 659.25, 783.99, 1046.50];
+  notes.forEach((f, i) => {
+    const tn = t0 + i * 0.085;
+    const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, tn);
+    g.gain.linearRampToValueAtTime(gain * 0.6, tn + 0.008);
+    g.gain.linearRampToValueAtTime(gain * 0.3, tn + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, tn + 0.18);
+    osc.connect(g).connect(dest);
+    osc.start(tn); osc.stop(tn + 0.2);
+  });
+}
+
+function sfxVictory(ctx, dest, t0, gain) {
+  // Held major triad C-E-G fanfare
+  [523.25, 659.25, 783.99].forEach((f) => {
+    const osc = ctx.createOscillator(); osc.type = "triangle"; osc.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain * 0.5, t0 + 0.02);
+    g.gain.linearRampToValueAtTime(gain * 0.4, t0 + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+    osc.connect(g).connect(dest);
+    osc.start(t0); osc.stop(t0 + 0.95);
+  });
+}
+
+function sfxDefeat(ctx, dest, t0, gain) {
+  // Descending sad sawtooth
+  const osc = ctx.createOscillator(); osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(220, t0);
+  osc.frequency.exponentialRampToValueAtTime(82, t0 + 0.7);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain * 0.6, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.8);
+  osc.connect(g).connect(dest);
+  osc.start(t0); osc.stop(t0 + 0.85);
+}
+
+function sfxMenu(ctx, dest, t0, gain) {
+  // Soft square click
+  const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.value = 880;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(gain * 0.4, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+  osc.connect(g).connect(dest);
+  osc.start(t0); osc.stop(t0 + 0.06);
+}
+
+function sfxCast(ctx, dest, t0, gain) {
+  // Rising sine sweep — magical
+  const osc = ctx.createOscillator(); osc.type = "sine";
+  osc.frequency.setValueAtTime(220, t0);
+  osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.18);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(gain * 0.5, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  osc.connect(g).connect(dest);
+  osc.start(t0); osc.stop(t0 + 0.25);
+}
+
+const SFX_BANK = { hit: sfxHit, heal: sfxHeal, levelup: sfxLevelUp, victory: sfxVictory, defeat: sfxDefeat, menu: sfxMenu, cast: sfxCast };
+
 export function createMusicPlayer() {
   let ctx = null;
   let masterGain = null;
+  let sfxGain = null;
   let muted = false;
+  let sfxMuted = false;
   try { muted = typeof localStorage !== "undefined" && localStorage.getItem("sv_music_muted") === "1"; } catch {}
+  try { sfxMuted = typeof localStorage !== "undefined" && localStorage.getItem("sv_sfx_muted") === "1"; } catch {}
   let volume = 0.20;
+  let sfxVolume = 0.30;
+  try {
+    const v = parseFloat(localStorage.getItem("sv_music_vol")); if (!isNaN(v) && v >= 0 && v <= 1) volume = v;
+    const sv = parseFloat(localStorage.getItem("sv_sfx_vol")); if (!isNaN(sv) && sv >= 0 && sv <= 1) sfxVolume = sv;
+  } catch {}
   let currentTrack = null;
   let scheduledTimer = null;
   let nextLoopAt = 0;
@@ -259,6 +365,9 @@ export function createMusicPlayer() {
         masterGain = ctx.createGain();
         masterGain.gain.value = muted ? 0 : volume;
         masterGain.connect(ctx.destination);
+        sfxGain = ctx.createGain();
+        sfxGain.gain.value = sfxMuted ? 0 : sfxVolume;
+        sfxGain.connect(ctx.destination);
       } catch (e) { return false; }
     }
     if (ctx.state === "suspended") { try { ctx.resume(); } catch {} }
@@ -347,6 +456,44 @@ export function createMusicPlayer() {
     },
     isMuted() { return muted; },
     currentTrack() { return currentTrack; },
+    // ── SFX API ──
+    playSfx(name) {
+      if (sfxMuted) return;
+      const fn = SFX_BANK[name];
+      if (!fn) return;
+      if (!ensure()) return;
+      try { fn(ctx, sfxGain, ctx.currentTime + 0.005, 1); } catch {}
+    },
+    setSfxMuted(m) {
+      sfxMuted = !!m;
+      try { localStorage.setItem("sv_sfx_muted", sfxMuted ? "1" : "0"); } catch {}
+      if (sfxGain && ctx) {
+        const t = ctx.currentTime;
+        sfxGain.gain.cancelScheduledValues(t);
+        sfxGain.gain.linearRampToValueAtTime(sfxMuted ? 0 : sfxVolume, t + 0.05);
+      }
+    },
+    isSfxMuted() { return sfxMuted; },
+    setMusicVolume(v) {
+      volume = Math.max(0, Math.min(1, +v || 0));
+      try { localStorage.setItem("sv_music_vol", String(volume)); } catch {}
+      if (masterGain && ctx && !muted) {
+        const t = ctx.currentTime;
+        masterGain.gain.cancelScheduledValues(t);
+        masterGain.gain.linearRampToValueAtTime(volume, t + 0.1);
+      }
+    },
+    setSfxVolume(v) {
+      sfxVolume = Math.max(0, Math.min(1, +v || 0));
+      try { localStorage.setItem("sv_sfx_vol", String(sfxVolume)); } catch {}
+      if (sfxGain && ctx && !sfxMuted) {
+        const t = ctx.currentTime;
+        sfxGain.gain.cancelScheduledValues(t);
+        sfxGain.gain.linearRampToValueAtTime(sfxVolume, t + 0.1);
+      }
+    },
+    getMusicVolume() { return volume; },
+    getSfxVolume() { return sfxVolume; },
   };
 }
 

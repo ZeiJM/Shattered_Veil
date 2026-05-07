@@ -3053,6 +3053,20 @@ function Game() {
       if (t) musicRef.current.play(t);
     }
   }, [scr, btl?.type]);
+  // v43: audio settings (SFX volume + mute) — persisted in music engine
+  const [sfxMuted, setSfxMuted] = useState(() => music.isSfxMuted());
+  const [musicVol, setMusicVol] = useState(() => music.getMusicVolume());
+  const [sfxVol, setSfxVol] = useState(() => music.getSfxVolume());
+  const onMusicVolChange = useCallback((v) => { setMusicVol(v); musicRef.current.setMusicVolume(v); }, []);
+  const onSfxVolChange = useCallback((v) => { setSfxVol(v); musicRef.current.setSfxVolume(v); }, []);
+  const toggleSfxMute = useCallback(() => {
+    const next = !musicRef.current.isSfxMuted();
+    musicRef.current.setSfxMuted(next);
+    setSfxMuted(next);
+    if (!next) musicRef.current.playSfx("menu"); // feedback chirp on enable
+  }, []);
+  // Click sound on sub-panel changes (menu / stats / etc) — `sub` is declared further down
+  const subRef = useRef(null);
   const [mode, setMode] = useState("single");
   const [pl, setPl] = useState(null);
   const [gold, setGold] = useState(100);
@@ -3064,6 +3078,12 @@ function Game() {
   const [log, setLog] = useState([]);
   const [noti, setNoti] = useState(null);
   const [sub, setSub] = useState(null);
+  useEffect(() => {
+    if (sub !== subRef.current) {
+      subRef.current = sub;
+      if (sub) { try { musicRef.current.playSfx("menu"); } catch {} }
+    }
+  }, [sub]);
   const [cStep, setCStep] = useState(0);
   const [selCls, setSelCls] = useState(null);
   const [selBloodmark, setSelBloodmark] = useState(null);
@@ -3878,6 +3898,7 @@ function Game() {
       } else {
         notify("Level " + np.level + "!");
       }
+      try { musicRef.current.playSfx("levelup"); } catch {}
     }
     return np;
   }, [notify]);
@@ -5157,7 +5178,7 @@ function Game() {
           setGuildMission(m => m ? { ...m, progress: Math.min(m.goal, m.progress + 1) } : m);
         }
       }
-      lg.push("🏆 Victory! +" + xp + "XP +" + g + "G"); np.efx = []; np.tempBattleEl = null; np.tempBattleEl2 = null; np.tempBonusEls = []; np.kagamiAttunedEnemyIds = []; setPl(np); if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setBtl(null); setLog(l => [...l, ...playerTagged(lg)]); setScr(subMap ? "submap" : "map"); return;
+      lg.push("🏆 Victory! +" + xp + "XP +" + g + "G"); np.efx = []; np.tempBattleEl = null; np.tempBattleEl2 = null; np.tempBonusEls = []; np.kagamiAttunedEnemyIds = []; setPl(np); if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setBtl(null); setLog(l => [...l, ...playerTagged(lg)]); try { musicRef.current.playSfx("victory"); } catch {} setScr(subMap ? "submap" : "map"); return;
     }
 
     en = en.filter(e => (e.hp || 0) > 0).map(e => ({ ...e, efx: [...(e.efx || [])] }));
@@ -5323,9 +5344,9 @@ function Game() {
       if (up.chp <= 0) {
         const has = up.passives.find(p => p.equipped && p.ef === "laststand");
         if (has && !up.pUsed) { up.chp = 1; up.pUsed = true; el2.push("💪 Last Stand!"); }
-        else { el2.push("💀 Defeated..."); setLog(l => [...l, ...enemyTagged(el2)]); die(); return; }
+        else { el2.push("💀 Defeated..."); setLog(l => [...l, ...enemyTagged(el2)]); try { musicRef.current.playSfx("defeat"); } catch {} die(); return; }
       }
-      if (ue.every(e => e.hp <= 0)) { const xp2 = ue.reduce((s, e) => s + e.xp, 0), g2 = ue.reduce((s, e) => s + e.gold, 0); up = giveXP(xp2, up); setGold(go => go + g2); if (btl.type === "fieldboss") { const fb = ue.find(e => e.fieldBossKey); if (fb?.fieldBossKey) { setFieldBossDefeated(d => ({ ...d, [fb.fieldBossKey]: true })); setMData(md => md ? md.map(t => t?.poi?.bossKey === fb.fieldBossKey ? { ...t, poi: null } : t) : md); const prize = Math.random() < 0.5 ? mkRiftGear(C(Math.floor(pl.level/3)+2, 3, 7)) : mkArmor(C(Math.floor(pl.level/3)+2, 3, 7)); setInv(i => [...i, { ...prize, qty: 1 }]); el2.push("💀 Field Boss defeated: " + fb.name); el2.push("🎁 Trophy reward: " + (prize.name || prize.nm)); } } el2.push("🏆 Victory! +" + xp2 + "XP +" + g2 + "G"); up.efx = []; up.tempBattleEl = null; up.tempBattleEl2 = null; up.tempBonusEls = []; up.kagamiAttunedEnemyIds = []; if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setPl(up); setBtl(null); setLog(l => [...l, ...enemyTagged(el2)]); setScr(subMap ? "submap" : "map"); return; }
+      if (ue.every(e => e.hp <= 0)) { const xp2 = ue.reduce((s, e) => s + e.xp, 0), g2 = ue.reduce((s, e) => s + e.gold, 0); up = giveXP(xp2, up); setGold(go => go + g2); if (btl.type === "fieldboss") { const fb = ue.find(e => e.fieldBossKey); if (fb?.fieldBossKey) { setFieldBossDefeated(d => ({ ...d, [fb.fieldBossKey]: true })); setMData(md => md ? md.map(t => t?.poi?.bossKey === fb.fieldBossKey ? { ...t, poi: null } : t) : md); const prize = Math.random() < 0.5 ? mkRiftGear(C(Math.floor(pl.level/3)+2, 3, 7)) : mkArmor(C(Math.floor(pl.level/3)+2, 3, 7)); setInv(i => [...i, { ...prize, qty: 1 }]); el2.push("💀 Field Boss defeated: " + fb.name); el2.push("🎁 Trophy reward: " + (prize.name || prize.nm)); } } el2.push("🏆 Victory! +" + xp2 + "XP +" + g2 + "G"); up.efx = []; up.tempBattleEl = null; up.tempBattleEl2 = null; up.tempBonusEls = []; up.kagamiAttunedEnemyIds = []; if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setPl(up); setBtl(null); setLog(l => [...l, ...enemyTagged(el2)]); try { musicRef.current.playSfx("victory"); } catch {} setScr(subMap ? "submap" : "map"); return; }
       const nextEnemyInteractionState = { ...((previewBattleState && previewBattleState.interactionState) || btl.interactionState || { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" }) };
       const previewPlayerTurnState = { ...(previewBattleState || btl), en: ue, interactionState: nextEnemyInteractionState, turn: "p", tn: ((previewBattleState?.tn) || (btl.tn || 1)) + 1 };
       nextEnemyInteractionState.readyKeys = getReadyInteractions(up.inter || [], previewPlayerTurnState, ue.find(e => e.hp > 0) || null)
@@ -6750,6 +6771,21 @@ const buildGroupedBattleLog = (entries) => {
       </div>}{sub === "menu" && <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <div style={{ display: "flex", gap: 4 }}>{[0, 1, 2].map(i => <button key={i} className="bt bs" style={{ background: T.ok, flex: 1 }} onClick={() => saveGame(i)}>Save {i + 1}</button>)}</div>
         <div style={{ display: "flex", gap: 4 }}>{[0, 1, 2].map(i => <button key={i} className="bt bs" style={{ background: saves[i] ? T.ac : T.c2, flex: 1 }} onClick={() => loadGame(i)}>Load {i + 1}{saves[i] ? " ✓" : ""}</button>)}</div>
+        <div style={{ marginTop: 4, padding: 6, background: "linear-gradient(160deg,#1a2860,#0e1a38)", border: "1px solid rgba(212,173,64,0.55)", borderRadius: 6, color: "#f5e8b8", fontSize: 9 }}>
+          <div style={{ fontFamily: "Cinzel, serif", fontWeight: 600, fontSize: 10, color: "#ffd54f", marginBottom: 4, letterSpacing: 0.5 }}>♪ Audio</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+            <button className="bt bs" style={{ background: musicMuted ? "#5a1818" : "#1a4a2a", color: "#fff", minWidth: 28 }} onClick={toggleMusicMute} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? "🔇" : "🎵"}</button>
+            <span style={{ minWidth: 38 }}>Music</span>
+            <input type="range" min="0" max="100" value={Math.round(musicVol * 100)} onChange={e => onMusicVolChange(parseInt(e.target.value, 10) / 100)} style={{ flex: 1, accentColor: "#d4ad40" }} />
+            <span style={{ minWidth: 26, textAlign: "right" }}>{Math.round(musicVol * 100)}%</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button className="bt bs" style={{ background: sfxMuted ? "#5a1818" : "#1a4a2a", color: "#fff", minWidth: 28 }} onClick={toggleSfxMute} title={sfxMuted ? "Unmute SFX" : "Mute SFX"}>{sfxMuted ? "🔇" : "🔊"}</button>
+            <span style={{ minWidth: 38 }}>SFX</span>
+            <input type="range" min="0" max="100" value={Math.round(sfxVol * 100)} onChange={e => onSfxVolChange(parseInt(e.target.value, 10) / 100)} style={{ flex: 1, accentColor: "#d4ad40" }} />
+            <span style={{ minWidth: 26, textAlign: "right" }}>{Math.round(sfxVol * 100)}%</span>
+          </div>
+        </div>
         <button className="bt" style={{ background: T.wn, width: "100%" }} onClick={() => { setScr("title"); setPl(null); setBtl(null); setSub(null); }}>🏠 Main Menu</button>
       </div>}
     </div></div></div>
