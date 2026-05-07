@@ -3040,13 +3040,17 @@ function Game() {
   const portraitImgEl = (url) => isValidPortraitURL(url) ? <img src={url.trim()} alt="" referrerPolicy="no-referrer" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { try { e.currentTarget.style.display = "none"; } catch(_){} }} /> : null;
   // Player avatar = class portrait png (with emoji fallback) + custom portrait overlay (if set).
   // Parent must be position:relative; overflow:hidden. Order: emoji → class img (absolute) → custom (absolute) so failures unwind cleanly.
-  const playerAvatar = (cid, fallbackIc, portraitUrl) => <>
+  // sex: "male" (default) uses class/<id>.png; "female" uses class/<id>_f.png with onError fallback to the male png.
+  const classPortraitUrl = (cid, sex) => (import.meta.env.BASE_URL || "/") + "class/" + cid + (sex === "female" ? "_f" : "") + ".png";
+  const playerAvatar = (cid, fallbackIc, portraitUrl, sex) => <>
     <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{fallbackIc}</span>
-    {cid ? <img src={(import.meta.env.BASE_URL || "/") + "class/" + cid + ".png"} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { try { e.currentTarget.style.display = "none"; } catch(_){} }} /> : null}
+    {cid ? <img src={classPortraitUrl(cid, sex)} data-sex={sex || "male"} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { try { const t = e.currentTarget; if (t.dataset.sex === "female" && !t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(cid, "male"); } else { t.style.display = "none"; } } catch(_){} }} /> : null}
     {portraitOverlay(portraitUrl)}
   </>;
   const [quote, setQuote] = useState("");
   const [cSex, setCSex] = useState("male");
+  const [previewSex, setPreviewSex] = useState("male");
+  useEffect(() => { if (scr !== "create") return; const id = setInterval(() => setPreviewSex(s => s === "male" ? "female" : "male"), 2200); return () => clearInterval(id); }, [scr]);
   const [companionSeek, setCompanionSeek] = useState("female");
   const [tavernCompanionCycle, setTavernCompanionCycle] = useState(-1);
   const [tavernCompanions, setTavernCompanions] = useState([]);
@@ -5758,7 +5762,7 @@ const buildGroupedBattleLog = (entries) => {
     <div className="cd hud-shell" style={{ padding: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div className="hud-avatar" style={{ position: "relative", width: 36, height: 36, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, overflow: "hidden", border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 10px " + (cls?.cl || T.gd) + "55" }}>{playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait)}</div>
+          <div className="hud-avatar" style={{ position: "relative", width: 36, height: 36, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, overflow: "hidden", border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 10px " + (cls?.cl || T.gd) + "55" }}>{playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)}</div>
           <div>
             <div className="hud-name-line" style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 700, fontSize: 12, fontFamily: "'Cinzel',serif", color: cls?.cl, flexWrap: "wrap" }}><span>{pl.name}</span>{entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={10} />)}</div>
             <div style={{ fontSize: 10, color: T.dm }}>{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
@@ -5842,7 +5846,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
           {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <img src={(import.meta.env.BASE_URL || "/") + "class/" + c.id + ".png"} alt={c.nm} style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)" }} />
+              <img key={previewSex + c.id} src={classPortraitUrl(c.id, previewSex)} alt={c.nm} style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)", transition: "opacity .35s" }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(c.id, "male"); } } catch(_){} }} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif", lineHeight: 1.1 }}>{c.nm}</div>
                 <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 7 }}>4 Random</span>}</div>
@@ -5885,7 +5889,7 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 2: IDENTITY */}
       {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          {selCls && <img src={(import.meta.env.BASE_URL || "/") + "class/" + selCls + ".png"} alt={CLS.find(c => c.id === selCls)?.nm} style={{ width: 96, height: 96, borderRadius: 10, objectFit: "cover", border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }} />}
+          {selCls && <img key={cSex + selCls} src={classPortraitUrl(selCls, cSex)} alt={CLS.find(c => c.id === selCls)?.nm} style={{ width: 96, height: 96, borderRadius: 10, objectFit: "cover", border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(selCls, "male"); } } catch(_){} }} />}
           <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700, marginTop: 6 }}>{CLS.find(c => c.id === selCls)?.ic} {CLS.find(c => c.id === selCls)?.nm}</div>
           {selBloodmark && (() => { const bm = getBM(selBloodmark); return bm ? <div style={{ marginTop: 4, fontSize: 10, color: bm.cl }}>{bm.ic} {bm.nm}</div> : null; })()}
         </div>
@@ -5914,7 +5918,7 @@ const buildGroupedBattleLog = (entries) => {
         <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Custom Portrait URL <span style={{ fontSize: 8, color: "#9fb0d8", fontWeight: 400 }}>(optional · PNG/JPG/GIF/WebP · animated GIF supported)</span></label>
         <div style={{ display: "flex", gap: 6, alignItems: "stretch", marginBottom: 6 }}>
           <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (cPortrait.trim() ? (isValidPortraitURL(cPortrait) ? "rgba(123,232,143,0.55)" : "rgba(255,138,128,0.55)") : "rgba(212,173,64,0.35)"), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {selCls ? <img src={(import.meta.env.BASE_URL || "/") + "class/" + selCls + ".png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} /> : <span style={{ fontSize: 20 }}>👤</span>}
+            {selCls ? <img key={cSex + selCls + "_bg"} src={classPortraitUrl(selCls, cSex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(selCls, "male"); } } catch(_){} }} /> : <span style={{ fontSize: 20 }}>👤</span>}
             {portraitOverlay(cPortrait)}
           </div>
           <input value={cPortrait} onChange={e => setCPortrait(e.target.value)} placeholder="https://example.com/your-hero.gif" maxLength={800} style={{ flex: 1, background: "rgba(6,12,28,0.85)", border: "1px solid rgba(212,173,64,0.35)", borderRadius: 7, padding: "8px 10px", color: "#fff7e0", fontSize: 11, fontFamily: "inherit", outline: "none" }} />
@@ -6218,7 +6222,7 @@ const buildGroupedBattleLog = (entries) => {
           <div style={{ fontSize: 10, fontWeight: 700, color: T.gd, fontFamily: "'Cinzel',serif", marginBottom: 5, display: "flex", alignItems: "center", gap: 6 }}>🖼 Appearance</div>
           <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
             <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (pl.portrait && isValidPortraitURL(pl.portrait) ? "rgba(123,232,143,0.55)" : T.bd), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={(import.meta.env.BASE_URL || "/") + "class/" + (pl.cid || cls?.id) + ".png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.65 }} />
+              <img src={classPortraitUrl(pl.cid || cls?.id, pl?.sex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.65 }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(pl.cid || cls?.id, "male"); } } catch(_){} }} />
               {portraitOverlay(pl.portrait)}
             </div>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -6528,7 +6532,7 @@ const buildGroupedBattleLog = (entries) => {
               var bgC = isMe ? "radial-gradient(circle at 50% 35%, rgba(242,196,92,0.34), transparent 58%), " + worldTileVisual(t) : isTrail ? "radial-gradient(circle at 50% 50%, rgba(242,196,92,0.24), transparent 55%), " + worldTileVisual(t) : worldTileVisual(t);
               var poiBorder = hasPoi ? poiAccent(t.poi.type) : isDev ? "#ff6b6b" : null;
               var isSwimming = isMe && t && t.bio === "ocean";
-              var meContent = isMe ? (isSwimming ? <>🏊{portraitOverlay(pl?.portrait)}</> : playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait)) : null;
+              var meContent = isMe ? (isSwimming ? <>🏊{portraitOverlay(pl?.portrait)}</> : playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)) : null;
               var cellLabel = isMe ? null : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
               return <div key={idx} title={isDev ? "Roaming Boss" : (hasPoi ? (t.poi.nm || t.poi.type) : (t ? t.bio : ""))} onClick={function() { if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: (hasPoi || isDev) ? "pointer" : "default", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}</div>;
             })}
@@ -6586,7 +6590,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
-          const allyTokens = [{ k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, cls: "ally" }]
+          const allyTokens = [{ k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, sex: pl?.sex, cls: "ally" }]
             .concat((pet && (pet.chp ?? pet.hp ?? 0) > 0) ? [{ k: "pet", ic: pet.ic || "🐾", cls: "ally" }] : [])
             .concat((ally && ally.hp > 0) ? [{ k: "ally", ic: ally.ic || "🤝", cls: "ally" }] : []);
           const tiles = [
@@ -6599,7 +6603,7 @@ const buildGroupedBattleLog = (entries) => {
           return <div className="battle-lane" title="Tactical positions — full movement & range modifiers coming next update">
             {tiles.map((t, i) => <div key={i} className={"battle-lane-tile " + t.role}>
               <div className="battle-lane-tokens">
-                {t.tokens.length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : t.tokens.map(tok => <div key={tok.k} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden" }}>{tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img) : <>{tok.ic}{portraitOverlay(tok.img)}</>}</div>)}
+                {t.tokens.length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : t.tokens.map(tok => <div key={tok.k} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden" }}>{tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}</div>)}
               </div>
               <div className="battle-lane-label">{t.label}</div>
             </div>)}
@@ -6610,7 +6614,7 @@ const buildGroupedBattleLog = (entries) => {
             <div className="cd" style={{ padding: 6, marginBottom: 3 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: T.ac, marginBottom: 3 }}>Player</div>
               <div className="battle-entity-row" style={{ padding: 4, fontSize: 9, display: "flex", gap: 6, alignItems: "center" }}>
-                <div style={{ position: "relative", width: 32, height: 32, borderRadius: 6, background: (ELC[(entityBattleElements(pl)[0]) || pl.tempBattleEl || pl.el]||T.ac)+"22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, overflow: "hidden", border: "1px solid " + (cls?.cl || T.gd) + "66" }}>{playerAvatar(pl?.cid || cls?.id, pl.ic || cls.ic, pl?.portrait)}</div>
+                <div style={{ position: "relative", width: 32, height: 32, borderRadius: 6, background: (ELC[(entityBattleElements(pl)[0]) || pl.tempBattleEl || pl.el]||T.ac)+"22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, overflow: "hidden", border: "1px solid " + (cls?.cl || T.gd) + "66" }}>{playerAvatar(pl?.cid || cls?.id, pl.ic || cls.ic, pl?.portrait, pl?.sex)}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 11 }}>
                     <span>{battlePlayerName}</span>
@@ -6892,7 +6896,7 @@ const buildGroupedBattleLog = (entries) => {
               const ic = isMe ? (cls?.ic||"👤") : t.type === "boss" ? (cleared ? "💀" : "👹") : t.type === "encounter" ? (cleared ? "✓" : (isRift ? "✦" : "⚔")) : t.type === "treasure" || t.type === "treasure_rift" ? (cleared ? "✓" : "💎") : t.type === "ruin_puzzle" ? (cleared ? "✓" : "🏛") : t.type === "safe" ? (isRift ? "◈" : "·") : "·";
               const bg = isMe ? "radial-gradient(circle at 50% 38%, rgba(242,196,92,0.36), transparent 58%), linear-gradient(180deg, rgba(78,58,18,0.9), rgba(32,22,8,0.95))" : t.type === "boss" ? (cleared?"linear-gradient(180deg, rgba(44,44,52,0.65), rgba(18,18,24,0.8))":"linear-gradient(180deg, rgba(118,38,52,0.72), rgba(42,12,18,0.9))") : t.type === "encounter" ? (cleared?"linear-gradient(180deg, rgba(34,40,52,0.55), rgba(14,18,24,0.72))":(isRift ? "linear-gradient(180deg, rgba(105,62,165,0.52), rgba(32,18,60,0.84))" : "linear-gradient(180deg, rgba(128,84,28,0.56), rgba(38,20,10,0.82))")) : (t.type === "treasure"||t.type === "treasure_rift") ? "linear-gradient(180deg, rgba(148,118,26,0.58), rgba(42,28,8,0.86))" : t.type === "ruin_puzzle" ? "linear-gradient(180deg, rgba(86,78,112,0.54), rgba(24,20,36,0.84))" : (isRift ? "linear-gradient(180deg, rgba(36,24,58,0.45), rgba(14,10,24,0.8))" : "linear-gradient(180deg, rgba(48,33,20,0.38), rgba(18,12,8,0.78))");
               const borderColor = isMe ? T.gd : t.type === "boss" ? (cleared ? "rgba(255,255,255,0.12)" : "#ff7189") : t.type === "encounter" ? (isRift ? "#b889ff" : "#ffb066") : (t.type === "treasure"||t.type === "treasure_rift") ? "#ffd35f" : t.type === "ruin_puzzle" ? "#b9a6ff" : "rgba(255,255,255,0.06)";
-              return <div key={idx} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio:"1", background: bg, display:"flex", alignItems:"center", justifyContent:"center", color: isMe ? "#fff2c2" : "#edf4ff", fontSize: isMe?14:10, borderRadius: 3, border: "1.5px solid " + borderColor, boxShadow: isMe ? "0 0 12px rgba(242,196,92,0.42), inset 0 0 0 1px rgba(255,255,255,0.12)" : "inset 0 0 0 1px rgba(255,255,255,0.04)", cursor:"pointer", textShadow: "0 0 8px rgba(0,0,0,0.4)" }} onClick={() => { if (Math.abs(tx-sm.pos.x)+Math.abs(ty-sm.pos.y)===1) subMapMove(tx-sm.pos.x, ty-sm.pos.y); }}>{isMe ? playerAvatar(pl?.cid || cls?.id, cls?.ic || "👤", pl?.portrait) : ic}</div>;
+              return <div key={idx} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio:"1", background: bg, display:"flex", alignItems:"center", justifyContent:"center", color: isMe ? "#fff2c2" : "#edf4ff", fontSize: isMe?14:10, borderRadius: 3, border: "1.5px solid " + borderColor, boxShadow: isMe ? "0 0 12px rgba(242,196,92,0.42), inset 0 0 0 1px rgba(255,255,255,0.12)" : "inset 0 0 0 1px rgba(255,255,255,0.04)", cursor:"pointer", textShadow: "0 0 8px rgba(0,0,0,0.4)" }} onClick={() => { if (Math.abs(tx-sm.pos.x)+Math.abs(ty-sm.pos.y)===1) subMapMove(tx-sm.pos.x, ty-sm.pos.y); }}>{isMe ? playerAvatar(pl?.cid || cls?.id, cls?.ic || "👤", pl?.portrait, pl?.sex) : ic}</div>;
             })}
           </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>

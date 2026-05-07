@@ -156,3 +156,129 @@ id = "Lrhk2nKO5iRdXenEpEuS1"
 uri = "file://artifacts/shattered-veil/public/battle-forest.png"
 type = "image"
 title = "battle-forest"
+
+[[generated]]
+id = "aVqiA3HQeLuKbgCuystJj"
+uri = "file://artifacts/shattered-veil/public/class/paladin_f.png"
+type = "image"
+title = "paladin female portrait"
+
+[[generated]]
+id = "6-nHI4YjeykTOM5gcMQ4L"
+uri = "file://artifacts/shattered-veil/public/class/assassin_f.png"
+type = "image"
+title = "assassin female portrait"
+
+[[generated]]
+id = "u9jB3nqwtMqdZESfFDKNc"
+uri = "file://artifacts/shattered-veil/public/class/sorcerer_f.png"
+type = "image"
+title = "sorcerer female portrait"
+
+[[generated]]
+id = "tQUM49vxJiL_CnS-xSPAt"
+uri = "file://artifacts/shattered-veil/public/class/priest_f.png"
+type = "image"
+title = "priest female portrait"
+
+[[generated]]
+id = "rbQk6FXSBDsveT3O6H5zS"
+uri = "file://artifacts/shattered-veil/public/class/ranger_f.png"
+type = "image"
+title = "ranger female portrait"
+
+[[generated]]
+id = "qY3OBd9IxsbSJuw8kIX3g"
+uri = "file://artifacts/shattered-veil/public/class/koen_f.png"
+type = "image"
+title = "koen female portrait"
+
+[[generated]]
+id = "ukj6Oc4y8GZZHP_4psinB"
+uri = "file://artifacts/shattered-veil/public/class/shouei_f.png"
+type = "image"
+title = "shouei female portrait"
+
+[[generated]]
+id = "FzXx9mAh9QxeC8ZisMu25"
+uri = "file://artifacts/shattered-veil/public/class/phoenix_f.png"
+type = "image"
+title = "phoenix female portrait"
+
+[[generated]]
+id = "jHxJ2e0dJq__VCmIQZjiT"
+uri = "file://artifacts/shattered-veil/public/class/chrono_f.png"
+type = "image"
+title = "chrono female portrait"
+
+[[generated]]
+id = "RSllRpZiOBsRlV9MHsvsq"
+uri = "file://artifacts/shattered-veil/public/class/dream_f.png"
+type = "image"
+title = "dream female portrait"
+
+[[generated]]
+id = "dncBGs8_PHGUug3SQPVJP"
+uri = "file://artifacts/shattered-veil/public/class/voidmage_f.png"
+type = "image"
+title = "voidmage female portrait"
+
+[[generated]]
+id = "S-4kz2oR-a859o8usd5Kb"
+uri = "file://artifacts/shattered-veil/public/class/rune_f.png"
+type = "image"
+title = "rune female portrait"
+
+[[generated]]
+id = "L9RhYveMMjM7HQHMtw4IP"
+uri = "file://artifacts/shattered-veil/public/class/bard_f.png"
+type = "image"
+title = "bard female portrait"
+
+[[generated]]
+id = "JrDhRTiDXeExY_sVA_Yv1"
+uri = "file://artifacts/shattered-veil/public/class/gravity_f.png"
+type = "image"
+title = "gravity female portrait"
+
+[[generated]]
+id = "UGpoVCJNSds63unzyefwr"
+uri = "file://artifacts/shattered-veil/public/class/sound_f.png"
+type = "image"
+title = "sound female portrait"
+
+[[generated]]
+id = "itYq5gZX1U3kZPjDd0mrF"
+uri = "file://artifacts/shattered-veil/public/class/puppet_f.png"
+type = "image"
+title = "puppet female portrait"
+
+[[generated]]
+id = "ogsssrWbrLF3-B-Wp9mHV"
+uri = "file://artifacts/shattered-veil/public/class/tide_f.png"
+type = "image"
+title = "tide female portrait"
+
+[[generated]]
+id = "WO8EQnbp6pq-gvIKtMp0r"
+uri = "file://artifacts/shattered-veil/public/class/monk_f.png"
+type = "image"
+title = "monk female portrait"
+
+[[generated]]
+id = "YVmgqdTdlZw-HIN-7Fdtq"
+uri = "file://artifacts/shattered-veil/public/class/primal_f.png"
+type = "image"
+title = "primal female portrait"
+
+[[generated]]
+id = "Fx3-9Bx62Xrv5_NUZU1Lg"
+uri = "file://artifacts/shattered-veil/public/class/hexblade_f.png"
+type = "image"
+title = "hexblade female portrait"
+
+[[generated]]
+id = "FYDljAgExGDXMqVlqLjm7"
+uri = "file://artifacts/shattered-veil/public/class/gambler_f.png"
+type = "image"
+title = "gambler female portrait"

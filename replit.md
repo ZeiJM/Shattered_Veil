@@ -104,6 +104,16 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## Gender-variant class portraits (v36)
+
+Every class now has both a male portrait (`public/class/<id>.png`) and a female variant (`public/class/<id>_f.png`) — 42 painted portraits total, all 1024×1024, painterly dark-fantasy style matching the existing aesthetic.
+
+- **`classPortraitUrl(cid, sex)` helper** (~line 3047) — single source of truth: returns `_f.png` for `sex==="female"`, base png otherwise. Uses `BASE_URL` so it works under any artifact prefix.
+- **`playerAvatar(cid, fallbackIc, portraitUrl, sex)`** — gained a 4th `sex` param. Female portrait failures auto-fall back to the male png via `data-sex` / `data-fb` dataset flags (no infinite loop), then to the class emoji if both are missing.
+- **All 5 callsites updated** to pass `pl?.sex`: HUD avatar, world map "you are here", submap player tile, battle player row, battle lane ally token (also added `sex` to `allyTokens[0]`).
+- **Forge Your Hero rotation** — new `previewSex` state with a 2.2s `setInterval` that toggles M/F while `scr === "create"`. The class picker thumbnails (~line 5852) animate between both variants so players see both options exist before locking in. Once the player picks a sex on the Identity step, the larger preview card (~line 5895) and the custom-portrait fallback (~line 5924) commit to `cSex`.
+- **Stats Appearance card** (~line 6228) and the rest of the in-game UI use `pl.sex` directly — once committed in `createChar()`, the gender-correct portrait shows everywhere automatically.
+
 ## Popup contrast fix (v35)
 
 The universal popup modal (`setPopup({...})`) was using `color: T.tx` (parchment dark ink `#18120a`) on a hardcoded dark navy background — body text was nearly invisible. Now self-contained via the `.popup-modal` CSS class in `game.css` (~end of file): dark navy gradient bg + light text (`#e8eeff`), gold Cinzel title, and gold-gradient choice buttons with dark text. All inherit-color rules use `!important` so inline `T.tx`/`T.dm` from caller-provided `popup.node` content gets overridden. Inline styles in the `popupEl` JSX (~line 5752) now only set layout, never colors.
