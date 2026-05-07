@@ -256,6 +256,82 @@ html, body, #root {
     radial-gradient(circle at 40% 74%, rgba(255,255,255,0.3) 0 0.6px, transparent 1.4px);
   pointer-events: none; z-index: 0; opacity: 0.65;
 }
+/* Painted battle backdrop — image set inline by JSX, darkened by gradient */
+.battle-arena-img {
+  position: fixed; inset: 0;
+  background-position: center; background-size: cover; background-repeat: no-repeat;
+  pointer-events: none; z-index: 0; opacity: 0.55;
+  filter: saturate(0.92) contrast(1.04);
+  animation: battleArenaDrift 30s ease-in-out infinite alternate;
+}
+.battle-arena-veil {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(8,8,18,0.10) 0%, rgba(8,8,18,0.55) 60%, rgba(4,4,10,0.85) 100%),
+    linear-gradient(180deg, rgba(8,6,16,0.45) 0%, rgba(8,6,16,0.10) 35%, rgba(8,6,16,0.55) 100%);
+  pointer-events: none; z-index: 0;
+}
+@keyframes battleArenaDrift {
+  0%   { transform: scale(1.04) translateY(0px); }
+  100% { transform: scale(1.10) translateY(-6px); }
+}
+/* Force entity card panels in battle to use dark navy (was leaking parchment T.c2) */
+.battle-bg .battle-entity-row {
+  background: linear-gradient(160deg, rgba(20,28,56,0.88) 0%, rgba(12,18,38,0.94) 100%) !important;
+  border: 1px solid rgba(120,140,200,0.16) !important;
+  border-radius: 6px !important;
+}
+.battle-bg .battle-entity-row.is-target {
+  background: linear-gradient(160deg, rgba(80,18,28,0.78) 0%, rgba(38,10,16,0.94) 100%) !important;
+  border-color: rgba(212,90,80,0.55) !important;
+  box-shadow: 0 0 0 1px rgba(212,90,80,0.28), 0 0 14px rgba(180,40,40,0.22);
+}
+.battle-bg .battle-entity-row.is-dead { opacity: 0.28; filter: grayscale(0.6); }
+.battle-bg .battle-entity-row .battle-entity-stats {
+  color: #b8c4e8 !important;
+}
+.battle-bg .battle-element-summary-btn {
+  background: linear-gradient(160deg, rgba(30,46,86,0.85) 0%, rgba(18,28,58,0.95) 100%) !important;
+  border: 1px solid rgba(120,140,200,0.22) !important;
+  color: #cfe0ff !important;
+}
+.battle-bg .battle-element-summary-btn.enemy { color: #ffd5dd !important; border-color: rgba(212,120,128,0.30) !important; }
+/* Tactical lane — read-only visualization of relative range positions */
+.battle-lane {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px; padding: 6px 8px;
+  background: linear-gradient(180deg, rgba(10,16,36,0.85), rgba(6,10,22,0.92)) !important;
+  border: 1px solid rgba(212,173,64,0.22) !important;
+  border-radius: 9px;
+  margin-bottom: 5px;
+}
+.battle-lane-tile {
+  position: relative;
+  min-height: 44px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(60,80,120,0.18) 0%, rgba(20,28,52,0.55) 70%);
+  border: 1px solid rgba(120,140,200,0.18);
+  border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  font-size: 8px; color: #8a9bc8;
+  font-family: 'Cinzel', serif; letter-spacing: 0.04em;
+}
+.battle-lane-tile.lane-melee { border-color: rgba(212,90,80,0.30); background: radial-gradient(ellipse at 50% 50%, rgba(120,30,40,0.16) 0%, rgba(28,14,20,0.55) 70%); }
+.battle-lane-tile.lane-mid   { border-color: rgba(180,160,80,0.22); }
+.battle-lane-tile.lane-far   { border-color: rgba(80,120,200,0.30); background: radial-gradient(ellipse at 50% 50%, rgba(30,50,120,0.18) 0%, rgba(14,22,50,0.55) 70%); }
+.battle-lane-token {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  background: linear-gradient(160deg, rgba(40,60,100,0.95), rgba(20,30,60,0.98));
+  border: 1.5px solid rgba(180,200,240,0.55);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+.battle-lane-token.foe { background: linear-gradient(160deg, rgba(120,30,40,0.95), rgba(60,12,18,0.98)); border-color: rgba(220,140,140,0.65); }
+.battle-lane-token.ally { background: linear-gradient(160deg, rgba(40,90,60,0.95), rgba(18,48,28,0.98)); border-color: rgba(150,220,180,0.55); }
+.battle-lane-token.target-mark { box-shadow: 0 0 0 2px rgba(255,80,80,0.55), 0 0 12px rgba(255,80,80,0.45); }
+.battle-lane-tokens { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.battle-lane-label { font-size: 7px; opacity: 0.7; text-transform: uppercase; }
 
 /* ═══════════════════════════════════════════════════════════
    WRAPPER WIDTHS

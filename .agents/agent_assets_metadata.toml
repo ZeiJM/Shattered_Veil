@@ -138,3 +138,21 @@ id = "QkGlkgL_V1J0JgErqSHFo"
 uri = "file://artifacts/shattered-veil/public/class/gambler.png"
 type = "image"
 title = "gambler portrait"
+
+[[generated]]
+id = "tOG_8CCLujUVc4EOqz82q"
+uri = "file://artifacts/shattered-veil/public/battle-arena.png"
+type = "image"
+title = "battle-arena"
+
+[[generated]]
+id = "APxJusY8QGi5MTJ_ipxlu"
+uri = "file://artifacts/shattered-veil/public/battle-rift.png"
+type = "image"
+title = "battle-rift"
+
+[[generated]]
+id = "Lrhk2nKO5iRdXenEpEuS1"
+uri = "file://artifacts/shattered-veil/public/battle-forest.png"
+type = "image"
+title = "battle-forest"
