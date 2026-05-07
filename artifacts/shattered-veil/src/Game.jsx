@@ -3607,7 +3607,7 @@ function Game() {
     const inheritedBloodmark = pl.bloodmark
       ? (bmSeed % 7 === 0 ? BLOODMARKS[bmSeed % BLOODMARKS.length].id : pl.bloodmark)
       : null;
-    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true, bloodmark: inheritedBloodmark, covenant: null, rank: "Wanderer" };
+    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true, bloodmark: inheritedBloodmark, covenant: null, rank: "Wanderer", restStreak: 0, lastRestDay: null };
     nextPlayer = applyGeneticBoonToPlayer(nextPlayer, geneticBoon);
     const heirCaps = projectedEffStatsFor(nextPlayer, eq, ageDay);
     nextPlayer.chp = heirCaps.hp;
@@ -6169,87 +6169,91 @@ const buildGroupedBattleLog = (entries) => {
           <div className="sb-mini-grid">{[...ELS].sort().map(el => <div key={el} className="sb-line-card"><div style={{ fontWeight: 700, fontSize: 10, color: ELC[el] }}>{el}</div><div className="sb-kv">Advantage: <span style={{ color: T.ok }}>{(EL_STR[el]||[]).join(", ") || "None"}</span></div><div className="sb-kv">Disadvantage: <span style={{ color: T.bad }}>{(EL_RES[el]||[]).join(", ") || "None"}</span></div></div>)}</div>
         </div>
       </div>}
-      {sub === "stats" && <div>
-        <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 3 }}>{Object.entries(st).map(([k, v]) => <div key={k} style={{ background: T.c2, borderRadius: 5, padding: 5, textAlign: "center", cursor: "pointer" }} onClick={() => setPopup({ text: statInfoText(k) })}><div style={{ fontSize: 9, color: T.dm, textTransform: "uppercase" }}>{k}</div><div style={{ fontSize: 14, fontWeight: 700, color: T.gd }}>{v}</div></div>)}</div>
-        <div style={{ fontSize: 10, color: T.dm, marginTop: 8, lineHeight: 1.6 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · Mode: {mode}</div>
-        <div style={{ fontSize: 8, color: "#9fd6ff", marginTop: 3 }}>Tap any stat card for a combat explanation.</div>
+      {sub === "stats" && <div className="stats-page">
+        <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>{Object.entries(st).map(([k, v]) => <div key={k} style={{ background: T.c2, borderRadius: 5, padding: "4px 2px", textAlign: "center", cursor: "pointer" }} onClick={() => setPopup({ text: statInfoText(k) })}><div style={{ fontSize: 8, color: T.dm, textTransform: "uppercase" }}>{k}</div><div style={{ fontSize: 13, fontWeight: 700, color: T.gd }}>{v}</div></div>)}</div>
+        <div style={{ fontSize: 9, color: T.dm, marginTop: 5, lineHeight: 1.4 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · {ageInfo.nm} Day {ageDay}/31 · Mode: {mode}</div>
 
-        {/* RANK CARD */}
-        {(() => { const rk = getRank(pl.level); const nextLv = getNextRankLevel(pl.level); return <div style={{ marginTop: 6, padding: 8, background: rk.cl + "14", borderRadius: 8, border: "1px solid " + rk.cl + "44" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-            <span style={{ fontSize: 18 }}>{rk.ic}</span>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: rk.cl, fontFamily: "'Cinzel',serif" }}>{rk.nm}</div>
-              <div style={{ fontSize: 8, color: T.dm }}>Lv.{pl.level}{nextLv ? " · Next rank at Lv." + nextLv : " · Maximum rank reached"}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 6 }}>
+          {/* RANK CARD */}
+          {(() => { const rk = getRank(pl.level); const nextLv = getNextRankLevel(pl.level); return <div style={{ padding: 7, background: rk.cl + "14", borderRadius: 7, border: "1px solid " + rk.cl + "44" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+              <span style={{ fontSize: 15 }}>{rk.ic}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: rk.cl, fontFamily: "'Cinzel',serif" }}>{rk.nm}</div>
+                <div style={{ fontSize: 7, color: T.dm }}>Lv.{pl.level}{nextLv ? " → " + nextLv : " · Max"}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 8, color: T.dm, lineHeight: 1.3 }}>{rk.ds}</div>
+            {Object.keys(rk.bonus || {}).length > 0 && <div style={{ fontSize: 7, color: T.ok, marginTop: 2 }}>+ {Object.entries(rk.bonus).map(([k,v]) => v + " " + k.toUpperCase()).join(" · ")}</div>}
+          </div>; })()}
+
+          {/* BLOODMARK CARD */}
+          {pl.bloodmark ? (() => { const bm = getBM(pl.bloodmark); return bm ? <div style={{ padding: 7, background: bm.cl + "12", borderRadius: 7, border: "1px solid " + bm.cl + "44" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+              <span style={{ fontSize: 16 }}>{bm.ic}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: bm.cl, fontFamily: "'Cinzel',serif" }}>{bm.nm}</div>
+                <div style={{ fontSize: 7, color: T.dm }}>{Object.entries(bm.stat).map(([k,v]) => (v > 0 ? "+" : "") + v + " " + k.toUpperCase()).join(" · ")}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 8, padding: "3px 5px", background: bm.cl + "18", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+          </div> : null; })() : <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+            <div style={{ fontSize: 9, color: T.dm, fontWeight: 700 }}>✦ No Bloodmark</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>Choose at character creation. Grants passive abilities and stat bonuses.</div>
+          </div>}
+
+          {/* COVENANT CARD */}
+          {pl.covenant ? (() => { const cv = getCV(pl.covenant); return cv ? <div style={{ padding: 7, background: cv.cl + "12", borderRadius: 7, border: "1px solid " + cv.cl + "44" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+              <span style={{ fontSize: 15 }}>{cv.ic}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: cv.cl, fontFamily: "'Cinzel',serif" }}>{cv.nm}</div>
+                <div style={{ fontSize: 7, color: T.dm }}>{cv.el} · {Object.entries(cv.statBonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 8, padding: "3px 5px", background: cv.cl + "18", borderRadius: 4, color: cv.cl, lineHeight: 1.3 }}>🎁 {cv.guildBonus}</div>
+          </div> : null; })() : <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+            <div style={{ fontSize: 9, color: T.dm, fontWeight: 700 }}>🏛 No Covenant</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>Visit a town's Covenant Hall to pledge allegiance to one of five orders.</div>
+          </div>}
+
+          {/* CLASS LORE + MOTTO COMBINED */}
+          <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+            <div style={{ fontSize: 10, color: T.gd, fontWeight: 700, fontFamily: "'Cinzel',serif" }}>📜 {cls?.nm}</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 2, lineHeight: 1.35 }}>{cls?.ds || "No class description available."}</div>
+            <div style={{ marginTop: 4, fontSize: 9, fontStyle: "italic", color: T.gd, textAlign: "center", borderTop: "1px solid " + T.bd, paddingTop: 3 }}>"{pl.quote || "..."}"</div>
+          </div>
+
+          {/* AGE CURVE */}
+          <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>{ageInfo.nm} · Day {ageDay}/31</div>
+                <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>{ageInfo.ds}</div>
+              </div>
+              <button className="bt bs" style={{ background: T.c1, fontSize: 8 }} onClick={() => setPopup({ text: ageCurvePopupText(pl.st) })}>Curve</button>
             </div>
           </div>
-          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4 }}>{rk.ds}</div>
-          {Object.keys(rk.bonus || {}).length > 0 && <div style={{ fontSize: 8, color: T.ok, marginTop: 3 }}>Rank bonus: {Object.entries(rk.bonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div>}
-        </div>; })()}
 
-        {/* BLOODMARK CARD */}
-        {pl.bloodmark ? (() => { const bm = getBM(pl.bloodmark); return bm ? <div style={{ marginTop: 6, padding: 8, background: bm.cl + "12", borderRadius: 8, border: "1px solid " + bm.cl + "44" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-            <span style={{ fontSize: 20 }}>{bm.ic}</span>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: bm.cl, fontFamily: "'Cinzel',serif" }}>Bloodmark: {bm.nm}</div>
-              <div style={{ fontSize: 8, color: T.dm }}>{Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ color: v > 0 ? T.ok : T.bad, marginRight: 5 }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}</div>
-            </div>
+          {/* BOND + LEGACY */}
+          <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+            <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>💍 Bond &amp; Legacy</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 2, lineHeight: 1.35 }}>{spouse ? (spouse.nm + " · " + companionElementLabel(spouse) + " · " + spouse.nature) : "Unbonded. Visit a tavern to shape your line."}</div>
+            {pl.legacyTrait && <div style={{ fontSize: 7, color: "#cfe0ff", marginTop: 2 }}><b>{pl.legacyTrait.nm}:</b> {pl.legacyTrait.ds}</div>}
+            <div style={{ fontSize: 7, color: "#ffe7a8", marginTop: 2 }}>Boons: {boonListForPlayer(pl).join(" · ") || "—"}</div>
+            <button className="bt bs" style={{ background: T.c1, marginTop: 4, fontSize: 8 }} onClick={() => setPopup({ text: inheritedTraitCatalogText() })}>Possible Inheritance</button>
           </div>
-          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4, marginBottom: 4 }}>{bm.ds}</div>
-          <div style={{ fontSize: 9, padding: "4px 7px", background: bm.cl + "18", border: "1px solid " + bm.cl + "44", borderRadius: 5, color: bm.cl }}>⚡ {bm.passiveDesc}</div>
-        </div> : null; })() : <div style={{ marginTop: 6, padding: 8, background: T.c2, borderRadius: 8, border: "1px solid " + T.bd }}>
-          <div style={{ fontSize: 10, color: T.dm, fontWeight: 700 }}>✦ Bloodmark</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>No bloodmark selected. Bloodmarks grant passive abilities and stat bonuses. They can be chosen at character creation.</div>
-        </div>}
-
-        {/* COVENANT CARD */}
-        {pl.covenant ? (() => { const cv = getCV(pl.covenant); return cv ? <div style={{ marginTop: 6, padding: 8, background: cv.cl + "12", borderRadius: 8, border: "1px solid " + cv.cl + "44" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-            <span style={{ fontSize: 18 }}>{cv.ic}</span>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: cv.cl, fontFamily: "'Cinzel',serif" }}>{cv.nm}</div>
-              <div style={{ fontSize: 8, color: T.dm }}>Aligned element: {cv.el} · {Object.entries(cv.statBonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div>
-            </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 6 }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: T.gd, marginBottom: 3, borderBottom: "1px solid " + T.bd, paddingBottom: 2 }}>🐾 Pet Companion</div>
+            {pet ? <div style={{ padding: 5, background: T.c2, borderRadius: 5 }}><div style={{ fontSize: 10, fontWeight: 700 }}>{pet.ic} {pet.nm} <span style={{ color: ELC[pet.el], fontSize: 8 }}>{pet.el}</span></div><div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>HP: {pet.chp ?? pet.hp}/{pet.mhp ?? pet.hp} · ATK: {pet.atk} · DEF: {pet.def} · SPD: {pet.spd}</div><div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>Passive: <span style={{ color: T.tx, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: passivePopupText(pet.passiveName || pet.passive || "Companion Instinct", pet.passiveName || pet.passive ? ("Pet instinct aligned with " + (pet.passiveBonus || "damage") + " support.") : null) })}>{pet.passiveName || pet.passive || "Companion Instinct"}</span></div><div style={{ fontSize: 8, color: T.dm, marginTop: 2, lineHeight: 1.4 }}>1. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(pet.sk1) })}>{pet.sk1?.n || "?"}</span></div><div style={{ fontSize: 8, color: T.dm, lineHeight: 1.4 }}>2. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(pet.sk2) })}>{pet.sk2?.n || "?"}</span></div><button className="bt bs" style={{ background: T.bad, marginTop: 3, fontSize: 8 }} onClick={() => setPet(null)}>Release</button></div> : <div style={{ fontSize: 8, color: T.dm, padding: 5, background: T.c2, borderRadius: 5 }}>No pet tamed. Visit a 🐾 zone.</div>}
           </div>
-          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4, marginBottom: 4 }}>{cv.ds}</div>
-          <div style={{ fontSize: 9, padding: "4px 7px", background: cv.cl + "18", border: "1px solid " + cv.cl + "44", borderRadius: 5, color: cv.cl }}>🎁 {cv.guildBonus}</div>
-        </div> : null; })() : <div style={{ marginTop: 6, padding: 8, background: T.c2, borderRadius: 8, border: "1px solid " + T.bd }}>
-          <div style={{ fontSize: 10, color: T.dm, fontWeight: 700 }}>🏛 Covenant</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>No covenant joined. Visit the Covenant Hall in any town to pledge allegiance to one of the five orders. Each grants stat bonuses and unique guild mission bonuses.</div>
-        </div>}
-
-        <div style={{ marginTop: 6, padding: 6, background: T.c2, borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>📜 Class Lore</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 2, lineHeight: 1.5 }}>{cls?.ds || "No class description available."}</div>
-        </div>
-        <div style={{ marginTop: 6, padding: 6, background: T.c2, borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>🗣 Motto</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>This phrase is uttered before your Veil Expansion is cast in battle.</div>
-          <div style={{ marginTop: 4, fontSize: 11, fontStyle: "italic", color: T.gd, textAlign: "center" }}>"{pl.quote || "..."}"</div>
-        </div>
-        <div style={{ marginTop: 6, padding: 6, background: T.c2, borderRadius: 6 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-            <div>
-              <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>{ageInfo.nm} · Day {ageDay}/31</div>
-              <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>{ageInfo.ds}</div>
-            </div>
-            <button className="bt bs" style={{ background: T.c1 }} onClick={() => setPopup({ text: ageCurvePopupText(pl.st) })}>View Curve</button>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: T.gd, marginBottom: 3, borderBottom: "1px solid " + T.bd, paddingBottom: 2 }}>🤝 Battle Ally</div>
+            {ally ? <div style={{ padding: 5, background: T.c2, borderRadius: 5 }}><div style={{ fontSize: 10, fontWeight: 700 }}>{ally.ic || "🤝"} {ally.nm} <span style={{ fontSize: 8, color: T.dm }}>({ally.cls.nm})</span></div>{pBar(ally.hp, ally.mhp, T.hp)}<div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>HP: {ally.hp}/{ally.mhp} · <span style={{ color: ELC[ally.el] }}>{[ally.el, ally.el2].filter(Boolean).join(" / ")}</span></div><div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>Passive: <span style={{ color: T.tx, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: passivePopupText(ally.passiveName || ally.passive || "Shrine Blessing", ally.passiveName || ally.passive ? ("Ally role: " + (ally.role || ally.passiveBonus || "support") + ".") : null) })}>{ally.passiveName || ally.passive || "Shrine Blessing"}</span></div><div style={{ fontSize: 8, color: T.dm, marginTop: 2, lineHeight: 1.4 }}>1. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(ally.sk1) })}>{ally.sk1?.n || "?"}</span></div><div style={{ fontSize: 8, color: T.dm, lineHeight: 1.4 }}>2. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(ally.sk2) })}>{ally.sk2?.n || "?"}</span></div><button className="bt bs" style={{ background: T.bad, marginTop: 3, fontSize: 8 }} onClick={() => setAlly(null)}>Dismiss</button></div> : <div style={{ fontSize: 8, color: T.dm, padding: 5, background: T.c2, borderRadius: 5 }}>No ally. Commune at shrines to call one.</div>}
           </div>
-          <div style={{ marginTop: 4, fontSize: 8, color: "#cfd3ea" }}>Today: HP {st.hp} · MP {st.mp} · ATK {st.atk} · MAG {st.mag} · SPD {st.spd}</div>
         </div>
-        <div style={{ marginTop: 6, padding: 6, background: T.c2, borderRadius: 6 }}>
-          <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>💍 Bond and Legacy</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>{spouse ? (spouse.nm + " · " + companionElementLabel(spouse) + " · " + spouse.nature) : "No bonded companion yet. Visit a Tavern to shape your next generation."}</div>
-          {spouse && <div style={{ fontSize: 8, color: "#cfe0ff", marginTop: 3 }}>Legacy Line: <span style={{ color: T.tx, fontWeight: 700 }}>{pl.name} × {spouse.nm}</span> — tuned by {spouse.nature.toLowerCase()} temperament and {companionElementLabel(spouse)} resonance.</div>}
-          {pl.legacyTrait && spouse && <div style={{ fontSize: 8, color: "#cfe0ff", marginTop: 3 }}>Legacy Trait: <span style={{ color: T.tx, fontWeight: 700 }}>{pl.legacyTrait.nm}</span> — {pl.legacyTrait.ds}</div>}
-          <div style={{ fontSize: 8, color: "#ffe7a8", marginTop: 3 }}>Boons: <span style={{ color: T.tx, fontWeight: 700 }}>{boonListForPlayer(pl).join(" · ")}</span></div>{pl.geneticBoon && <div style={{ fontSize: 8, color: "#ffe7a8", marginTop: 3 }}>Genetic Boon: <span style={{ color: T.tx, fontWeight: 700 }}>{pl.geneticBoon.nm}</span> — {pl.geneticBoon.ds}</div>}
-          <button className="bt bs" style={{ background: T.c1, marginTop: 5 }} onClick={() => setPopup({ text: inheritedTraitCatalogText() })}>Possible Inheritance</button>
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.gd, marginTop: 10, marginBottom: 4, borderBottom: "1px solid " + T.bd, paddingBottom: 3 }}>🐾 Pet Companion</div>
-        {pet ? <div style={{ padding: 5, background: T.c2, borderRadius: 5 }}><div style={{ fontSize: 11, fontWeight: 700 }}>{pet.ic} {pet.nm} <span style={{ color: ELC[pet.el] }}>{pet.el}</span></div><div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>HP: {pet.chp ?? pet.hp}/{pet.mhp ?? pet.hp} · ATK: {pet.atk} · DEF: {pet.def} · SPD: {pet.spd} · Role: {pet.passiveBonus || "damage"}</div><div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>Passive: <span style={{ color: T.tx, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: passivePopupText(pet.passiveName || pet.passive || "Companion Instinct", pet.passiveName || pet.passive ? ("Pet instinct aligned with " + (pet.passiveBonus || "damage") + " support.") : null) })}>{pet.passiveName || pet.passive || "Companion Instinct"}</span></div><div style={{ fontSize: 9, color: T.dm, marginTop: 3, lineHeight: 1.45 }}>1. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(pet.sk1) })}>{pet.sk1?.n || "?"}</span> — {(pet.sk1?.pow || 0) > 0 ? "Power " + pet.sk1.pow : "Support"}{pet.sk1?.fx ? " · " + (FX(pet.sk1.fx)?.nm || pet.sk1.fx) : ""}</div><div style={{ fontSize: 9, color: T.dm, lineHeight: 1.45 }}>2. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(pet.sk2) })}>{pet.sk2?.n || "?"}</span> — {(pet.sk2?.pow || 0) > 0 ? "Power " + pet.sk2.pow : "Support"}{pet.sk2?.fx ? " · " + (FX(pet.sk2.fx)?.nm || pet.sk2.fx) : ""}</div><button className="bt bs" style={{ background: T.bad, marginTop: 3 }} onClick={() => setPet(null)}>Release</button></div> : <div style={{ fontSize: 9, color: T.dm, padding: 4 }}>No pet tamed. Visit a beast zone 🐾 to find one.</div>}
-        <div style={{ fontSize: 11, fontWeight: 700, color: T.gd, marginTop: 10, marginBottom: 4, borderBottom: "1px solid " + T.bd, paddingBottom: 3 }}>🤝 Battle Ally</div>
-        {ally ? <div style={{ padding: 5, background: T.c2, borderRadius: 5 }}><div style={{ fontSize: 11, fontWeight: 700 }}>{ally.ic || "🤝"} {ally.nm} ({ally.cls.nm})</div>{pBar(ally.hp, ally.mhp, T.hp)}<div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>HP: {ally.hp}/{ally.mhp} · Element: <span style={{ color: ELC[ally.el] }}>{[ally.el, ally.el2].filter(Boolean).join(" / ")}</span> · Role: {ally.role || ally.passiveBonus || "support"}</div><div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>Passive: <span style={{ color: T.tx, fontWeight: 700, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: passivePopupText(ally.passiveName || ally.passive || "Shrine Blessing", ally.passiveName || ally.passive ? ("Ally role: " + (ally.role || ally.passiveBonus || "support") + ".") : null) })}>{ally.passiveName || ally.passive || "Shrine Blessing"}</span></div><div style={{ fontSize: 9, color: T.dm, marginTop: 3, lineHeight: 1.45 }}>1. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(ally.sk1) })}>{ally.sk1?.n || "?"}</span> — {(ally.sk1?.pow || 0) > 0 ? "Power " + ally.sk1.pow : "Support"}{ally.sk1?.fx ? " · " + (FX(ally.sk1.fx)?.nm || ally.sk1.fx) : ""}</div><div style={{ fontSize: 9, color: T.dm, lineHeight: 1.45 }}>2. <span style={{ color: T.tx, cursor: "pointer", textDecoration: "underline" }} onClick={() => setPopup({ text: skillPopupText(ally.sk2) })}>{ally.sk2?.n || "?"}</span> — {(ally.sk2?.pow || 0) > 0 ? "Power " + ally.sk2.pow : "Support"}{ally.sk2?.fx ? " · " + (FX(ally.sk2.fx)?.nm || ally.sk2.fx) : ""}</div><div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>Attacks alongside you each turn.</div><button className="bt bs" style={{ background: T.bad, marginTop: 3 }} onClick={() => setAlly(null)}>Dismiss</button></div> : <div style={{ fontSize: 9, color: T.dm, padding: 4 }}>No ally. Allies may answer your call when you commune at shrines.</div>}
       </div>}
       {sub === "story" && <div style={{ display: "grid", gap: 6 }}>
         {activeStoryQuest && <div className="sb-panel"><div className="sb-title">Active Quest</div><div style={{ fontSize: 12, fontWeight: 800, color: T.tx, marginBottom: 3 }}>{activeStoryQuest.nm}</div><div style={{ fontSize: 9, color: T.dm, lineHeight: 1.5 }}>{activeStoryQuest.ds}</div>{activeStoryQuest.goal ? <div style={{ marginTop: 6, fontSize: 9, color: T.tx }}>Progress: {Math.min(activeStoryQuest.prog || 0, activeStoryQuest.goal)}/{activeStoryQuest.goal}</div> : <div style={{ marginTop: 6, fontSize: 9, color: T.tx }}>Milestone: Reach the next turning point to continue the campaign.</div>}</div>}
@@ -6878,11 +6882,11 @@ const buildGroupedBattleLog = (entries) => {
 
         {!svc && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))", gap: 5 }}>
+            <div className="svc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))", gap: 4 }}>
               {svcs.map((s) => (
-                <div key={s.id} style={{ padding: 8, background: T.c2, borderRadius: 7, cursor: "pointer", textAlign: "center", border: "1px solid " + T.bd }} onClick={() => setSvc(s.id)}>
-                  <div style={{ fontSize: 18, marginBottom: 2 }}>{s.ic}</div>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: T.gd }}>{s.nm}</div>
+                <div key={s.id} className="svc-card" style={{ padding: "6px 4px", background: T.c2, borderRadius: 6, cursor: "pointer", textAlign: "center", border: "1px solid " + T.bd, transition: "transform 0.12s, box-shadow 0.12s" }} onClick={() => setSvc(s.id)}>
+                  <div style={{ fontSize: 16, marginBottom: 1, lineHeight: 1 }}>{s.ic}</div>
+                  <div style={{ fontSize: 7.5, fontWeight: 700, color: T.gd, lineHeight: 1.2 }}>{s.nm}</div>
                 </div>
               ))}
             </div>
@@ -6907,7 +6911,39 @@ const buildGroupedBattleLog = (entries) => {
               <button className="bt bs" style={{ background: T.c2 }} onClick={() => setSvc(null)}>← Back</button>
             </div>
 
-            {svc === "inn" && <div style={{ textAlign: "center" }}><p style={{ fontSize: 11, color: T.dm, marginBottom: 8 }}>Rest fully (15G)</p><button className="bt" style={{ background: T.ok }} onClick={() => { if (gold < 15) { notify("Need 15G!"); return; } const s = effSt(pl); setPl(p => ({ ...p, chp: s.hp, cmp: s.mp, pUsed: false })); setGold(g => g - 15); notify("Rested!"); }}>Rest</button></div>}
+            {svc === "inn" && (function(){
+              const streak = pl.restStreak || 0;
+              const dayKey = (pl.generation || 1) * 100 + ageDay;
+              const sameDay = pl.lastRestDay === dayKey;
+              const nextStreak = sameDay ? streak : streak + 1;
+              const tier = Math.min(7, nextStreak);
+              const goldBonus = sameDay ? 0 : tier * 5;
+              const shardBonus = !sameDay && tier >= 3 ? 1 : 0;
+              const xpBonus = sameDay ? 0 : tier * 12;
+              const tierName = ["—","Wayfarer","Disciple","Devoted","Watchful","Steadfast","Anointed","Ascendant"][tier] || "Ascendant";
+              return <div style={{ textAlign: "center" }}>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                  <span className="streak-badge">🔥 Day {nextStreak} · {tierName}</span>
+                </div>
+                <p style={{ fontSize: 10, color: T.dm, marginBottom: 4, lineHeight: 1.4 }}>Rest fully (15G). Each new day continues your streak — rewards grow per tier, capped at day 7.</p>
+                {sameDay
+                  ? <div style={{ fontSize: 9, color: T.wn, marginBottom: 8 }}>Already rested today — only heal restored. Streak resumes tomorrow.</div>
+                  : <div style={{ fontSize: 9, color: T.gd, marginBottom: 8 }}>Reward: +{xpBonus} XP · +{goldBonus}G{shardBonus ? " · +" + shardBonus + " Relic Shard" : ""}</div>
+                }
+                <button className="bt" style={{ background: T.ok }} onClick={() => {
+                  if (gold < 15) { notify("Need 15G!"); return; }
+                  const s = effSt(pl);
+                  setPl(p => ({ ...p, chp: s.hp, cmp: s.mp, pUsed: false, restStreak: nextStreak, lastRestDay: dayKey }));
+                  setGold(g => g - 15 + goldBonus);
+                  if (shardBonus) setShards(s2 => s2 + shardBonus);
+                  if (xpBonus && typeof giveXP === "function") { try { giveXP(xpBonus); } catch (_) {} }
+                  notify(sameDay ? "Rested!" : ("Day " + nextStreak + " streak! +" + goldBonus + "G" + (shardBonus ? " +" + shardBonus + "🔮" : "")));
+                }}>Rest at the Inn</button>
+                <div style={{ display: "flex", justifyContent: "center", gap: 3, marginTop: 8 }}>
+                  {[1,2,3,4,5,6,7].map(d => <div key={d} title={"Day " + d} style={{ width: 16, height: 16, borderRadius: 4, background: nextStreak >= d ? T.gd : T.c1, border: "1px solid " + T.bd, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: nextStreak >= d ? "#1a1408" : T.dm, fontWeight: 700 }}>{d}</div>)}
+                </div>
+              </div>;
+            })()}
 
             {svc === "shop" && (function(){ if (!shopStock) { return <div style={{ fontSize: 9, color: T.dm }}>Stocking shelves...</div>; } return <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
               <div style={{ fontSize: 10, color: T.gd, marginBottom: 3, fontWeight: 700, letterSpacing: 0.3 }}>Weapons ({shopStock.wpn.length} in stock)</div>

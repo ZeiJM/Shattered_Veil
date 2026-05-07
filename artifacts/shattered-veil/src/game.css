@@ -573,6 +573,55 @@ html, body, #root {
 }
 .sb-grid, .sb-skill-grid, .sb-mini-grid { display: grid; gap: 8px; }
 .sb-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* Compact stats page — adaptive grid, minimal scroll */
+.stats-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+/* Narrow mobile: stack everything to single column for readability */
+@media (max-width: 480px) {
+  .stats-page > div[style*="repeat(7"] {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  .stats-page > div[style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* Desktop: expand info cards to 3 across for less vertical sprawl */
+@media (min-width: 720px) {
+  .stats-page > div:nth-child(3) {
+    grid-template-columns: 1fr 1fr 1fr !important;
+  }
+}
+
+/* Town service cards — interactive feedback */
+.svc-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 173, 64, 0.18);
+  border-color: var(--gold-3) !important;
+}
+.svc-card:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3) inset;
+}
+
+/* Daily streak badge */
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold-4), var(--gold-3));
+  color: var(--ink-1);
+  font-weight: 800;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.18);
+  box-shadow: 0 2px 6px rgba(212, 173, 64, 0.32), inset 0 -1px 0 rgba(0,0,0,0.18);
+}
 .sb-skill-grid { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 .sb-mini-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 .sb-title {
