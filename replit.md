@@ -104,6 +104,16 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## Title screen (v33)
+
+Stripped to a single CTA in anticipation of the online migration. **Removed**: Multiplayer button, Admin Panel button + entire admin modal JSX block, the three Load Save buttons, version number, WASD/spacebar instructions. The `loadGame()` function and save persistence remain in the codebase (used by post-death continue flows); only the title-screen entrypoint to manual loads was cut.
+
+**Kept/added**:
+- Single `⚔ Enter the Rift` button (`.title-cta`) — pulsing gold CTA that goes straight to character creation in single mode. Subtitle reads "Online persistence and live PvP coming soon — your bloodline begins here."
+- Six **lore pillars** (`.title-pillars` grid, 3-col → 2-col under 520px) replacing the flat chip strip: 16 Sorcerer Classes, 8 Bloodmarks, Unfolded Territories, 5 Rival Covenants, A Living Continent, Dynasty Succession. Each tile has a glowing icon corner-glow, gold-accented Cinzel title, and an italic Crimson teaser.
+- Stronger eyebrow (`.title-eyebrow`, 0.55em letter-spacing) and a punched-up tagline: *"The sky tore open a hundred years ago. The dead walked out of it. You inherited what bled through."* (final clause in gold via inline span).
+- All new styles live in `game.css` under the "New title screen (v33)" block (~line 485). Old `.feature-chip` / `.title-feature-row` rules left in place — still referenced by `.title-bg-art .feature-chip` overrides at line 123 and harmless to keep until they're confirmed unused elsewhere.
+
 ## Custom portrait (v32)
 
 - **`pl.portrait`** — optional URL string on the player. Persisted automatically with the rest of `pl` via the existing JSON save flow.

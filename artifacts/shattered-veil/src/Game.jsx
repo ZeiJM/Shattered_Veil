@@ -3026,8 +3026,6 @@ function Game() {
   const [log, setLog] = useState([]);
   const [noti, setNoti] = useState(null);
   const [sub, setSub] = useState(null);
-  const [admin, setAdmin] = useState(false);
-  const [admTab, setAdmTab] = useState("classes");
   const [cStep, setCStep] = useState(0);
   const [selCls, setSelCls] = useState(null);
   const [selBloodmark, setSelBloodmark] = useState(null);
@@ -5792,22 +5790,29 @@ const buildGroupedBattleLog = (entries) => {
   if (scr === "title") return (
     <div className="pg title-bg title-bg-art" style={{ backgroundImage: "linear-gradient(180deg, rgba(4,6,14,0.55) 0%, rgba(4,6,14,0.35) 30%, rgba(4,6,14,0.78) 78%, rgba(4,6,14,0.96) 100%), url(" + (import.meta.env.BASE_URL || "/") + "title-veil.png)" }}><audio ref={introAudioRef} src={TITLE_THEME_SRC} autoPlay loop playsInline preload="auto" muted defaultMuted style={{display:"none"}} /><div className="wr intro-shell">{notiEl}
       <div className="title-hero" style={{ textAlign: "center", position: "relative", zIndex: 2 }}>
-        <div style={{ fontSize: 10, letterSpacing: 8, color: "#d7e1ff", textTransform: "uppercase", fontFamily: "'Cinzel',serif", marginBottom: 10 }}>Chronicles of the Rift</div>
-        <h1 style={{ fontSize: 48, fontWeight: 900, fontFamily: "'Cinzel',serif", color: T.gd, lineHeight: 1.02, textShadow: "0 0 34px " + T.gd + "22", marginBottom: 8 }}>Shattered<br/>Veil</h1>
-        <div style={{ width: 74, height: 2, background: "linear-gradient(90deg,transparent," + T.gd + ",transparent)", margin: "12px auto" }} />
-        <p style={{ fontSize: 13, color: "#d6def6", fontStyle: "italic", margin: "0 auto 14px", maxWidth: 460 }}>A fractured world of inherited techniques, formal sorcerer schools, and the unfolded territories of those who can briefly impose their will upon the Veil.</p>
-        <div className="title-feature-row">
-          {["⚔ 16 Classes","✦ 8 Bloodmarks","🗺 300×300 World","🏛 5 Covenants","📖 Story Quests","🌀 Rifts · Outposts"].map((txt) => <span key={txt} className="feature-chip">{txt}</span>)}
+        <div className="title-eyebrow">Chronicles of the Rift</div>
+        <h1 style={{ fontSize: 52, fontWeight: 900, fontFamily: "'Cinzel',serif", color: T.gd, lineHeight: 1.02, textShadow: "0 0 34px " + T.gd + "22", marginBottom: 4 }}>Shattered<br/>Veil</h1>
+        <div className="title-divider" />
+        <p className="title-tagline">The sky tore open a hundred years ago. The dead walked out of it. <span style={{ color: T.gd, fontStyle: "normal" }}>You inherited what bled through.</span></p>
+        <div className="title-pillars">
+          {[
+            { ic: "⚔", nm: "16 Sorcerer Classes", ds: "From Ash-Phoenix monks to Mirror-Puppet duelists" },
+            { ic: "✦", nm: "8 Bloodmarks", ds: "Inherited techniques carved into your lineage" },
+            { ic: "🌀", nm: "Unfolded Territories", ds: "Step into a domain. Survive its rules" },
+            { ic: "🏛", nm: "5 Rival Covenants", ds: "Pledge a faction. Make enemies of the rest" },
+            { ic: "🗺", nm: "A Living Continent", ds: "300×300 tiles of towns, rifts & roaming bosses" },
+            { ic: "👑", nm: "Dynasty Succession", ds: "Die. Pass your mark to an heir. Begin stronger" },
+          ].map((p) => <div key={p.nm} className="title-pillar">
+            <div className="title-pillar-ic">{p.ic}</div>
+            <div className="title-pillar-nm">{p.nm}</div>
+            <div className="title-pillar-ds">{p.ds}</div>
+          </div>)}
         </div>
-        <div style={{ fontSize: 9, color: "#b7c4e8", marginBottom: 10 }}>Version 28 · Use WASD or Arrow Keys to move · Press Space to enter locations</div>
-        <div className="title-button-stack" style={{ display: "flex", flexDirection: "column", gap: 9, maxWidth: 300, margin: "0 auto" }}>
-          <button className="bt" style={{ background: T.gd }} onClick={() => { setMode("single"); setScr("create"); setCStep(0); }}>⚔️ Begin Single Player</button>
-          <button className="bt" style={{ background: "linear-gradient(180deg,#27428a,#1c2d5f)" }} onClick={() => { setMode("multi"); setScr("create"); setCStep(0); }}>🌐 Multiplayer (Prep)</button>
-          <button className="bt" style={{ background: "linear-gradient(180deg,#24365f,#182345)" }} onClick={() => setAdmin(true)}>🔧 Admin Panel</button>
+        <div className="title-button-stack" style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 340, margin: "10px auto 0" }}>
+          <button className="bt title-cta" onClick={() => { setMode("single"); setScr("create"); setCStep(0); }}>⚔ Enter the Rift</button>
+          <div className="title-cta-sub">Online persistence and live PvP coming soon — your bloodline begins here.</div>
         </div>
-        <div style={{ marginTop: 14, display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>{[0, 1, 2].map(i => <button key={i} className="bt bs" style={{ background: saves[i] ? "linear-gradient(180deg,#398762,#28533d)" : T.c2, minWidth: 76 }} onClick={() => loadGame(i)}>Load {i + 1}{saves[i] ? " ✓" : ""}</button>)}</div>
       </div>
-      {admin && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, overflowY: "auto", padding: 12 }}><div style={{ maxWidth: 480, margin: "0 auto" }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ fontFamily: "'Cinzel',serif", color: T.gd, fontSize: 18 }}>🔧 Admin</h2><button className="bt bs" style={{ background: T.bad }} onClick={() => setAdmin(false)}>✕</button></div><div style={{ display: "flex", gap: 3, marginBottom: 8, flexWrap: "wrap" }}>{["classes","elements","effects","config"].map(t => <button key={t} className="bt bs" style={{ background: admTab === t ? T.gd : T.c2, fontSize: 9 }} onClick={() => setAdmTab(t)}>{t}</button>)}</div><div className="cd" style={{ maxHeight: "65vh", overflowY: "auto" }}>{admTab === "classes" && CLS.map(c => <div key={c.id} style={{ padding: 4, background: T.c2, borderRadius: 4, marginBottom: 2, fontSize: 10 }}><span style={{ color: c.cl, fontWeight: 700 }}>{c.ic} {c.nm}</span> <span style={{ color: T.dm }}>{c.el} | {Object.entries(c.st).map(([k,v]) => k + ":" + v).join(" ")}</span></div>)}{admTab === "elements" && ELS.map(el => <div key={el} style={{ padding: 3, fontSize: 10 }}><span style={{ color: ELC[el], fontWeight: 700 }}>{el}</span><span style={{ color: T.ok }}> → {(EL_STR[el]||[]).join(",")}</span><span style={{ color: T.bad }}> ← {(EL_RES[el]||[]).join(",")}</span></div>)}{admTab === "effects" && FXS.map(f => <div key={f.id} style={{ padding: 3, background: T.c2, borderRadius: 3, marginBottom: 2, fontSize: 10 }}>{f.ic} {f.nm} ({f.type} {f.dur}t): +{f.v}</div>)}{admTab === "config" && <div style={{ fontSize: 10, color: T.dm, lineHeight: 1.8 }}>Skills: 16/class (equip 4 + Strike + Guard) · Passives: 8/class · Ult: 4-8 chain · 16 elements · {FXS.length} effects · 2 weapon slots · 4 armor (found only) · 2 consumable slots · Pets: {BEASTS.length} · Map: {MW}x{MH} · No level cap</div>}</div></div></div>}
     </div></div>
   );
 
@@ -6422,7 +6427,6 @@ const buildGroupedBattleLog = (entries) => {
       </div>}{sub === "menu" && <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <div style={{ display: "flex", gap: 4 }}>{[0, 1, 2].map(i => <button key={i} className="bt bs" style={{ background: T.ok, flex: 1 }} onClick={() => saveGame(i)}>Save {i + 1}</button>)}</div>
         <div style={{ display: "flex", gap: 4 }}>{[0, 1, 2].map(i => <button key={i} className="bt bs" style={{ background: saves[i] ? T.ac : T.c2, flex: 1 }} onClick={() => loadGame(i)}>Load {i + 1}{saves[i] ? " ✓" : ""}</button>)}</div>
-        <button className="bt" style={{ background: T.c2, width: "100%" }} onClick={() => { setSub(null); setAdmin(true); }}>🔧 Admin</button>
         <button className="bt" style={{ background: T.wn, width: "100%" }} onClick={() => { setScr("title"); setPl(null); setBtl(null); setSub(null); }}>🏠 Main Menu</button>
       </div>}
     </div></div></div>
