@@ -6939,6 +6939,7 @@ const buildGroupedBattleLog = (entries) => {
     };
     const townSpecials = TOWN_SPECIALS[tn] || [];
     const townFocus = (TOWN_PROFILES[tn] || {}).focus || [];
+    const SVC_CAT = { shop:"commerce", smith:"commerce", bank:"commerce", market:"commerce", jeweler:"commerce", shipwright:"commerce", arena:"combat", duel:"combat", train:"combat", guild:"combat", inn:"social", tavern:"social", lib:"mystic", covenant:"mystic", crafting:"mystic", enchant:"mystic", oracle:"mystic", alchemist:"mystic", herbalist:"nature", beastmaster:"nature", armorer:"commerce" };
     const svcs = [
       { id: "shop", nm: "Merchant", ic: "🛒" },
       { id: "smith", nm: "Forge", ic: "🔨" },
@@ -6953,7 +6954,7 @@ const buildGroupedBattleLog = (entries) => {
       { id: "covenant", nm: "Covenant Hall", ic: "🏛" },
       { id: "crafting", nm: "Relic Crafting", ic: "⚗️" },
       ...townSpecials,
-    ];
+    ].map(s => ({ ...s, cat: SVC_CAT[s.id] || "mystic" }));
 
     return (
       <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{hud}<div className="cd page-panel">
@@ -6961,7 +6962,7 @@ const buildGroupedBattleLog = (entries) => {
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 16, color: T.gd }}>🏘️ {tn}</div>
           <button className="bt bs" style={{ background: T.ac }} onClick={() => { setSvc(null); setScr("map"); }}>Leave</button>
         </div>
-        <div style={{ marginBottom: 8, padding: 7, borderRadius: 8, background: "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))", border: "1px solid " + T.bd }}>
+        <div className="town-profile-card" style={{ marginBottom: 8, padding: 7, borderRadius: 8, background: "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))", border: "1px solid " + T.bd }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: T.gd }}>{(TOWN_PROFILES[tn] || {}).title || 'Frontier Settlement'}</div>
           <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>{(TOWN_PROFILES[tn] || {}).vibe || 'A settlement shaped by the dangers and economies around it.'}</div>
           <div style={{ fontSize: 8, color: '#cfd3ea', marginTop: 3, lineHeight: 1.35 }}><span style={{ color: '#f2c45c', fontWeight: 700 }}>Strategic Edge:</span> {(TOWN_PROFILES[tn] || {}).edge || 'A stable place to regroup and choose the next route.'}</div>
@@ -6972,14 +6973,14 @@ const buildGroupedBattleLog = (entries) => {
           <div>
             <div className="svc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))", gap: 4 }}>
               {svcs.map((s) => (
-                <div key={s.id} className="svc-card" style={{ padding: "6px 4px", background: T.c2, borderRadius: 6, cursor: "pointer", textAlign: "center", border: "1px solid " + T.bd, transition: "transform 0.12s, box-shadow 0.12s" }} onClick={() => setSvc(s.id)}>
-                  <div style={{ fontSize: 16, marginBottom: 1, lineHeight: 1 }}>{s.ic}</div>
-                  <div style={{ fontSize: 7.5, fontWeight: 700, color: T.gd, lineHeight: 1.2 }}>{s.nm}</div>
+                <div key={s.id} className="svc-card" data-cat={s.cat} style={{ padding: "8px 4px", borderRadius: 7, cursor: "pointer", textAlign: "center", transition: "transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease" }} onClick={() => setSvc(s.id)}>
+                  <div className="svc-ic" style={{ marginBottom: 2, lineHeight: 1 }}>{s.ic}</div>
+                  <div className="svc-nm" style={{ fontSize: 8, lineHeight: 1.2 }}>{s.nm}</div>
                 </div>
               ))}
             </div>
             {/* Timers */}
-            <div style={{ marginTop: 8, padding: 7, background: T.c2, borderRadius: 6, fontSize: 9, color: T.dm, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 5 }}>
+            <div className="town-timer-card" style={{ marginTop: 8, padding: 7, background: T.c2, borderRadius: 6, fontSize: 9, color: T.dm, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 5 }}>
               <span>🛒 Market Stock: <span style={{ color: T.gd }}>{getTimerRemaining(12)}</span></span>
               <span>⚗️ Service Stock: <span style={{ color: T.gd }}>{getTimerRemaining(12)}</span></span>
               <span>🏦 Vault Interest: <span style={{ color: T.gd }}>{getTimerRemaining(24)}</span></span>
