@@ -104,6 +104,16 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## Custom portrait (v32)
+
+- **`pl.portrait`** — optional URL string on the player. Persisted automatically with the rest of `pl` via the existing JSON save flow.
+- **Helpers** (~line 3040): `isValidPortraitURL(u)` accepts `http(s)://…` and `data:image/(png|jpeg|gif|webp|avif|apng)` (≤800 chars; SVG data URIs explicitly blocked to avoid XSS). `portraitOverlay(url)` returns an absolutely-positioned `<img>` with `referrerPolicy="no-referrer"` and an `onError` that hides itself.
+- **Fallback architecture (important)** — every render site uses the layered pattern: container is `position:relative; overflow:hidden`, the *fallback* (class emoji / class portrait png) is rendered first as a normal child, and `portraitOverlay(url)` is rendered as an absolutely-positioned sibling on top. When the image fails to load, the overlay hides itself and the fallback remains visible. Do **not** use `portraitOverlay(url) || fallback` — the overlay JSX is always truthy when the URL is valid, so the fallback would never render.
+- **Set at character creation** — Identity step (~line 5905) has a "Custom Portrait URL" field with a 56×56 live preview. Blank → uses class portrait. Stored into `pl.portrait` in `createChar()` (~line 3852).
+- **Edit later** — Stats sub-panel (~line 6207) has an Appearance card: paste a URL (commits on blur) or hit "Reset to Class Art".
+- **Where it renders**: HUD avatar (~line 5759), battle player row icon (~line 6602), battle lane ally token (~line 6591), world map "you are here" tile (~line 6520, suppressed when swimming), and submap player tile (~line 6885). All five sites fall back to the class emoji if the portrait is unset or the image fails to load.
+- **Animated GIFs** work natively via `<img>`; no extra wiring needed.
+
 ## Forge Your Hero contrast (v30)
 
 Inline `T.c1`/`T.c2` (parchment) backgrounds on cards inside `.create-bg` were defeating the dark-navy `.cd` baseline and making yellow/light-blue text unreadable. All class cards, bloodmark cards, name/quote inputs, and the interaction preview buttons now force a dark navy gradient with light text (`#e8eeff` body, `#cfd6ee` labels, class color for headers). Personal Quote is now **required** alongside Hero Name to begin — Begin button stays disabled until both are filled, with a poetic prompt under the button when the quote is empty.

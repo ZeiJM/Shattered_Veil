@@ -3033,6 +3033,13 @@ function Game() {
   const [selBloodmark, setSelBloodmark] = useState(null);
   const [covenant, setCovenant] = useState(null);
   const [cName, setCName] = useState("");
+  const [cPortrait, setCPortrait] = useState("");
+  const isValidPortraitURL = (u) => { if (!u || typeof u !== "string") return false; const v = u.trim(); if (v.length > 800) return false; if (/^data:image\/svg/i.test(v)) return false; return /^https?:\/\//i.test(v) || /^data:image\/(png|jpe?g|gif|webp|avif|apng)/i.test(v); };
+  // Overlay <img> sized to fill its parent. Parent must be position:relative + overflow:hidden.
+  // Renders fallback content as a sibling; if the image fails to load, onError hides it and the fallback remains visible.
+  const portraitOverlay = (url) => isValidPortraitURL(url) ? <img src={url.trim()} alt="" referrerPolicy="no-referrer" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none" }} onError={(e) => { try { e.currentTarget.style.display = "none"; } catch(_){} }} /> : null;
+  // Inline preview (used by character-creation/stats preview boxes that are themselves position:relative)
+  const portraitImgEl = (url) => isValidPortraitURL(url) ? <img src={url.trim()} alt="" referrerPolicy="no-referrer" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { try { e.currentTarget.style.display = "none"; } catch(_){} }} /> : null;
   const [quote, setQuote] = useState("");
   const [cSex, setCSex] = useState("male");
   const [companionSeek, setCompanionSeek] = useState("female");
@@ -3843,7 +3850,7 @@ function Game() {
     const bmData = getBM(selBloodmark);
     const pSt = { ...c.st };
     if (bmData && bmData.stat) Object.entries(bmData.stat).forEach(([k,v]) => { if (pSt[k] != null) pSt[k] = Math.max(1, pSt[k] + v); });
-    const p = { name: cName.trim(), cid: c.id, level: 1, xp: 0, st: pSt, chp: openingHp, cmp: openingMp, skills, passives, ult, ultPool, el: c.el, el2: c.el2 || null, baseEl: c.el, baseEl2: c.el2 || null, bonusEls: [], primalEls, elDisplay, inter, quote: quote.trim() || "...", pUsed: false, efx: [], sex: cSex, generation: 1, lineage: cName.trim() + " Line", legacyTrait: startingLegacy, geneticBoon: null, freshStart: true, capSyncPending: true, bloodmark: selBloodmark || null, covenant: null, rank: "Wanderer" };
+    const p = { name: cName.trim(), cid: c.id, level: 1, xp: 0, st: pSt, chp: openingHp, cmp: openingMp, skills, passives, ult, ultPool, el: c.el, el2: c.el2 || null, baseEl: c.el, baseEl2: c.el2 || null, bonusEls: [], primalEls, elDisplay, inter, quote: quote.trim() || "...", pUsed: false, efx: [], sex: cSex, generation: 1, lineage: cName.trim() + " Line", legacyTrait: startingLegacy, geneticBoon: null, freshStart: true, capSyncPending: true, bloodmark: selBloodmark || null, covenant: null, rank: "Wanderer", portrait: isValidPortraitURL(cPortrait) ? cPortrait.trim() : null };
     const openingCaps = projectedEffStatsFor(p, starterEq, 1);
     p.chp = openingCaps.hp;
     p.cmp = openingCaps.mp;
@@ -5746,7 +5753,7 @@ const buildGroupedBattleLog = (entries) => {
     <div className="cd hud-shell" style={{ padding: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div className="hud-avatar" style={{ width: 28, height: 28, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{cls?.ic}</div>
+          <div className="hud-avatar" style={{ position: "relative", width: 28, height: 28, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, overflow: "hidden" }}>{cls?.ic}{portraitOverlay(pl?.portrait)}</div>
           <div>
             <div className="hud-name-line" style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 700, fontSize: 12, fontFamily: "'Cinzel',serif", color: cls?.cl, flexWrap: "wrap" }}><span>{pl.name}</span>{entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={10} />)}</div>
             <div style={{ fontSize: 10, color: T.dm }}>{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
@@ -5892,6 +5899,17 @@ const buildGroupedBattleLog = (entries) => {
         <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Enter name..." maxLength={16} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (cName.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "center", marginBottom: 10 }} />
         <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Personal Quote <span style={{ color: "#ff8a80" }}>*</span></label>
         <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Speak your motto..." maxLength={60} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (quote.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 10 }} />
+        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Custom Portrait URL <span style={{ fontSize: 8, color: "#9fb0d8", fontWeight: 400 }}>(optional · PNG/JPG/GIF/WebP · animated GIF supported)</span></label>
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch", marginBottom: 6 }}>
+          <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (cPortrait.trim() ? (isValidPortraitURL(cPortrait) ? "rgba(123,232,143,0.55)" : "rgba(255,138,128,0.55)") : "rgba(212,173,64,0.35)"), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {selCls ? <img src={(import.meta.env.BASE_URL || "/") + "class/" + selCls + ".png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} /> : <span style={{ fontSize: 20 }}>👤</span>}
+            {portraitOverlay(cPortrait)}
+          </div>
+          <input value={cPortrait} onChange={e => setCPortrait(e.target.value)} placeholder="https://example.com/your-hero.gif" maxLength={800} style={{ flex: 1, background: "rgba(6,12,28,0.85)", border: "1px solid rgba(212,173,64,0.35)", borderRadius: 7, padding: "8px 10px", color: "#fff7e0", fontSize: 11, fontFamily: "inherit", outline: "none" }} />
+        </div>
+        <div style={{ fontSize: 8, color: cPortrait.trim() && !isValidPortraitURL(cPortrait) ? "#ff8a80" : "#97a7d5", marginBottom: 10, lineHeight: 1.4, textAlign: "center", fontStyle: "italic" }}>
+          {cPortrait.trim() && !isValidPortraitURL(cPortrait) ? "URL must start with http:// or https:// (or be a data: image)." : "Leave blank to use your class portrait. You can change this later in the Stats panel."}
+        </div>
         <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}><button className="bt bs" style={{ background: cSex === "male" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "male" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("male")}>Male</button><button className="bt bs" style={{ background: cSex === "female" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "female" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("female")}>Female</button></div>
         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: "rgba(14,22,46,0.85)", color: "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCStep(1)}>←</button><button className="bt" style={{ background: T.gd, color: "#1a1206", opacity: (cName.trim() && quote.trim()) ? 1 : 0.4 }} disabled={!cName.trim() || !quote.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
         {!quote.trim() && <div style={{ marginTop: 8, fontSize: 9, color: "#ffb074", textAlign: "center", fontStyle: "italic" }}>A sorcerer is shaped by what they would die saying. Choose your words.</div>}
@@ -6182,6 +6200,24 @@ const buildGroupedBattleLog = (entries) => {
       {sub === "stats" && <div className="stats-page">
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>{Object.entries(st).map(([k, v]) => <div key={k} style={{ background: T.c2, borderRadius: 5, padding: "4px 2px", textAlign: "center", cursor: "pointer" }} onClick={() => setPopup({ text: statInfoText(k) })}><div style={{ fontSize: 8, color: T.dm, textTransform: "uppercase" }}>{k}</div><div style={{ fontSize: 13, fontWeight: 700, color: T.gd }}>{v}</div></div>)}</div>
         <div style={{ fontSize: 9, color: T.dm, marginTop: 5, lineHeight: 1.4 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · {ageInfo.nm} Day {ageDay}/31 · Mode: {mode}</div>
+
+        {/* APPEARANCE — custom portrait URL (PNG/JPG/GIF) */}
+        <div style={{ marginTop: 8, padding: 8, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: T.gd, fontFamily: "'Cinzel',serif", marginBottom: 5, display: "flex", alignItems: "center", gap: 6 }}>🖼 Appearance</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+            <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (pl.portrait && isValidPortraitURL(pl.portrait) ? "rgba(123,232,143,0.55)" : T.bd), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={(import.meta.env.BASE_URL || "/") + "class/" + (pl.cid || cls?.id) + ".png"} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.65 }} />
+              {portraitOverlay(pl.portrait)}
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+              <input defaultValue={pl.portrait || ""} placeholder="https://example.com/your-hero.gif" maxLength={800} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + T.bd, borderRadius: 6, padding: "6px 8px", color: "#fff7e0", fontSize: 10, fontFamily: "inherit", outline: "none" }} onBlur={(e) => { const v = e.target.value.trim(); if (!v) { setPl(p => ({ ...p, portrait: null })); notify("Portrait reset to class default."); } else if (isValidPortraitURL(v)) { setPl(p => ({ ...p, portrait: v })); notify("Portrait updated."); } else { notify("URL must start with http:// or https:// (or data:image/)."); } }} />
+              <div style={{ display: "flex", gap: 4 }}>
+                <button className="bt bs" style={{ background: T.bad, fontSize: 9 }} onClick={() => { setPl(p => ({ ...p, portrait: null })); notify("Portrait reset."); }}>Reset to Class Art</button>
+                <span style={{ fontSize: 8, color: T.dm, alignSelf: "center", fontStyle: "italic" }}>PNG/JPG/GIF/WebP · animated GIFs work</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 6 }}>
           {/* RANK CARD */}
@@ -6480,8 +6516,10 @@ const buildGroupedBattleLog = (entries) => {
               var decor = tileDecor(t);
               var bgC = isMe ? "radial-gradient(circle at 50% 35%, rgba(242,196,92,0.34), transparent 58%), " + worldTileVisual(t) : isTrail ? "radial-gradient(circle at 50% 50%, rgba(242,196,92,0.24), transparent 55%), " + worldTileVisual(t) : worldTileVisual(t);
               var poiBorder = hasPoi ? poiAccent(t.poi.type) : isDev ? "#ff6b6b" : null;
-              var cellLabel = isMe ? ((t && t.bio === "ocean") ? "🏊" : cls.ic) : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
-              return <div key={idx} title={isDev ? "Roaming Boss" : (hasPoi ? (t.poi.nm || t.poi.type) : (t ? t.bio : ""))} onClick={function() { if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); }} style={{ aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.35), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: (hasPoi || isDev) ? "pointer" : "default", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isMe || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}</div>;
+              var meLabel = (t && t.bio === "ocean") ? "🏊" : cls.ic;
+              var meOverlay = isMe && !(t && t.bio === "ocean") ? portraitOverlay(pl?.portrait) : null;
+              var cellLabel = isMe ? meLabel : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
+              return <div key={idx} title={isDev ? "Roaming Boss" : (hasPoi ? (t.poi.nm || t.poi.type) : (t ? t.bio : ""))} onClick={function() { if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.35), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: (hasPoi || isDev) ? "pointer" : "default", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isMe || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meOverlay}</div>;
             })}
           </div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
@@ -6537,7 +6575,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
-          const allyTokens = [{ k: "p", ic: pl.ic || cls.ic || "🗡", cls: "ally" }]
+          const allyTokens = [{ k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, cls: "ally" }]
             .concat((pet && (pet.chp ?? pet.hp ?? 0) > 0) ? [{ k: "pet", ic: pet.ic || "🐾", cls: "ally" }] : [])
             .concat((ally && ally.hp > 0) ? [{ k: "ally", ic: ally.ic || "🤝", cls: "ally" }] : []);
           const tiles = [
@@ -6550,7 +6588,7 @@ const buildGroupedBattleLog = (entries) => {
           return <div className="battle-lane" title="Tactical positions — full movement & range modifiers coming next update">
             {tiles.map((t, i) => <div key={i} className={"battle-lane-tile " + t.role}>
               <div className="battle-lane-tokens">
-                {t.tokens.length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : t.tokens.map(tok => <div key={tok.k} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")}>{tok.ic}</div>)}
+                {t.tokens.length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : t.tokens.map(tok => <div key={tok.k} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden" }}>{tok.ic}{portraitOverlay(tok.img)}</div>)}
               </div>
               <div className="battle-lane-label">{t.label}</div>
             </div>)}
@@ -6561,7 +6599,7 @@ const buildGroupedBattleLog = (entries) => {
             <div className="cd" style={{ padding: 6, marginBottom: 3 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: T.ac, marginBottom: 3 }}>Player</div>
               <div className="battle-entity-row" style={{ padding: 4, fontSize: 9, display: "flex", gap: 6, alignItems: "center" }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: (ELC[(entityBattleElements(pl)[0]) || pl.tempBattleEl || pl.el]||T.ac)+"22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{pl.ic || cls.ic}</div>
+                <div style={{ position: "relative", width: 28, height: 28, borderRadius: 6, background: (ELC[(entityBattleElements(pl)[0]) || pl.tempBattleEl || pl.el]||T.ac)+"22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, overflow: "hidden" }}>{pl.ic || cls.ic}{portraitOverlay(pl?.portrait)}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, fontSize: 11 }}>
                     <span>{battlePlayerName}</span>
@@ -6843,7 +6881,7 @@ const buildGroupedBattleLog = (entries) => {
               const ic = isMe ? (cls?.ic||"👤") : t.type === "boss" ? (cleared ? "💀" : "👹") : t.type === "encounter" ? (cleared ? "✓" : (isRift ? "✦" : "⚔")) : t.type === "treasure" || t.type === "treasure_rift" ? (cleared ? "✓" : "💎") : t.type === "ruin_puzzle" ? (cleared ? "✓" : "🏛") : t.type === "safe" ? (isRift ? "◈" : "·") : "·";
               const bg = isMe ? "radial-gradient(circle at 50% 38%, rgba(242,196,92,0.36), transparent 58%), linear-gradient(180deg, rgba(78,58,18,0.9), rgba(32,22,8,0.95))" : t.type === "boss" ? (cleared?"linear-gradient(180deg, rgba(44,44,52,0.65), rgba(18,18,24,0.8))":"linear-gradient(180deg, rgba(118,38,52,0.72), rgba(42,12,18,0.9))") : t.type === "encounter" ? (cleared?"linear-gradient(180deg, rgba(34,40,52,0.55), rgba(14,18,24,0.72))":(isRift ? "linear-gradient(180deg, rgba(105,62,165,0.52), rgba(32,18,60,0.84))" : "linear-gradient(180deg, rgba(128,84,28,0.56), rgba(38,20,10,0.82))")) : (t.type === "treasure"||t.type === "treasure_rift") ? "linear-gradient(180deg, rgba(148,118,26,0.58), rgba(42,28,8,0.86))" : t.type === "ruin_puzzle" ? "linear-gradient(180deg, rgba(86,78,112,0.54), rgba(24,20,36,0.84))" : (isRift ? "linear-gradient(180deg, rgba(36,24,58,0.45), rgba(14,10,24,0.8))" : "linear-gradient(180deg, rgba(48,33,20,0.38), rgba(18,12,8,0.78))");
               const borderColor = isMe ? T.gd : t.type === "boss" ? (cleared ? "rgba(255,255,255,0.12)" : "#ff7189") : t.type === "encounter" ? (isRift ? "#b889ff" : "#ffb066") : (t.type === "treasure"||t.type === "treasure_rift") ? "#ffd35f" : t.type === "ruin_puzzle" ? "#b9a6ff" : "rgba(255,255,255,0.06)";
-              return <div key={idx} style={{ aspectRatio:"1", background: bg, display:"flex", alignItems:"center", justifyContent:"center", color: isMe ? "#fff2c2" : "#edf4ff", fontSize: isMe?14:10, borderRadius: 3, border: "1.5px solid " + borderColor, boxShadow: isMe ? "0 0 12px rgba(242,196,92,0.32), inset 0 0 0 1px rgba(255,255,255,0.12)" : "inset 0 0 0 1px rgba(255,255,255,0.04)", cursor:"pointer", textShadow: "0 0 8px rgba(0,0,0,0.4)" }} onClick={() => { if (Math.abs(tx-sm.pos.x)+Math.abs(ty-sm.pos.y)===1) subMapMove(tx-sm.pos.x, ty-sm.pos.y); }}>{ic}</div>;
+              return <div key={idx} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio:"1", background: bg, display:"flex", alignItems:"center", justifyContent:"center", color: isMe ? "#fff2c2" : "#edf4ff", fontSize: isMe?14:10, borderRadius: 3, border: "1.5px solid " + borderColor, boxShadow: isMe ? "0 0 12px rgba(242,196,92,0.32), inset 0 0 0 1px rgba(255,255,255,0.12)" : "inset 0 0 0 1px rgba(255,255,255,0.04)", cursor:"pointer", textShadow: "0 0 8px rgba(0,0,0,0.4)" }} onClick={() => { if (Math.abs(tx-sm.pos.x)+Math.abs(ty-sm.pos.y)===1) subMapMove(tx-sm.pos.x, ty-sm.pos.y); }}>{ic}{isMe ? portraitOverlay(pl?.portrait) : null}</div>;
             })}
           </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 6, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
