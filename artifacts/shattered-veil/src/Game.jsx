@@ -264,6 +264,42 @@ const FXS = [
 ];
 function FX(id) { return FXS.find(f => f.id === id); }
 
+// BLOODMARKS — lineage traits chosen at character creation
+const BLOODMARKS = [
+  { id:"veilvein",  nm:"Veil-Veined",   ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:25},        passive:"veil_surge",    ds:"Ancient veil essence runs through your blood, amplifying arcane channels beyond normal limits.",                          passiveDesc:"Veil Surge: Your first Veil Magic each battle costs 0 MP." },
+  { id:"stoneheart",nm:"Stoneheart",    ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:30},         passive:"iron_will",     ds:"Descended from earth-bound wardens who survived the first rift collapse through sheer endurance.",                          passiveDesc:"Iron Will: When HP drops below 25%, gain +15% effective DEF." },
+  { id:"stormborn", nm:"Storm-Born",    ic:"⚡",  cl:"#ffd740", stat:{spd:4,atk:2},         passive:"lightning_step",ds:"Born under a rift-storm, your nervous system is laced with arc-energy, making you faster than your class would suggest.", passiveDesc:"Lightning Step: 20% chance to act twice on any physical attack turn." },
+  { id:"ashblood",  nm:"Ashblood",      ic:"🔥",  cl:"#ff7043", stat:{atk:3,mag:2},         passive:"ember_aura",    ds:"Fire-element mutations run in the family line — dormant at rest, catastrophic under pressure.",                             passiveDesc:"Ember Aura: Physical attacks have a 15% chance to apply Burn for free." },
+  { id:"frostmere", nm:"Frost-Mere",    ic:"❄️",  cl:"#80d8ff", stat:{mag:2,def:2,lck:1},  passive:"chill_field",   ds:"The cold of Frostmere seeps into your bones — and into the bones of your enemies.",                                        passiveDesc:"Chill Field: Every 3rd turn, all enemies receive Slow at no MP cost." },
+  { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:4,hp:-10,lck:2}, passive:"void_gaze",     ds:"You gazed into the rift and the rift gazed back. Reality bends slightly around your presence.",                            passiveDesc:"Void Gaze: Damage skills have +10% chance to apply Silence." },
+  { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:4,hp:15,mp:15},  passive:"fortune_flame", ds:"A rare spiritual mutation — every gamble turns fractionally your way, every loot pool tips toward gold.",                    passiveDesc:"Fortune Flame: +20% gold from battles. +10% rare item drop chance." },
+  { id:"tidesbrood", nm:"Tides-Brood", ic:"🌊",  cl:"#4dd0e1", stat:{mp:35,def:1,spd:1},  passive:"tidal_flow",    ds:"The sea remembers your ancestors, and sends its pull through your MP reserves.",                                            passiveDesc:"Tidal Flow: Recover 5 MP each time you take damage in battle." },
+];
+function getBM(id) { return BLOODMARKS.find(b => b.id === id); }
+
+// RANKS — progression tiers earned by level milestones
+const RANKS = [
+  { nm:"Wanderer", min:1,  max:4,   ic:"🚶",  cl:"#aaaaaa", bonus:{}, ds:"A traveler with no allegiance, still finding their path through the fractured world." },
+  { nm:"Acolyte",  min:5,  max:9,   ic:"📿",  cl:"#78c7ff", bonus:{hp:10},          ds:"The first true step into formal power. Marked by the guilds as someone worth watching." },
+  { nm:"Disciple", min:10, max:14,  ic:"⚔️",  cl:"#66bb6a", bonus:{atk:2,def:1},    ds:"Proven in field and rift alike. Granted access to restricted tomes and outpost command." },
+  { nm:"Seeker",   min:15, max:19,  ic:"🔍",  cl:"#ffd740", bonus:{mag:2,mp:20},     ds:"A hunter of deep knowledge. Rifts open their true chambers to Seekers alone." },
+  { nm:"Warden",   min:20, max:24,  ic:"🛡️",  cl:"#ff9800", bonus:{def:3,hp:20},    ds:"A keeper of borders. Wardens shape the flow of power between towns and covenants." },
+  { nm:"Archon",   min:25, max:29,  ic:"🌟",  cl:"#f06292", bonus:{mag:3,atk:2,spd:2}, ds:"A walking legend. Archons bend the rules of elemental law around themselves." },
+  { nm:"Fractured",min:30, max:999, ic:"✦",   cl:"#c688ff", bonus:{hp:30,mp:30,mag:4}, ds:"The highest mortal rank. One who has gazed into the void and remained whole — or chose not to be." },
+];
+function getRank(level) { return RANKS.find(r => level >= r.min && level <= r.max) || RANKS[0]; }
+function getNextRankLevel(level) { const ci = RANKS.findIndex(r => level >= r.min && level <= r.max); return (ci >= 0 && ci < RANKS.length-1) ? RANKS[ci+1].min : null; }
+
+// COVENANTS — magical factions joinable in any town
+const COVENANTS = [
+  { id:"veilwatch",  nm:"The Veilwatch",      ic:"👁️", cl:"#c688ff", el:"Void",  statBonus:{mag:3,mp:20},    ds:"A secret order of rift-watchers who believe the Veil must be sealed, not exploited. Their archives are the deepest in the world.",                     guildBonus:"Rift missions grant +30% XP. Void element bonus stacks with class element bonus." },
+  { id:"ironcrown",  nm:"Iron Crown",          ic:"👑",  cl:"#ff9800", el:"Earth", statBonus:{def:4,hp:25},    ds:"The old wardens of pre-rift civilization. Domineering, ruthless, and remarkably well-funded.",                                                         guildBonus:"Outpost missions grant +40% gold. DEF gains +2 from all equipped armor pieces." },
+  { id:"embersong",  nm:"Embersong Circle",    ic:"🔥",  cl:"#ff7043", el:"Fire",  statBonus:{atk:3,mag:2},    ds:"Fire-mages and blade-sorcerers who believe raw power, wielded cleanly, is the only honest answer to chaos.",                                           guildBonus:"Fire and Lightning skills deal +8% damage. Kill missions award bonus shards." },
+  { id:"silkweb",    nm:"Silkweb Guild",       ic:"🕸️", cl:"#78c7ff", el:"Wind",  statBonus:{spd:4,lck:2},    ds:"Information brokers and shadow operatives. Infiltrate, extract, vanish. They know something about everyone.",                                           guildBonus:"Evasion and dodge passives are 15% more effective. Arena challenge rewards doubled." },
+  { id:"tidecall",   nm:"Tidecall Conclave",   ic:"🌊",  cl:"#4dd0e1", el:"Water", statBonus:{mp:30,mag:2},    ds:"Healers, shapers of flow, and students of elemental balance. They repair what the rifts break.",                                                        guildBonus:"Healing skills are 20% more effective. Shrine blessings last an additional turn." },
+];
+function getCV(id) { return COVENANTS.find(c => c.id === id); }
+
 // STATUS DESCRIPTIONS
 const STATUS_DESC = {
   burn: "Deals 12 + 5% target max HP fire damage per turn for 3 turns. Scales with caster MAG.",
@@ -1602,6 +1638,14 @@ function projectedEffStatsFor(player, equipmentSet, dayValue) {
   const ageMult = ageProfile(dayValue).mult;
   Object.keys(ageMult).forEach(k => { if (s[k] != null) s[k] = Math.max(1, Math.floor(s[k] * ageMult[k])); });
   if (player.legacyTrait?.stat && s[player.legacyTrait.stat] != null) s[player.legacyTrait.stat] = Math.max(1, Math.floor(s[player.legacyTrait.stat] * (player.legacyTrait.mult || 1.03)));
+  if (player.bloodmark) {
+    const bm = BLOODMARKS.find(b => b.id === player.bloodmark);
+    if (bm && bm.stat) Object.entries(bm.stat).forEach(([k,v]) => { if (s[k] != null) s[k] = Math.max(1, s[k] + v); });
+  }
+  if (player.covenant) {
+    const cv = COVENANTS.find(c => c.id === player.covenant);
+    if (cv && cv.statBonus) Object.entries(cv.statBonus).forEach(([k,v]) => { if (s[k] != null) s[k] = Math.max(1, s[k] + v); });
+  }
   if (player.generation && player.generation > 1) {
     const legacyScale = Math.min(1.12, 1 + (player.generation - 1) * 0.02);
     s.hp = Math.floor(s.hp * legacyScale);
@@ -2986,6 +3030,8 @@ function Game() {
   const [admTab, setAdmTab] = useState("classes");
   const [cStep, setCStep] = useState(0);
   const [selCls, setSelCls] = useState(null);
+  const [selBloodmark, setSelBloodmark] = useState(null);
+  const [covenant, setCovenant] = useState(null);
   const [cName, setCName] = useState("");
   const [quote, setQuote] = useState("");
   const [cSex, setCSex] = useState("male");
@@ -3557,7 +3603,11 @@ function Game() {
     const nextStats = { ...pl.st };
     if (partner?.boonStat && nextStats[partner.boonStat] != null) nextStats[partner.boonStat] = Math.floor(nextStats[partner.boonStat] * (partner.boonMult || 1.04));
     const geneticBoon = rollGeneticBoon(pl, partner, (pl.generation || 1) + ageDay + (partner?.cycle || 0) * 3);
-    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true };
+    const bmSeed = (pl.generation || 1) + ageDay;
+    const inheritedBloodmark = pl.bloodmark
+      ? (bmSeed % 7 === 0 ? BLOODMARKS[bmSeed % BLOODMARKS.length].id : pl.bloodmark)
+      : null;
+    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true, bloodmark: inheritedBloodmark, covenant: null, rank: "Wanderer" };
     nextPlayer = applyGeneticBoonToPlayer(nextPlayer, geneticBoon);
     const heirCaps = projectedEffStatsFor(nextPlayer, eq, ageDay);
     nextPlayer.chp = heirCaps.hp;
@@ -3742,7 +3792,20 @@ function Game() {
       np.st = { ...np.st, hp: np.st.hp + R(3,7), mp: np.st.mp + R(2,4), atk: np.st.atk + R(0,1), def: np.st.def + R(0,1), spd: np.st.spd + R(0,1), mag: np.st.mag + R(0,1), lck: np.st.lck + R(0,1) };
       const lk = np.skills.filter(s => !s.unlocked);
       if (lk.length) { const u = P(lk); np.skills = np.skills.map(s => s.id === u.id ? { ...s, unlocked: true } : s); }
-      notify("Level " + np.level + "!");
+      const prevRank = getRank(np.level - 1);
+      const newRank = getRank(np.level);
+      if (prevRank.nm !== newRank.nm) {
+        const rb = newRank.bonus || {};
+        if (rb.hp) np.st.hp += rb.hp;
+        if (rb.mp) np.st.mp += rb.mp;
+        if (rb.atk) np.st.atk += rb.atk;
+        if (rb.def) np.st.def += rb.def;
+        if (rb.mag) np.st.mag += rb.mag;
+        if (rb.spd) np.st.spd += rb.spd;
+        notify(newRank.ic + " Rank Up: " + newRank.nm + "!");
+      } else {
+        notify("Level " + np.level + "!");
+      }
     }
     return np;
   }, [notify]);
@@ -3773,7 +3836,10 @@ function Game() {
     if (openingPassive?.ef === "hybrid_pool") { openingHp = Math.max(1, Math.floor(openingHp * 1.15)); openingMp = Math.max(1, Math.floor(openingMp * 1.15)); }
     if (openingPassive?.ef === "iron_form") openingHp = Math.max(1, Math.floor(openingHp * 1.15));
     const starterEq = { w1: mkSigWpn(c.id), w2: null, helm: null, body: null, glv: null, boot: null, c1: null, c2: null };
-    const p = { name: cName.trim(), cid: c.id, level: 1, xp: 0, st: { ...c.st }, chp: openingHp, cmp: openingMp, skills, passives, ult, ultPool, el: c.el, el2: c.el2 || null, baseEl: c.el, baseEl2: c.el2 || null, bonusEls: [], primalEls, elDisplay, inter, quote: quote.trim() || "...", pUsed: false, efx: [], sex: cSex, generation: 1, lineage: cName.trim() + " Line", legacyTrait: startingLegacy, geneticBoon: null, freshStart: true, capSyncPending: true };
+    const bmData = getBM(selBloodmark);
+    const pSt = { ...c.st };
+    if (bmData && bmData.stat) Object.entries(bmData.stat).forEach(([k,v]) => { if (pSt[k] != null) pSt[k] = Math.max(1, pSt[k] + v); });
+    const p = { name: cName.trim(), cid: c.id, level: 1, xp: 0, st: pSt, chp: openingHp, cmp: openingMp, skills, passives, ult, ultPool, el: c.el, el2: c.el2 || null, baseEl: c.el, baseEl2: c.el2 || null, bonusEls: [], primalEls, elDisplay, inter, quote: quote.trim() || "...", pUsed: false, efx: [], sex: cSex, generation: 1, lineage: cName.trim() + " Line", legacyTrait: startingLegacy, geneticBoon: null, freshStart: true, capSyncPending: true, bloodmark: selBloodmark || null, covenant: null, rank: "Wanderer" };
     const openingCaps = projectedEffStatsFor(p, starterEq, 1);
     p.chp = openingCaps.hp;
     p.cmp = openingCaps.mp;
@@ -5677,7 +5743,15 @@ const buildGroupedBattleLog = (entries) => {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <div className="hud-avatar" style={{ width: 28, height: 28, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{cls?.ic}</div>
-          <div><div className="hud-name-line" style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 700, fontSize: 12, fontFamily: "'Cinzel',serif", color: cls?.cl, flexWrap: "wrap" }}><span>{pl.name}</span>{entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={10} />)}</div><div style={{ fontSize: 10, color: T.dm }}>{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div></div>
+          <div>
+            <div className="hud-name-line" style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 700, fontSize: 12, fontFamily: "'Cinzel',serif", color: cls?.cl, flexWrap: "wrap" }}><span>{pl.name}</span>{entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={10} />)}</div>
+            <div style={{ fontSize: 10, color: T.dm }}>{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
+            <div style={{ display: "flex", gap: 4, marginTop: 2, flexWrap: "wrap" }}>
+              {(() => { const rk = getRank(pl.level); return <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: rk.cl + "22", border: "1px solid " + rk.cl + "55", color: rk.cl, fontWeight: 700 }}>{rk.ic} {rk.nm}</span>; })()}
+              {pl.bloodmark && (() => { const bm = getBM(pl.bloodmark); return bm ? <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: bm.cl + "22", border: "1px solid " + bm.cl + "44", color: bm.cl }}>{bm.ic} {bm.nm}</span> : null; })()}
+              {pl.covenant && (() => { const cv = getCV(pl.covenant); return cv ? <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: cv.cl + "22", border: "1px solid " + cv.cl + "44", color: cv.cl }}>{cv.ic} {cv.nm}</span> : null; })()}
+            </div>
+          </div>
         </div>
         <div className="hud-meta" style={{ textAlign: "right", fontSize: 11 }}>
           <div style={{ fontWeight: 700, color: T.gd }}>💰{gold}</div>
@@ -5712,9 +5786,9 @@ const buildGroupedBattleLog = (entries) => {
         <div style={{ width: 74, height: 2, background: "linear-gradient(90deg,transparent," + T.gd + ",transparent)", margin: "12px auto" }} />
         <p style={{ fontSize: 13, color: "#d6def6", fontStyle: "italic", margin: "0 auto 14px", maxWidth: 420 }}>Step into a fractured realm of ancient orders, roaming rifts, living towns, and forbidden Veil Expansions.</p>
         <div className="title-feature-row">
-          {["⚔ 16 Classes","✦ 16 Elements","🗺 300×300 World","🌀 Rifts · Towns · Outposts","📖 Story Quests"].map((txt) => <span key={txt} className="feature-chip">{txt}</span>)}
+          {["⚔ 16 Classes","✦ 8 Bloodmarks","🗺 300×300 World","🏛 5 Covenants","📖 Story Quests","🌀 Rifts · Outposts"].map((txt) => <span key={txt} className="feature-chip">{txt}</span>)}
         </div>
-        <div style={{ fontSize: 9, color: "#b7c4e8", marginBottom: 10 }}>Version 27 · Use WASD or Arrow Keys to move · Press Space to enter locations</div>
+        <div style={{ fontSize: 9, color: "#b7c4e8", marginBottom: 10 }}>Version 28 · Use WASD or Arrow Keys to move · Press Space to enter locations</div>
         <div className="title-button-stack" style={{ display: "flex", flexDirection: "column", gap: 9, maxWidth: 300, margin: "0 auto" }}>
           <button className="bt" style={{ background: T.gd }} onClick={() => { setMode("single"); setScr("create"); setCStep(0); }}>⚔️ Begin Single Player</button>
           <button className="bt" style={{ background: "linear-gradient(180deg,#27428a,#1c2d5f)" }} onClick={() => { setMode("multi"); setScr("create"); setCStep(0); }}>🌐 Multiplayer (Prep)</button>
@@ -5729,16 +5803,70 @@ const buildGroupedBattleLog = (entries) => {
   // CHARACTER CREATION
   if (scr === "create") return (
     <div className="pg create-bg"><audio ref={introAudioRef} src={TITLE_THEME_SRC} autoPlay loop playsInline preload="auto" muted defaultMuted style={{display:"none"}} /><div className="wr intro-shell">{notiEl}
-      <div style={{ textAlign: "center", marginBottom: 14 }}><div style={{ fontFamily: "'Cinzel',serif", fontSize: 22, fontWeight: 700, color: T.gd }}>Forge Your Hero</div><div style={{ fontSize: 11, color: "#d1dcfb", maxWidth: 520, margin: "6px auto 0" }}>Choose a class, shape an identity, and step into the fractured world as a new bearer of the Veil.</div><div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 8 }}>{[0,1].map(i => <div key={i} style={{ width: 52, height: 3, borderRadius: 3, background: i <= cStep ? T.gd : T.bd }} />)}</div></div>
-      {cStep === 0 && <div><div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>{CLS.map(c => <div key={c.id} className="cd" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid " + T.bd, background: selCls === c.id ? c.cl + "10" : T.c1 }}><div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 16 }}>{c.ic}</span><span style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif" }}>{c.nm}</span></div><div style={{ fontSize: 7, color: T.dm, lineHeight: 1.2, marginBottom: 2 }}>{c.ds}</div><div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginBottom: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "22", color: ELC[c.el]||"#999", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "22", color: ELC[c.el2]||"#999", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0022", color: "#ff6f00", fontSize: 7 }}>4 Random</span>}</div><div style={{ fontSize: 7, color: T.dm }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.skR)}</span></div></div>)}</div><div style={{ textAlign: "center", marginTop: 10 }}><button className="bt" style={{ background: T.gd, opacity: selCls ? 1 : 0.4 }} disabled={!selCls} onClick={() => setCStep(1)}>Next →</button></div></div>}
-      {cStep === 1 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 12 }}><div style={{ fontSize: 40 }}>{CLS.find(c => c.id === selCls)?.ic}</div><div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700 }}>{CLS.find(c => c.id === selCls)?.nm}</div></div>
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 22, fontWeight: 700, color: T.gd }}>Forge Your Hero</div>
+        <div style={{ fontSize: 11, color: "#d1dcfb", maxWidth: 520, margin: "6px auto 0" }}>Choose a class, claim your bloodmark, then step into the fractured world as a new bearer of the Veil.</div>
+        <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 8 }}>
+          {["Class","Bloodmark","Identity"].map((lbl, i) => <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <div style={{ width: 44, height: 3, borderRadius: 3, background: i <= cStep ? T.gd : T.bd }} />
+            <div style={{ fontSize: 7, color: i <= cStep ? T.gd : T.bd }}>{lbl}</div>
+          </div>)}
+        </div>
+      </div>
+
+      {/* STEP 0: CLASS */}
+      {cStep === 0 && <div>
+        <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
+          {CLS.map(c => <div key={c.id} className="cd" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid " + T.bd, background: selCls === c.id ? c.cl + "10" : T.c1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}><span style={{ fontSize: 16 }}>{c.ic}</span><span style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif" }}>{c.nm}</span></div>
+            <div style={{ fontSize: 7, color: T.dm, lineHeight: 1.2, marginBottom: 2 }}>{c.ds}</div>
+            <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginBottom: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "22", color: ELC[c.el]||"#999", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "22", color: ELC[c.el2]||"#999", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0022", color: "#ff6f00", fontSize: 7 }}>4 Random</span>}</div>
+            <div style={{ fontSize: 7, color: T.dm }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#333" }}>{"☆".repeat(5-c.skR)}</span></div>
+          </div>)}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 10 }}><button className="bt" style={{ background: T.gd, opacity: selCls ? 1 : 0.4 }} disabled={!selCls} onClick={() => setCStep(1)}>Next: Bloodmark →</button></div>
+      </div>}
+
+      {/* STEP 1: BLOODMARK */}
+      {cStep === 1 && <div>
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: "#cfe0ff" }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
+          <div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: "56vh", overflowY: "auto" }}>
+          {BLOODMARKS.map(bm => <div key={bm.id} className="cd" onClick={() => setSelBloodmark(selBloodmark === bm.id ? null : bm.id)} style={{ padding: 8, cursor: "pointer", border: selBloodmark === bm.id ? "2px solid " + bm.cl : "1px solid " + T.bd, background: selBloodmark === bm.id ? bm.cl + "12" : T.c1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+              <span style={{ fontSize: 20 }}>{bm.ic}</span>
+              <div>
+                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700, color: bm.cl }}>{bm.nm}</div>
+                <div style={{ fontSize: 8, color: T.dm }}>
+                  {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? T.ok : T.bad }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 8, color: T.dm, lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
+            <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "18", border: "1px solid " + bm.cl + "44", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+          </div>)}
+        </div>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 10 }}>
+          <button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(0)}>← Back</button>
+          <button className="bt" style={{ background: T.gd }} onClick={() => setCStep(2)}>Next: Identity →</button>
+        </div>
+      </div>}
+
+      {/* STEP 2: IDENTITY */}
+      {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 40 }}>{CLS.find(c => c.id === selCls)?.ic}</div>
+          <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700 }}>{CLS.find(c => c.id === selCls)?.nm}</div>
+          {selBloodmark && (() => { const bm = getBM(selBloodmark); return bm ? <div style={{ marginTop: 4, fontSize: 10, color: bm.cl }}>{bm.ic} {bm.nm}</div> : null; })()}
+        </div>
         {(() => {
           const pickedClass = CLS.find(c => c.id === selCls);
           const previewInteractions = pickAssignedInteractions((pickedClass && pickedClass.inter) || [], 2, pickedClass?.id, Math.floor((timerNow || Date.now()) / 6000));
           return pickedClass ? <div className="sb-line-card" style={{ marginBottom: 10, background: "rgba(255,255,255,0.02)" }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: pickedClass.cl, marginBottom: 4 }}>Starting Interaction Preview</div>
-            <div style={{ fontSize: 7, color: T.dm, marginBottom: 6 }}>New runs still roll 2 assigned interactions, but this preview shows the kind of trigger/effect structure the class is built around. Preview rotation now updates more slowly so it is easier to read.</div>
+            <div style={{ fontSize: 7, color: T.dm, marginBottom: 6 }}>New runs still roll 2 assigned interactions, but this preview shows the kind of trigger/effect structure the class is built around.</div>
             <div style={{ display: "grid", gap: 5 }}>
               {previewInteractions.map((it, idx) => {
                 const parts = splitInteractionDescription(it.ds || "");
@@ -5756,7 +5884,7 @@ const buildGroupedBattleLog = (entries) => {
         <label style={{ fontSize: 10, color: T.dm, display: "block", marginBottom: 3 }}>Personal Quote</label>
         <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Your motto..." maxLength={60} style={{ width: "100%", background: T.c2, border: "1px solid " + T.bd, borderRadius: 7, padding: "9px 12px", color: T.tx, fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 10 }} />
         <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}><button className="bt bs" style={{ background: cSex === "male" ? T.ac : T.c2 }} onClick={() => setCSex("male")}>Male</button><button className="bt bs" style={{ background: cSex === "female" ? T.ac : T.c2 }} onClick={() => setCSex("female")}>Female</button></div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(0)}>←</button><button className="bt" style={{ background: T.gd, opacity: cName.trim() ? 1 : 0.4 }} disabled={!cName.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
+        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(1)}>←</button><button className="bt" style={{ background: T.gd, opacity: cName.trim() ? 1 : 0.4 }} disabled={!cName.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
       </div>}
     </div></div>
   );
@@ -6045,6 +6173,52 @@ const buildGroupedBattleLog = (entries) => {
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 3 }}>{Object.entries(st).map(([k, v]) => <div key={k} style={{ background: T.c2, borderRadius: 5, padding: 5, textAlign: "center", cursor: "pointer" }} onClick={() => setPopup({ text: statInfoText(k) })}><div style={{ fontSize: 9, color: T.dm, textTransform: "uppercase" }}>{k}</div><div style={{ fontSize: 14, fontWeight: 700, color: T.gd }}>{v}</div></div>)}</div>
         <div style={{ fontSize: 10, color: T.dm, marginTop: 8, lineHeight: 1.6 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · Mode: {mode}</div>
         <div style={{ fontSize: 8, color: "#9fd6ff", marginTop: 3 }}>Tap any stat card for a combat explanation.</div>
+
+        {/* RANK CARD */}
+        {(() => { const rk = getRank(pl.level); const nextLv = getNextRankLevel(pl.level); return <div style={{ marginTop: 6, padding: 8, background: rk.cl + "14", borderRadius: 8, border: "1px solid " + rk.cl + "44" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 18 }}>{rk.ic}</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: rk.cl, fontFamily: "'Cinzel',serif" }}>{rk.nm}</div>
+              <div style={{ fontSize: 8, color: T.dm }}>Lv.{pl.level}{nextLv ? " · Next rank at Lv." + nextLv : " · Maximum rank reached"}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4 }}>{rk.ds}</div>
+          {Object.keys(rk.bonus || {}).length > 0 && <div style={{ fontSize: 8, color: T.ok, marginTop: 3 }}>Rank bonus: {Object.entries(rk.bonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div>}
+        </div>; })()}
+
+        {/* BLOODMARK CARD */}
+        {pl.bloodmark ? (() => { const bm = getBM(pl.bloodmark); return bm ? <div style={{ marginTop: 6, padding: 8, background: bm.cl + "12", borderRadius: 8, border: "1px solid " + bm.cl + "44" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 20 }}>{bm.ic}</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: bm.cl, fontFamily: "'Cinzel',serif" }}>Bloodmark: {bm.nm}</div>
+              <div style={{ fontSize: 8, color: T.dm }}>{Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ color: v > 0 ? T.ok : T.bad, marginRight: 5 }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4, marginBottom: 4 }}>{bm.ds}</div>
+          <div style={{ fontSize: 9, padding: "4px 7px", background: bm.cl + "18", border: "1px solid " + bm.cl + "44", borderRadius: 5, color: bm.cl }}>⚡ {bm.passiveDesc}</div>
+        </div> : null; })() : <div style={{ marginTop: 6, padding: 8, background: T.c2, borderRadius: 8, border: "1px solid " + T.bd }}>
+          <div style={{ fontSize: 10, color: T.dm, fontWeight: 700 }}>✦ Bloodmark</div>
+          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>No bloodmark selected. Bloodmarks grant passive abilities and stat bonuses. They can be chosen at character creation.</div>
+        </div>}
+
+        {/* COVENANT CARD */}
+        {pl.covenant ? (() => { const cv = getCV(pl.covenant); return cv ? <div style={{ marginTop: 6, padding: 8, background: cv.cl + "12", borderRadius: 8, border: "1px solid " + cv.cl + "44" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+            <span style={{ fontSize: 18 }}>{cv.ic}</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: cv.cl, fontFamily: "'Cinzel',serif" }}>{cv.nm}</div>
+              <div style={{ fontSize: 8, color: T.dm }}>Aligned element: {cv.el} · {Object.entries(cv.statBonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4, marginBottom: 4 }}>{cv.ds}</div>
+          <div style={{ fontSize: 9, padding: "4px 7px", background: cv.cl + "18", border: "1px solid " + cv.cl + "44", borderRadius: 5, color: cv.cl }}>🎁 {cv.guildBonus}</div>
+        </div> : null; })() : <div style={{ marginTop: 6, padding: 8, background: T.c2, borderRadius: 8, border: "1px solid " + T.bd }}>
+          <div style={{ fontSize: 10, color: T.dm, fontWeight: 700 }}>🏛 Covenant</div>
+          <div style={{ fontSize: 9, color: T.dm, marginTop: 2 }}>No covenant joined. Visit the Covenant Hall in any town to pledge allegiance to one of the five orders. Each grants stat bonuses and unique guild mission bonuses.</div>
+        </div>}
+
         <div style={{ marginTop: 6, padding: 6, background: T.c2, borderRadius: 6 }}>
           <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>📜 Class Lore</div>
           <div style={{ fontSize: 9, color: T.dm, marginTop: 2, lineHeight: 1.5 }}>{cls?.ds || "No class description available."}</div>
@@ -6086,6 +6260,20 @@ const buildGroupedBattleLog = (entries) => {
         <div className="sb-panel">
           <div className="sb-title">The Veil, the Rifts, and the End of Time</div>
           <div className="sb-kv sb-muted">The world is not merely at war. It is fraying. Rifts tear open where reality grows thin, spilling strange ecosystems, twisted beasts, and hostile geometries into human lands. The oldest archives whisper that every rupture is a symptom of one will: the Dream Devourer, a devouring intelligence pressing against memory, time, and the fate of humanity itself. Your journey is not only to survive. It is to keep the line alive long enough to answer that threat.</div>
+        </div>
+        <div className="sb-grid">
+          <div className="sb-panel">
+            <div className="sb-title">✦ Bloodmarks</div>
+            <div className="sb-kv sb-muted">A Bloodmark is a lineage trait selected when you forge your hero. Each of the eight Bloodmarks grants passive stat bonuses and a unique passive ability that shapes how your character plays: Veil-Veined heroes conserve MP, Stormborn heroes may act twice, Ashblood heroes spread fire, and Void-Touched heroes silence their enemies. Bloodmarks are inherited by your heirs with a small chance of mutation across generations.</div>
+          </div>
+          <div className="sb-panel">
+            <div className="sb-title">🏛 Covenants</div>
+            <div className="sb-kv sb-muted">There are five great orders active in the fractured world: The Veilwatch, Iron Crown, Embersong Circle, Silkweb Guild, and Tidecall Conclave. Each Covenant grants a permanent stat bonus and improves specific types of guild missions. You join a Covenant at the Covenant Hall service in any town. You may renounce and rejoin at a cost. Each generation starts without a Covenant allegiance, but the stat bonus is strong enough to make pledging early worthwhile.</div>
+          </div>
+        </div>
+        <div className="sb-panel">
+          <div className="sb-title">🚶 Ranks</div>
+          <div className="sb-kv sb-muted">As your hero gains levels, they advance through seven Ranks: Wanderer, Acolyte, Disciple, Seeker, Warden, Archon, and Fractured. Each new Rank unlocks at a level milestone and permanently applies a stat bonus directly to your base stats. Rank ups are announced during level-up and displayed in your HUD. The final rank, Fractured, is reserved for heroes who survive deep into late levels — where the boundary between mortal and the Veil begins to break down.</div>
         </div>
         <div className="sb-panel">
           <div className="sb-title">What Kind of Game This Is</div>
@@ -6670,6 +6858,8 @@ const buildGroupedBattleLog = (entries) => {
       { id: "lib", nm: "Library", ic: "📚" },
       { id: "train", nm: "Training", ic: "🎯" },
       { id: "tavern", nm: "Tavern", ic: "🍺" },
+      { id: "covenant", nm: "Covenant Hall", ic: "🏛" },
+      { id: "crafting", nm: "Relic Crafting", ic: "⚗️" },
       ...townSpecials,
     ];
 
@@ -6886,7 +7076,64 @@ const buildGroupedBattleLog = (entries) => {
               <div style={{ fontSize: 8, color: "#cfd3ea", marginBottom: 6, lineHeight: 1.35 }}>Water-forged weapons shaped for slows, tide pressure, and steady control. Stock stays fixed until refresh.</div>
               {!shipwrightStock ? <div style={{ fontSize: 9, color: T.dm }}>Preparing the dock stock...</div> : shipwrightStock.map(w => <div key={w.id} style={{ padding: 6, background: T.c2, borderRadius: 4, marginBottom: 3, display: "flex", justifyContent: "space-between", fontSize: 10, gap: 8, border: "1px solid "+(ELC[w.el]||T.bd)+"33" }}><div style={{ minWidth: 0, flex: 1 }}><div><span style={{ fontWeight: 700, color: T.tx }}>{w.name}</span></div><div style={{ fontSize: 8, color: ELC[w.el] || T.dm, fontWeight: 700, marginTop: 1 }}>Element: {w.el}</div><div style={{ fontSize: 9, color: T.dm }}>ATK: {w.atk||0} · MAG: {w.mag||0} · DEF: {w.def||0} · SPD: {w.spd||0}</div><div style={{ fontSize: 8, color: "#cfd3ea", lineHeight: 1.35 }}>{elementMatchupText(w.el)}</div><div style={{ fontSize: 8, color: "#e6dcc0", lineHeight: 1.35 }}>{weaponEffectDetail(w)}</div></div><button className="bt bs" style={{ background: gold >= w.price ? T.ac : "#333" }} disabled={gold < w.price} onClick={() => { if(!eq.w1){ setGold(g=>g-w.price); setEq(e=>({...e,w1:w})); setShipwrightStock(st => st.filter(x => x.id !== w.id)); notify("Acquired "+w.name+"!"); return; } if(!eq.w2){ setGold(g=>g-w.price); setEq(e=>({...e,w2:w})); setShipwrightStock(st => st.filter(x => x.id !== w.id)); notify("Acquired "+w.name+"!"); return; } const ok = tryGainLooseItem({...w,qty:1}, null, "Shipwright"); if(!ok) return; setGold(g=>g-w.price); setShipwrightStock(st => st.filter(x => x.id !== w.id)); notify("Acquired "+w.name+"!"); }}>{w.price}G</button></div>)}
               {shipwrightStock && shipwrightStock.length === 0 && <div style={{ fontSize: 9, color: T.wn }}>Sold out! Restocks with timer.</div>}
-            </div>}          </div>
+            </div>}
+
+            {svc === "covenant" && <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.gd, marginBottom: 6 }}>🏛 Covenant Hall</div>
+              {pl.covenant ? (() => { const cv = getCV(pl.covenant); return cv ? <div>
+                <div style={{ padding: 8, background: cv.cl + "14", border: "1px solid " + cv.cl + "44", borderRadius: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><span style={{ fontSize: 18 }}>{cv.ic}</span><div><div style={{ fontWeight: 700, color: cv.cl, fontFamily: "'Cinzel',serif" }}>{cv.nm}</div><div style={{ fontSize: 8, color: T.dm }}>Active covenant · {cv.el} affinity</div></div></div>
+                  <div style={{ fontSize: 9, color: T.dm, lineHeight: 1.4 }}>{cv.ds}</div>
+                  <div style={{ fontSize: 9, marginTop: 4, padding: "4px 7px", background: cv.cl + "18", borderRadius: 4, color: cv.cl }}>🎁 {cv.guildBonus}</div>
+                </div>
+                <div style={{ fontSize: 9, color: T.dm, marginBottom: 6, lineHeight: 1.35 }}>You are already pledged to {cv.nm}. Changing covenant costs 200G and resets your current covenant standing.</div>
+                <button className="bt bs" style={{ background: gold >= 200 ? T.bad : "#333" }} disabled={gold < 200} onClick={() => { setGold(g => g - 200); setPl(p => ({ ...p, covenant: null })); notify("Covenant severed."); }}>Renounce (200G)</button>
+              </div> : null; })() : <div>
+                <div style={{ fontSize: 9, color: T.dm, marginBottom: 8, lineHeight: 1.35 }}>Pledge to one of the five great orders. Your choice grants permanent stat bonuses and shapes your guild mission rewards. Each covenant has a unique element affinity and strategic specialisation.</div>
+                <div style={{ display: "grid", gap: 5 }}>
+                  {COVENANTS.map(cv => <div key={cv.id} style={{ padding: 8, background: T.c2, border: "1px solid " + cv.cl + "44", borderRadius: 7, cursor: "pointer" }} onClick={() => { setPl(p => ({ ...p, covenant: cv.id })); setGold(g => g - 0); notify("Pledged to " + cv.nm + "!"); setSvc(null); }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}><span style={{ fontSize: 16 }}>{cv.ic}</span><div><div style={{ fontWeight: 700, color: cv.cl, fontFamily: "'Cinzel',serif", fontSize: 10 }}>{cv.nm}</div><div style={{ fontSize: 8, color: T.dm }}>{cv.el} affinity · {Object.entries(cv.statBonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ")}</div></div></div>
+                    <div style={{ fontSize: 8, color: T.dm, lineHeight: 1.3, marginBottom: 3 }}>{cv.ds}</div>
+                    <div style={{ fontSize: 8, color: cv.cl }}>🎁 {cv.guildBonus}</div>
+                  </div>)}
+                </div>
+              </div>}
+            </div>}
+
+            {svc === "crafting" && <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.gd, marginBottom: 2 }}>⚗️ Relic Crafting</div>
+              <div style={{ fontSize: 9, color: "#ce93d8", marginBottom: 6 }}>🔮 Fragments: {fragments} · ✨ Shards: {shards}</div>
+              <div style={{ fontSize: 9, color: T.dm, marginBottom: 8, lineHeight: 1.35 }}>Combine relic shards and fragments into consumables, elixirs, and arcane materials. These recipes require specific quantities of shards or fragments. Each craft is permanent — materials are consumed.</div>
+              {[
+                { nm:"Veil Tonic",    cost:{shards:80},  ef:"heal",   v:45,  ds:"Restores 45 HP. Brewed from compressed veil resonance.", ic:"🧪" },
+                { nm:"Mana Crystal",  cost:{shards:80},  ef:"mp",     v:40,  ds:"Restores 40 MP. A crystallised pool of compressed arcane energy.", ic:"💎" },
+                { nm:"Elixir of Iron",cost:{shards:150}, ef:"heal",   v:90,  ds:"Restores 90 HP. A stronger alchemical brew.", ic:"🍵" },
+                { nm:"Void Draught",  cost:{shards:150}, ef:"mp",     v:80,  ds:"Restores 80 MP. Distilled from rift-edge void water.", ic:"🫗" },
+                { nm:"Cleansing Dust",cost:{shards:60},  ef:"cleanse",v:1,   ds:"Removes all status ailments instantly.", ic:"✨" },
+                { nm:"Repel Incense", cost:{shards:120}, ef:"repel",  v:60,  ds:"Grants 60 steps of monster repellence on the world map.", ic:"🌿" },
+                { nm:"War Talisman",  cost:{fragments:1}, ef:"empower",v:25, ds:"Grants Empower for 3 turns at battle start. Consumed on use.", ic:"🔴" },
+                { nm:"Void Shard Bomb",cost:{fragments:2},ef:"burn",  v:50,  ds:"Deals 50 void-fire damage. Applies Burn.", ic:"💥" },
+              ].map(recipe => {
+                const canCraft = (recipe.cost.shards ? shards >= recipe.cost.shards : true) && (recipe.cost.fragments ? fragments >= recipe.cost.fragments : true);
+                return <div key={recipe.nm} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: 6, background: T.c2, borderRadius: 5, marginBottom: 4, gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 10 }}>{recipe.ic} {recipe.nm}</div>
+                    <div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>{recipe.ds}</div>
+                    <div style={{ fontSize: 8, color: "#ce93d8", marginTop: 2 }}>
+                      Cost: {recipe.cost.shards ? recipe.cost.shards + " shards" : ""}{recipe.cost.fragments ? recipe.cost.fragments + " fragment(s)" : ""}
+                    </div>
+                  </div>
+                  <button className="bt bs" style={{ background: canCraft ? T.ok : "#333", flexShrink: 0 }} disabled={!canCraft} onClick={() => {
+                    if (recipe.cost.shards) setShards(s => s - recipe.cost.shards);
+                    if (recipe.cost.fragments) setFragments(f => f - recipe.cost.fragments);
+                    const item = { id: ID(), nm: recipe.nm, name: recipe.nm, ef: recipe.ef, v: recipe.v, dur: 3, target: "self", qty: 1 };
+                    const ok = tryGainLooseItem(item, null, "Crafting");
+                    if (ok !== false) notify("Crafted " + recipe.nm + "!");
+                  }}>Craft</button>
+                </div>;
+              })}
+            </div>}
+          </div>
         )}
       </div></div></div>
     );
