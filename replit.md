@@ -158,51 +158,21 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
-## Gender-variant class portraits (v36)
+## Crossfade portraits + Sien Risetsu rework (v39)
 
-Every class now has both a male portrait (`public/class/<id>.png`) and a female variant (`public/class/<id>_f.png`) — 42 painted portraits total, all 1024×1024, painterly dark-fantasy style matching the existing aesthetic.
+- **`CrossfadePortrait` helper** (~line 3050, inside `Game`) — layered portrait component used for the M/F preview rotation in Forge Your Hero. Renders both the male and female pngs absolutely-positioned in the same wrapper, toggles `opacity` (480ms ease) instead of swapping `src` via React `key`. Result: gentle dissolve instead of a hard cut. Three sites use it: class-pick thumbnails (~6048), Identity preview card (~6091), custom-portrait fallback bg (~6120). Female `onError` auto-falls back to the male png via the same `data-sex`/`data-fb` pattern as `playerAvatar`.
+- **Repainted Sien Risetsu twins**: `koen.png` / `koen_f.png` (blazing twin — scarlet silk + obsidian leather, ember petals, gold blossom hairpin on the female variant) and `shouei.png` / `shouei_f.png` (cold twin — silver-white hair, frost crystals, floating mirror-shard, silver blossom hairpin on the female variant). All four match the painterly Veilbound dark-fantasy aesthetic at 1024×1024.
 
-- **`classPortraitUrl(cid, sex)` helper** (~line 3047) — single source of truth: returns `_f.png` for `sex==="female"`, base png otherwise. Uses `BASE_URL` so it works under any artifact prefix.
-- **`playerAvatar(cid, fallbackIc, portraitUrl, sex)`** — gained a 4th `sex` param. Female portrait failures auto-fall back to the male png via `data-sex` / `data-fb` dataset flags (no infinite loop), then to the class emoji if both are missing.
-- **All 5 callsites updated** to pass `pl?.sex`: HUD avatar, world map "you are here", submap player tile, battle player row, battle lane ally token (also added `sex` to `allyTokens[0]`).
-- **Forge Your Hero rotation** — new `previewSex` state with a 2.2s `setInterval` that toggles M/F while `scr === "create"`. The class picker thumbnails (~line 5852) animate between both variants so players see both options exist before locking in. Once the player picks a sex on the Identity step, the larger preview card (~line 5895) and the custom-portrait fallback (~line 5924) commit to `cSex`.
-- **Stats Appearance card** (~line 6228) and the rest of the in-game UI use `pl.sex` directly — once committed in `createChar()`, the gender-correct portrait shows everywhere automatically.
+## UI polish history (v30 – v36, condensed)
 
-## Popup contrast fix (v35)
+Earlier polish rounds — kept compact since the systems are stable. Refer back here when touching any of these areas.
 
-The universal popup modal (`setPopup({...})`) was using `color: T.tx` (parchment dark ink `#18120a`) on a hardcoded dark navy background — body text was nearly invisible. Now self-contained via the `.popup-modal` CSS class in `game.css` (~end of file): dark navy gradient bg + light text (`#e8eeff`), gold Cinzel title, and gold-gradient choice buttons with dark text. All inherit-color rules use `!important` so inline `T.tx`/`T.dm` from caller-provided `popup.node` content gets overridden. Inline styles in the `popupEl` JSX (~line 5752) now only set layout, never colors.
-
-## Avatar & icon polish (v34)
-
-- **`playerAvatar(cid, fallbackIc, portraitUrl)` helper** (~line 3046) — single source of truth for rendering the player figure. Layers (bottom→top, all `position:absolute`): emoji fallback → class portrait png (with `onError` that hides itself) → custom-URL overlay. Parent must be `position:relative; overflow:hidden`. If the class png 404s the emoji shows; if the custom URL fails the class png shows.
-- **Where it renders**: HUD avatar (~5764, bumped to 36×36 with class-color glow ring), battle player row (~6616, bumped to 32×32 with class-color border), battle lane ally token (~6605, only the player token uses `tok.classId`; pet/foe tokens still emoji+overlay), world map "you are here" (~6534, suppressed when swimming → falls back to 🏊+overlay), submap "you are here" (~6898).
-- **Why this matters**: previously the HUD/map showed the class *emoji* (e.g. 🛡 for paladin) as the visible identity even after the player picked a portrait at character creation. Now they always see the same painted class portrait (or their custom one) across creation → HUD → map → battle.
-- **Class picker (Forge Your Hero)** ~line 5848: portrait thumbnails bumped from 32×32 → 40×40 with class-color glow shadow + thicker border. Removed the redundant emoji prefix on class names since the portrait already carries the visual identity.
-- **Bloodmark icons** ~line 5870: emoji is now wrapped in a 36×36 circular badge with a radial bloodmark-color glow, ring border, inset highlight, and `drop-shadow` filter — much more "premium" feel than the bare 20px emoji.
-
-## Title screen (v33)
-
-Stripped to a single CTA in anticipation of the online migration. **Removed**: Multiplayer button, Admin Panel button + entire admin modal JSX block, the three Load Save buttons, version number, WASD/spacebar instructions. The `loadGame()` function and save persistence remain in the codebase (used by post-death continue flows); only the title-screen entrypoint to manual loads was cut.
-
-**Kept/added**:
-- Single `⚔ Enter the Rift` button (`.title-cta`) — pulsing gold CTA that goes straight to character creation in single mode. Subtitle reads "Online persistence and live PvP coming soon — your bloodline begins here."
-- Six **lore pillars** (`.title-pillars` grid, 3-col → 2-col under 520px) replacing the flat chip strip: 16 Sorcerer Classes, 8 Bloodmarks, Unfolded Territories, 5 Rival Covenants, A Living Continent, Dynasty Succession. Each tile has a glowing icon corner-glow, gold-accented Cinzel title, and an italic Crimson teaser.
-- Stronger eyebrow (`.title-eyebrow`, 0.55em letter-spacing) and a punched-up tagline: *"The sky tore open a hundred years ago. The dead walked out of it. You inherited what bled through."* (final clause in gold via inline span).
-- All new styles live in `game.css` under the "New title screen (v33)" block (~line 485). Old `.feature-chip` / `.title-feature-row` rules left in place — still referenced by `.title-bg-art .feature-chip` overrides at line 123 and harmless to keep until they're confirmed unused elsewhere.
-
-## Custom portrait (v32)
-
-- **`pl.portrait`** — optional URL string on the player. Persisted automatically with the rest of `pl` via the existing JSON save flow.
-- **Helpers** (~line 3040): `isValidPortraitURL(u)` accepts `http(s)://…` and `data:image/(png|jpeg|gif|webp|avif|apng)` (≤800 chars; SVG data URIs explicitly blocked to avoid XSS). `portraitOverlay(url)` returns an absolutely-positioned `<img>` with `referrerPolicy="no-referrer"` and an `onError` that hides itself.
-- **Fallback architecture (important)** — every render site uses the layered pattern: container is `position:relative; overflow:hidden`, the *fallback* (class emoji / class portrait png) is rendered first as a normal child, and `portraitOverlay(url)` is rendered as an absolutely-positioned sibling on top. When the image fails to load, the overlay hides itself and the fallback remains visible. Do **not** use `portraitOverlay(url) || fallback` — the overlay JSX is always truthy when the URL is valid, so the fallback would never render.
-- **Set at character creation** — Identity step (~line 5905) has a "Custom Portrait URL" field with a 56×56 live preview. Blank → uses class portrait. Stored into `pl.portrait` in `createChar()` (~line 3852).
-- **Edit later** — Stats sub-panel (~line 6207) has an Appearance card: paste a URL (commits on blur) or hit "Reset to Class Art".
-- **Where it renders**: HUD avatar (~line 5759), battle player row icon (~line 6602), battle lane ally token (~line 6591), world map "you are here" tile (~line 6520, suppressed when swimming), and submap player tile (~line 6885). All five sites fall back to the class emoji if the portrait is unset or the image fails to load.
-- **Animated GIFs** work natively via `<img>`; no extra wiring needed.
-
-## Forge Your Hero contrast (v30)
-
-Inline `T.c1`/`T.c2` (parchment) backgrounds on cards inside `.create-bg` were defeating the dark-navy `.cd` baseline and making yellow/light-blue text unreadable. All class cards, bloodmark cards, name/quote inputs, and the interaction preview buttons now force a dark navy gradient with light text (`#e8eeff` body, `#cfd6ee` labels, class color for headers). Personal Quote is now **required** alongside Hero Name to begin — Begin button stays disabled until both are filled, with a poetic prompt under the button when the quote is empty.
+- **v30 — Forge Your Hero contrast.** Forced dark-navy gradient + light text on every card inside `.create-bg` (class/bloodmark cards, inputs, interaction preview buttons) so yellow/cyan accents stay readable. Personal Quote is *required* alongside Hero Name to begin.
+- **v32 — Custom portraits (`pl.portrait`).** Optional URL on the player, persisted via the JSON save flow. Helpers `isValidPortraitURL(u)` (accepts `http(s)://` + `data:image/(png|jpeg|gif|webp|avif|apng)`, ≤800 chars; SVG data URIs blocked) and `portraitOverlay(url)` (absolutely-positioned `<img>` with `referrerPolicy="no-referrer"` and an `onError` that hides itself). **Fallback rule**: every render site uses `<container position:relative overflow:hidden>{fallback}{portraitOverlay(url)}</container>` — the overlay is always truthy when the URL is valid, so do **not** short-circuit `overlay || fallback` (the fallback would never render). Set in the Identity step + Stats Appearance card. Animated GIFs work natively.
+- **v33 — Title screen.** Stripped to a single pulsing `⚔ Enter the Rift` CTA (the Multiplayer / Admin / Load buttons + WASD instructions + version number were removed; `loadGame()` itself stays in code for post-death continue flows). Replaced the flat chip strip with six lore pillars (`.title-pillars`, 3→2 col responsive). Subtitle now references the online migration. Old `.feature-chip` rules are left in place but unused.
+- **v34 — Avatar & icon polish.** `playerAvatar(cid, fallbackIc, portraitUrl, sex)` is the single source of truth for rendering the player. Layered bottom→top: emoji fallback → class portrait png → custom overlay. Used in HUD (36×36 + class-color glow), battle player row (32×32 + class-color border), battle lane ally token (only the player token uses `tok.classId`), world map (suppressed while swimming), and submap. Class-picker thumbnails bumped to 40×40 with class-color glow; bloodmark icons wrapped in a 36×36 circular badge with radial color glow.
+- **v35 — Popup contrast.** The universal popup modal is now self-contained via `.popup-modal` in `game.css` (dark navy gradient bg + light text + gold Cinzel title + gold-gradient choice buttons). All `color`/`background` rules use `!important` to override caller-provided inline `T.tx`/`T.dm` colors inside `popup.node`. The `popupEl` JSX only sets layout, never colors.
+- **v36 — Gender-variant class portraits.** Every class has both `class/<id>.png` (male) and `class/<id>_f.png` (female) — 42 painted portraits at 1024×1024. `classPortraitUrl(cid, sex)` is the single helper; `playerAvatar` falls back female → male via `data-sex`/`data-fb` flags (no infinite loop). All 5 in-game callsites pass `pl?.sex`. Forge Your Hero auto-rotates M↔F at 2.2s on the class-pick step (now via the v39 crossfade) so players see both options before committing; `pl.sex` is set on the Identity step and locked in `createChar()`.
 
 ## Gotchas
 
