@@ -5335,6 +5335,16 @@ function Game() {
           el2.push("🛡 " + enemy.name + " → " + (sk ? sk.n + " " : "attack ") + allyDmg + " on " + ally.nm);
           if (a2.hp <= 0) { el2.push("💀 " + ally.nm + " fell!"); setAlly(null); } else setAlly(a2); }
         else {
+          // v45: enemy crit — symmetric to v44 player crit, slightly tamer cap
+          if (ed > 0 && btl.type !== "train") {
+            const enemyLck = (enemy.lck || enemy.lvl * 0.6 || 0);
+            const enemyCritChance = Math.min(0.20, enemyLck * 0.010);
+            if (Math.random() < enemyCritChance) {
+              ed = Math.floor(ed * 1.5);
+              el2.push("💥 Enemy critical! ×1.5");
+              try { musicRef.current.playSfx("crit"); } catch {}
+            }
+          }
           if (btl.type !== "train") up.chp -= ed;
           if (ed > 0 && btl.type !== "train") { try { musicRef.current.playSfx("hit"); } catch {} }
           el2.push("🔴 " + enemy.name + (sk ? " → " + sk.n : " attacks") + " on You for " + (btl.type === "train" ? "0 (blocked)" : ed));

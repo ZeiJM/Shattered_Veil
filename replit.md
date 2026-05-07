@@ -106,41 +106,11 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 
 ## The Veilcourt — global chat (v38)
 
-First real multiplayer-aware system. Lore framing: a shared scrying basin where sorcerers commune across the rift — accessible **anywhere** (not gated to towns like NinjaRPG's Tavern). Persistent messaging via the api-server, no auth required.
+Lore-framed always-on global chat (a shared scrying basin, not a physical tavern — chat works in dungeons/rifts too). Persistent messaging via the api-server, no auth.
 
-### Backend (`artifacts/api-server/src/routes/veilcourt.ts`)
-
-- `GET  /api/veilcourt/messages?since=<id>` — returns `{ messages, latestId, online }` for messages newer than `since`. Last 100 only.
-- `POST /api/veilcourt/messages` — accepts `{ playerId, name, text, classId, className, classColor, sex, portrait, rank, bloodmark, covenant }` validated by zod. Sanitizes control chars, enforces 280 char text / 24 char name caps.
-- **In-memory ring buffer** of last 200 messages. No DB yet — wipes on server restart. Easy upgrade path to drizzle/postgres when persistence matters.
-- **Rate limit**: 1.5s between sends per `playerId`. Returns 429 with friendly error.
-- **Online count**: tracked via `lastSendByPlayer` Map; pruned to entries newer than 30 min when it grows beyond 500.
-- Seeded with one welcome system message on startup ("The scrying basin stirs…").
-- `zod` added as runtime dep (`catalog:` version).
-
-### Frontend (`artifacts/shattered-veil/src/Game.jsx`)
-
-- **HUD button** `💬` appended to `.hud-quick-nav` (~line 5977). Navy gradient with gold border. Shows red animated `.hud-veilcourt-badge` with unread count when chat is closed.
-- **Stable identity**: `veilcourtId` stored in `localStorage["sv_chat_id"]` — survives deaths, successions, and character swaps so other players consistently recognize you.
-- **State**: `chatOpen`, `chatMsgs`, `chatLatestId`, `chatDraft`, `chatStatus`, `chatOnline`, `chatUnread` + refs (`chatLogRef`, `chatPollRef`, `chatLastIdRef`).
-- **Polling**: 8s when modal closed (passive unread badge), 3s when open (live feel). Stops on title/create screens. Silent-fails when offline (game stays playable).
-- **Send payload** packs the player's name, class id/name/color, sex, portrait URL (custom if set, else `classPortraitUrl(cid, sex)`), rank, bloodmark, covenant — so other clients render the full identity card without a profile lookup.
-- **Modal** (`.veilcourt-modal`) — fixed-position 560×720 max card with three regions:
-  - **Header** with the 🜂 sigil, "The Veilcourt" Cinzel title, online count, gold-to-crimson hairline divider.
-  - **Log** — flex column of `.veilcourt-msg`. Each message renders a **56×56 portrait** (the user's actual class png with female/male variant + `_f` fallback chain, or custom portrait if they set one) next to a parchment-on-navy bubble with class-colored author name, class tag, rank tag, covenant tag (gold), bloodmark tag (violet). Own messages flip to row-reverse for chat-app feel. System messages get a warm amber bubble + italic text.
-  - **Composer** — own portrait + name/class line at top (so the player sees how others see them), then input + gold "Send" button. Status row shows char count, send errors, and the Enter-to-send hint.
-- **Render integration**: `chatEl` JSX added next to every `{popupEl}` mount (5 sites: shell, map, battle viewport, outpost/rift, town) via a single sed pass.
-
-### Why "The Veilcourt" (not Tavern)
-
-NinjaRPG's Tavern locks chat to physical village locations, which forces immersion-breaking travel just to talk. The Veilcourt is **always-on** because in-fiction it's a magical broadcast (the veil itself), not a building. This also keeps the game pleasant for players in solo dungeons / rifts who want to chat between fights. Lore hook for future: covenant-only sub-channels, whisper, and a higher-tier "Domain" channel only Wardens+ can speak in.
-
-### Future (not built yet)
-
-- DB persistence (drizzle + postgres) — current ring buffer is fine for low-traffic launch, swap when sessions need to outlive deploys.
-- Optional moderation queue / report flag on each message.
-- Per-covenant private channels (the data model already carries `covenant`).
-- WebSocket upgrade — polling is honest for now (3s feels alive without a socket layer).
+- **Backend** (`artifacts/api-server/src/routes/veilcourt.ts`): `GET /api/veilcourt/messages?since=<id>` and `POST /api/veilcourt/messages` (zod-validated payload with player identity: name, classId/className/classColor, sex, portrait, rank, bloodmark, covenant). In-memory ring buffer (200 msgs), 1.5s per-player rate limit, online-count tracker. No DB yet.
+- **Frontend** (`Game.jsx`): HUD `💬` button with unread badge; modal at fixed 560×720 with header/log/composer regions. Polls 8s closed / 3s open. Stable identity in `localStorage["sv_chat_id"]`. Send payload includes full identity so other clients render rich message cards without lookup. `chatEl` mounted alongside `{popupEl}` at 5 sites (shell/map/battle/outpost+rift/town).
+- **Future**: DB persistence (drizzle+postgres), per-covenant sub-channels (data model already carries `covenant`), WebSocket upgrade, moderation queue.
 
 ## Color polish pass (v37)
 
@@ -158,142 +128,56 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
-## v44 — Critical hits (luck-based)
+## v40 – v45 — Combat depth + audio engine
 
-Player damage actions can now critically hit, dealing **×1.5 damage** with a dedicated audio cue. Crit chance scales off the player's `lck` stat: `min(0.25, lck × 0.012)` — capped at 25%, so a level-1 character with 8 lck has ~9.6% crit, and a high-lck endgame build (~20+ lck) reaches the cap.
+Compact appendix. All five rounds layered on the same battle loop without state-shape breaks.
 
-- **Wired into three damage paths**:
-  - `attackWithWeapon` (strike / w2) — single d3 multiplier applied before the multi-hit loop, so all hits in that swing crit together.
-  - `skill` damage branch — one roll per cast, multiplier applied to `base` so AoE targets all crit on the same roll (avoids spammy SFX).
-  - `copy` damage branch — same single-roll pattern.
-- **Skipped on purpose**: ult (already a power-fantasy moment), heal skills (no analog), and the gambler class's existing gamble multiplier (separate identity, would double-roll).
-- **Stacks with the existing armor crit** (`armorCritChance` from gear). A swing can be both an armor-precision critical (×1.28) and a luck crit (×1.5), making lucky players in good gear genuinely terrifying.
-- **Audio**: new `crit` SFX in `music.js` — sharp high-pitch square stab (1760 → 880 Hz) layered with a high-passed noise crack. Sits on top of the regular `hit` cue without muddying it.
-- **Log line**: `💥 Critical hit! ×1.5` via `logInfo` so it visually pops in the battle log alongside other status info.
+### v40 — Positional combat + viewport fit
+- **Lanes 0–4** (Vanguard / Front / Mid / Skirmish / Backline). Player default `plPos = 1`, pet on Vanguard, ally behind. Enemies seed at `pos: 3` (first 2) and `pos: 4` (rest).
+- **One free move per turn** (`moved` flag, reset on turn flip in `previewBattleState` + timer-skip setBtl).
+- **`actionRange(act, idx)`** returns 1 (melee: plain strike, Null/Physical skill) or 4 (ranged/AoE/copy/ult/heal/buff). Auto-derived from existing skill data.
+- **Range gate** in `bAct`: melee at distance > range aborts with "Out of range — move closer or use a ranged ability." Copy + ult never gated.
+- **Distance modifier**: `+10%` point-blank (range 1 + dist 1) and `+12%` long-shot (range ≥ 4 + dist ≥ 3), multiplied into `encounterProfile.playerDamage` at top of `bAct`.
+- **Lane bar UI** + `.battle-range-readout` strip read real `plPos`/`pos`. Lanes 0-2 clickable to move when `!btl.moved`; foe tokens click to set target.
+- **Viewport fit**: `html, body, #root, .pg { overflow: hidden; height: 100dvh }`; all wrappers (`shell/town/map/outpost/rift/battle`) become flex-column with `.cd.page-panel` as internal scroller. CSS lives in the `v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS` block at end of `game.css`.
+- **PvP-ready**: `pos`, `plPos`, `moved`, `actionRange` all serializable + deterministic.
 
-Future hooks: enemy crits (mirror the same formula on the enemy turn), crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix's burning targets always crit, etc).
+### v41 — Procedural background music
+- Self-contained `music.js` module: `createMusicPlayer()` + `trackForScreen(scr, opts)`. Lazy AudioContext on first `play()` (autoplay rules). Schedules one full loop ahead, re-arms 300ms before loop end.
+- **4 hand-written looping tracks** (Chrono Trigger flavor): title (70 BPM, A minor, Aeolian pad), travel (116 BPM, C major `C-G-Am-F`), battle (144 BPM, E minor `Em-C-D-B7` with kick), town (92 BPM, F major).
+- Helpers: `scheduleNote(ctx, dest, type, freq, detune, t0, dur, gain)` with chiptune ADSR; `scheduleKick(ctx, dest, t0, gain)` (140→45Hz sine sweep).
+- Single `useRef(createMusicPlayer())` at top of `Game()` (~line 3024). Two effects: one resumes ctx on first user gesture; another swaps tracks on `scr` change. HUD `🎵`/`🔇` toggle persists via `localStorage["sv_music_muted"]`.
 
-## v42 — Enemy AI movement + boss-variant battle music
+### v42 — Enemy AI movement + boss music
+- Per-enemy free move before action: melee skills (Null el) advance to lane 3 if at dist > 2; ranged (non-Null el) retreat to lane 4 if at dist < 2; support skills never move. One lane shift per turn, no crossing to player side.
+- **Symmetric distance modifier**: melee at dist 1 → ×1.10, ranged at dist ≥ 3 → ×1.12, applied to `ed`. Pet/ally hits skip this branch (already ×0.7).
+- Implemented inside the existing enemy `forEach` (~line 5235) — no new state.
+- **Boss track** added: 158 BPM, E natural minor, `Em-Bm-C-D` with grittier sawtooth counter-melody. `BOSS_BATTLE_TYPES = {boss, fieldboss, rift, outpost}`. `trackForScreen(scr, { battleType })` routes; deps array includes `btl?.type` so music swaps mid-battle. Required hoisting `const [btl, setBtl]` above the music hooks.
 
-### Enemy AI movement (closes the v40 positional-combat loop)
+### v43 — SFX engine + audio settings
+- 7-cue procedural SFX bank in `music.js`, separate `sfxGain` node so music+SFX have independent volume + mute: `hit` (filtered noise burst), `heal` (sine bell dyad), `levelup` (CEGC square fanfare), `victory` (held CEG triad), `defeat` (descending sawtooth A3→A2), `menu` (square click), `cast` (rising sine sweep).
+- API: `playSfx(name)`, `setSfxMuted/isSfxMuted`, `setMusicVolume/setSfxVolume/get*`. Persists `sv_sfx_muted`, `sv_music_vol`, `sv_sfx_vol`.
+- **Wired everywhere in `bAct` + enemy turn** (all `try/catch`-wrapped, all positioned after early-return validation): strike/w2 → hit; guard → menu; mend → heal; skill → heal if `t === heal|support` else cast; copy/ult → cast; enemy hit on player (gated `ed > 0 && type !== "train"`) → hit. Meta cues: giveXP level-up → levelup; victory branches → victory; defeat → defeat; sub change → menu chirp.
+- **Audio settings panel** in `sub === "menu"` (~line 6777): two rows (Music + SFX) each with mute toggle + 0-100% range slider (gold accentColor) + percent readout. Toggling SFX off→on plays a feedback chirp.
+- TDZ note: `subRef = useRef(null)` declared above hooks, populated via `useEffect` placed after the `const [sub, setSub]` declaration (~line 3084).
 
-v40 gave the player real lane-based mechanics; v42 makes enemies use the same system. Each enemy makes a free movement decision before its action, based on the skill it just chose:
+### v44 — Critical hits (luck-based)
+- Crit chance = `min(0.25, st.lck × 0.012)` — caps at 25% (~20+ lck). Damage ×1.5 with new `crit` SFX (1760→880Hz square stab + high-passed noise crack).
+- Wired into 3 damage paths: `attackWithWeapon` (one roll before the multi-hit loop, gated `!isShieldWeapon`), skill damage (one roll on `base` before `targets.forEach` so AoE shares the crit and SFX fires once), copy damage (same single-roll on `copyBase`).
+- Skipped: ult (already a power moment), heals (no analog), gambler class gamble multiplier (would double-roll).
+- Stacks multiplicatively with existing `armorCritChance` (×1.28). Log line `💥 Critical hit! ×1.5` via `logInfo`.
 
-- **Melee enemies** (no element / `Null` element on the chosen skill) prefer distance 1. If they're at distance > 2 and standing on lane 4 (Backline), they step forward to lane 3 (Skirmish). Logged: "👣 X advances to the front line."
-- **Ranged enemies** (any non-Null element on the chosen skill) prefer distance ≥ 3. If they're already at distance < 2 and standing on lane 3, they fall back to lane 4. Logged: "👣 X falls back to keep distance."
-- **Support skills** never trigger movement (the enemy is buffing itself, position doesn't matter).
-- **Symmetric distance damage modifier** mirrors the player's: melee at distance 1 → ×1.10 (point-blank), ranged at distance ≥ 3 → ×1.12 (long-shot). Multiplied directly into `ed` (enemy damage) for both `sk.pow` and basic-attack branches.
-- Movement happens regardless of target (player/pet/ally), but the distance bonus only applies meaningfully to player-targeted hits since pet/ally don't have lanes (their damage is multiplied by 0.7 in a separate branch and never reads `enemyDistMult`).
+### v45 — Enemy crits
+- Symmetric mirror of v44 on the enemy turn (~line 5331 area, immediately before `up.chp -= ed`). One roll per enemy attack: `enemyCritChance = min(0.20, (enemy.lck || enemy.lvl * 0.6) × 0.010)` — slightly tamer than the player cap (20% vs 25%) since enemies attack more often. On crit, `ed = floor(ed * 1.5)`, log `💥 Enemy critical!`, plays the `crit` SFX. Gated `ed > 0 && btl.type !== "train"` matching the existing damage-application condition.
+- No new state, no new fields — uses `enemy.lck` if present, otherwise derives a soft estimate from `enemy.lvl`. Pet/ally-targeted enemy hits skip the crit branch (those go through the separate ×0.7 path and don't read `ed` for the player's chp).
 
-Enemies still don't cross to the player's side (lanes 0-2) and can only shift one lane per turn — keeps the system readable for the player and prevents AI thrashing. Lane bar UI auto-reflects the new positions because it already reads `e.pos` from each enemy.
-
-Implementation lives entirely inside the existing enemy `forEach` (~line 5235 in `Game.jsx`) — no new state, no new effects.
-
-### Boss-variant battle music
-
-Added a 5th procedural track `boss` to `music.js`:
-
-- **158 BPM, E natural minor, Em - Bm - C - D progression.** Aggressive 16th-feel square lead with the same chord-tone arpeggio shape as the wild battle track but pitched darker and faster. Sawtooth counter-melody at -9 cents detune for extra grit, pounding 8th-note triangle bass that emphasizes root + octave-up + fifth (instead of the wild track's root+fifth pattern), kick on every beat.
-- `BOSS_BATTLE_TYPES = new Set(["boss", "fieldboss", "rift", "outpost"])` — these encounter types route to the boss track.
-- `trackForScreen(scr, opts = {})` now takes an options object: `{ battleType }`. Wild/beast/duel/pvp/train still get the standard battle loop; boss-tier encounters get the heavier track.
-- `Game.jsx` passes `{ battleType: btl?.type }` at all three callsites (unlock effect, scr-change effect, mute toggle). The scr-change effect's deps array now includes `btl?.type` so the music swaps mid-battle if the encounter type ever changes.
-- Required hoisting `const [btl, setBtl] = useState(null)` above the music hooks (~line 3029) so `btl?.type` is in lexical scope when the deps arrays evaluate. The original declaration at line 3063 was removed.
-
-### Future positional-combat hooks
-
-- Enemy lane-1 (cross-side) charge attack — strong skill that lets a boss step into the player's Front lane for one big hit, then retreats. Easy to add as a special skill flag.
-- Player "back-step" interrupt — a defensive option that triggers when a melee enemy tries to advance.
-- Per-skill range overrides — `sk.range` field on enemy skills (and player skills) for finer-grained control than the current el-based heuristic.
-
-## v41 — Background music (Chrono Trigger flavor)
-
-Procedural chiptune-style music engine. **No external assets, no licensing concerns** — entirely synthesized via the Web Audio API at runtime. Four hand-written looping tracks (title, travel, battle, town), each in the SNES JRPG mold.
-
-### `artifacts/shattered-veil/src/music.js`
-
-Self-contained module exporting `createMusicPlayer()` and `trackForScreen(scr)`.
-
-- **Note frequency table** — equal-tempered A4=440 from C2 to C6, including all sharps used by the four tracks.
-- **`scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain)`** — schedules one oscillator note with a soft chiptune ADSR (12 ms attack, gentle decay, ramp-down release). Used by every melodic part.
-- **`scheduleKick(ctx, dest, startT, peakGain)`** — pitched-down sine sweep (140 Hz → 45 Hz over 100 ms) for the battle track's kick drum.
-- **Track data** — each track is `{ bpm, bars, instruments[], drumPattern? }`. Each instrument is `{ type, gain, detune, pattern }` where pattern is `[["NOTE", beats], ...]`. `null` notes = rests. Lead uses `square` (bright NES-ish), counter-melody/pads use `sine` or `sawtooth`, bass uses `triangle` (soft, SNES-ish).
-- **`createMusicPlayer()`** returns `{ play(track), stop(), setMuted(m), isMuted(), currentTrack() }`.
-  - Lazy-creates AudioContext on first `play()` (browser autoplay rules).
-  - Schedules one full loop ahead, then re-arms via `setTimeout` 300 ms before loop end. Smooth seamless looping.
-  - Mute persists in `localStorage["sv_music_muted"]`.
-  - `play(null)` is a no-op so transitional screens (stats, equip, story) don't interrupt music.
-- **`trackForScreen(scr)`** maps: `title`/`create` → title, `battle` → battle, `town` → town, `map`/`submap` → travel, anything else → `null` (keeps current track).
-
-### Track design (Chrono Trigger nods)
-
-- **Title (70 BPM, A minor)** — slow Aeolian progression `Am - F - G - Em` over 8 bars. Triangle lead with sustained 2-beat notes, sine pad on chord 3rd/5th, triangle bass alternating root/fifth. Atmospheric & contemplative — kin to "Schala's Theme" / the Chrono Trigger main intro.
-- **Travel (116 BPM, C major)** — bright `C - G - Am - F` (the eternal classic). Square lead with 8th-note arpeggios + a held melodic phrase per bar, walking triangle bass on quarters. Hopeful adventure — "Wind Scene" energy.
-- **Battle (144 BPM, E minor)** — driving `Em - C - D - B7`. Square lead with rhythmic 8ths and a longer phrase per 2-bar chord, sawtooth counter-melody at -7 cents detune for grit, pulsing 8th-note triangle bass alternating root + fifth + octave-up, and a kick on every beat. Tense but climbable.
-- **Town (92 BPM, F major)** — warm `F - C - G - Am`. Triangle lead with a lilting melodic phrase per chord, sine pad, triangle bass arpeggiating root → fifth → octave → third. Cozy & inviting — "Peaceful Days" feel.
-
-### Game.jsx integration
-
-- Single `useRef(createMusicPlayer())` lives at the top of `Game()` (~line 3024).
-- Two `useEffect`s: one registers a one-shot `pointerdown`/`keydown` listener that resumes the AudioContext on first user interaction; another swaps tracks whenever `scr` changes.
-- HUD gets a `🎵`/`🔇` toggle next to the Veilcourt button (~line 6079). Mute persists across sessions.
-- Audio is gated behind first user gesture per browser autoplay policy — title music begins the moment the user clicks anywhere on the title screen (which they will, to enter the rift).
-
-### Future
-
-- Per-encounter battle variant (boss vs wild) — easy: add `boss` track and route via `btl.type` in `trackForScreen`.
-- Volume slider in the menu sub-panel — engine already exposes a `volume` constant and ramps cleanly.
-- Custom track for the Veilcourt modal (mystic ambient pad).
-- Layered intensity (e.g. add a tom layer when player HP < 30%) — the scheduling model supports stacking instruments mid-loop.
-
-## v40 — Positional combat + viewport fit
-
-Two big asks landed in one pass:
-
-### Positional combat (battle)
-
-Builds on v31's visual lane bar — now real tactical mechanics. Lanes 0-2 are the player/ally side (Vanguard / Front / Mid), 3-4 are the enemy side (Skirmish / Backline). Player default `pos = 1` (Front), pet drops on Vanguard, ally lands behind. Enemies seed at `pos: 3` (first 2) and `pos: 4` (rest) in `startBattle` (~line 4348).
-
-- **Battle state** carries `plPos` and `moved` (one free move per turn). Reset to `false` whenever turn flips back to player — handled in `previewBattleState` (~line 5083) + the timer-skip setBtl (~line 3544).
-- **`actionRange(act, idx)` helper** (~line 4374) returns 1 for melee (plain weapon strike, Null-element physical skill) or 4 for any ranged/elemental/AoE/copy/ult/heal/buff. Auto-derived from existing skill data — no per-skill annotation needed.
-- **`bMove(toLane)` helper** (~line 4391) — repositions the player to lanes 0-2, sets `moved: true`, doesn't end turn.
-- **Range gate** in `bAct` (~line 4406): if a melee strike/w2/skill is selected with distance > range, log "Out of range — move closer or use a ranged ability." and abort. Copy + ult are never gated (story/forbidden magic always reaches).
-- **Distance damage modifier** (~line 4420) multiplies `encounterProfile.playerDamage` once at the top of bAct: `+10%` point-blank when range 1 + distance 1 ("Point-blank" log line), `+12%` long-shot when range ≥ 4 + distance ≥ 3 ("Long-shot" log line). Cleanly threads through every existing damage path because they all read from `encounterProfile.playerDamage`.
-- **Lane bar UI** (~line 6838) now uses real `plPos` + foe `pos`. Allied lanes 0-2 are clickable to move when `!btl.moved`; foe tokens click to set target. Player-current lane gets a cyan glow (`.lane-player-here`); clickable lanes get a gold hover lift (`.battle-lane-tile.lane-clickable`).
-- **`.battle-range-readout` strip** below the lane bar shows current lane, target name + distance, contextual point-blank/long-shot bonus chips, and move-availability status.
-
-**Scope honest:** enemies don't move and are always treated as in-range for their own attacks. Adding enemy AI movement is the next focused round — current change touches only the player turn so the existing combat flow is unaffected.
-
-### Fit-to-viewport pass
-
-Goal: every screen fits 100dvh with no page-level scrolling. Achieved via a single appended CSS block (`v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS` at end of `game.css`, ~line 1782+):
-
-- `html, body, #root { overflow: hidden }` + `.pg { height: 100dvh; max-height: 100dvh; overflow: hidden }`.
-- All wrapper variants (`.shell-bg .wr`, `.town-bg .wr`, `.map-bg .wr`, `.outpost-bg .wr`, `.rift-bg .wr`) become flex-column, viewport-locked containers. Their child `.cd.page-panel` is the internal scroller (`flex: 1; overflow-y: auto; min-height: 0`).
-- `.battle-bg .wr.battle-viewport` switches from `min-height: 100vh` to `height: 100dvh` — battle log, action card, lane bar all share the screen via flex sizing.
-- Town `.svc-grid` tightened to `minmax(72px, 1fr)` columns + smaller padding/icon so all 12+ services fit without scrolling.
-- `.title-bg .wr / .create-bg .wr` keep `overflow-y: auto` as a fallback so character creation still works on tiny viewports.
-- `@media (max-height: 720px)` compresses battle padding/lane height further for laptops.
-
-### Future PvP hook for positional combat
-
-The new `pos`, `plPos`, `moved`, and `actionRange` are all serializable + deterministic — drop them into the eventual server payload `{ class, stats, skills, bloodmark, pos, plPos }` and the existing battle engine becomes PvP-ready without further refactor.
-
-## v43 — Combat SFX + audio settings panel
-
-Procedural sound-effect bank built into the same `music.js` engine — single AudioContext, separate `sfxGain` node so music and SFX have independent volume + mute. All cues synthesized at runtime (zero assets):
-
-- **Bank**: `hit` (filtered noise burst), `heal` (sine bell dyad), `levelup` (C-E-G-C square arpeggio fanfare), `victory` (held C-E-G triangle triad), `defeat` (descending sawtooth A3→A2), `menu` (short square click), `cast` (rising sine sweep).
-- **API additions on `createMusicPlayer()`**: `playSfx(name)`, `setSfxMuted(m)`, `isSfxMuted()`, `setMusicVolume(v)`, `setSfxVolume(v)`, `getMusicVolume()`, `getSfxVolume()`. All persistence via `localStorage` (`sv_sfx_muted`, `sv_music_vol`, `sv_sfx_vol`).
-- **Per-action wiring in `bAct` and the enemy turn** — every action now has audio feedback. All calls wrapped in `try/catch` so audio failures never break gameplay:
-  - `strike` / `w2` weapon attacks → `hit`
-  - `guard` → `menu` blip
-  - `mend` → `heal`
-  - `skill` → `heal` if `t === "heal"|"support"`, otherwise `cast`
-  - `copy` and `ult` → `cast`
-  - Enemy attack landing on player (`ed > 0`, non-train) → `hit`
-  - Meta cues (already in this version): `giveXP` level-up → `levelup`; both victory branches → `victory`; defeat branch → `defeat`; `useEffect` on `sub` change → `menu` chirp.
-- **Audio settings panel** lives in the menu sub-panel (`☰`). Two rows (Music + SFX), each with mute toggle + range slider (0-100%) + percent readout. Sliders use `accentColor: "#d4ad40"` for the gold theme. Toggling SFX off→on plays a feedback chirp.
-- **Compatible with the v41 HUD music toggle** — both surfaces now share state via `musicMuted` / `sfxMuted` React state mirrored from the engine getters.
+### Future combat hooks (queued, not built)
+- Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
+- Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).
+- Player back-step interrupt when a melee enemy advances.
+- Per-skill `range` overrides (finer than the current el-based heuristic).
+- Music intensity layer — heartbeat tom on the active battle track when player HP < 30% (the scheduling model supports stacking instruments mid-loop).
+- Veilcourt covenant sub-channels + WebSocket upgrade.
 
 ## Compact change history (v30 – v39)
 
