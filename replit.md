@@ -104,6 +104,10 @@ Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer
 - **Contrast pass** — entity card rows for player/pet/ally/enemy in battle now use `.battle-entity-row` (dark navy gradient with `!important`), eliminating parchment `T.c2` leaks. Targeted enemy row gets `.is-target` (crimson). Element Summary buttons use `.battle-element-summary-btn` (with `.enemy` variant) for legible light text on dark.
 - **NinjaRPG integration scope** — the zip's full hex+three.js+drizzle combat engine (12,691 lines) was *not* ported; incompatible with our single-component architecture. We lifted the *idea* (positional combat, range tiles) as a visual layer. Real movement + distance damage modifiers + targeting actions are queued for the next focused round.
 
+## Popup contrast fix (v35)
+
+The universal popup modal (`setPopup({...})`) was using `color: T.tx` (parchment dark ink `#18120a`) on a hardcoded dark navy background — body text was nearly invisible. Now self-contained via the `.popup-modal` CSS class in `game.css` (~end of file): dark navy gradient bg + light text (`#e8eeff`), gold Cinzel title, and gold-gradient choice buttons with dark text. All inherit-color rules use `!important` so inline `T.tx`/`T.dm` from caller-provided `popup.node` content gets overridden. Inline styles in the `popupEl` JSX (~line 5752) now only set layout, never colors.
+
 ## Avatar & icon polish (v34)
 
 - **`playerAvatar(cid, fallbackIc, portraitUrl)` helper** (~line 3046) — single source of truth for rendering the player figure. Layers (bottom→top, all `position:absolute`): emoji fallback → class portrait png (with `onError` that hides itself) → custom-URL overlay. Parent must be `position:relative; overflow:hidden`. If the class png 404s the emoji shows; if the custom URL fails the class png shows.

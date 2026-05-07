@@ -1344,3 +1344,25 @@ html, body, #root {
   .battle-bg .battle-team-col, .battle-bg .battle-enemy-col { max-height: 18vh; }
   .battle-bg .battle-log-card .blog-sel { max-height: 132px !important; }
 }
+
+/* Popup modal — self-contained dark theme so it never inherits parchment text on dark bg (v35) */
+.popup-modal {
+  background: linear-gradient(160deg, #1a2148 0%, #0e1430 100%) !important;
+  border: 1px solid rgba(212,173,64,0.45) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.75), 0 0 0 1px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  color: #e8eeff !important;
+}
+.popup-modal .popup-title { color: #f2c45c !important; font-family: 'Cinzel', serif; letter-spacing: 0.04em; text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+.popup-modal .popup-body { color: #e8eeff !important; }
+.popup-modal .popup-body * { color: inherit; }
+.popup-modal .popup-body strong, .popup-modal .popup-body b { color: #fff7e0 !important; }
+.popup-modal .popup-body em, .popup-modal .popup-body i { color: #cfd6ee !important; }
+.popup-modal .popup-body a { color: #9fd6ff !important; }
+.popup-modal .popup-choice {
+  background: linear-gradient(180deg, rgba(242,196,92,0.95) 0%, rgba(196,150,54,0.95) 100%) !important;
+  color: #1a1206 !important;
+  border: 1px solid rgba(255,235,170,0.55) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.25);
+}
+.popup-modal .popup-choice:hover { filter: brightness(1.08); }
