@@ -3042,6 +3042,20 @@ function Game() {
   // Parent must be position:relative; overflow:hidden. Order: emoji → class img (absolute) → custom (absolute) so failures unwind cleanly.
   // sex: "male" (default) uses class/<id>.png; "female" uses class/<id>_f.png with onError fallback to the male png.
   const classPortraitUrl = (cid, sex) => (import.meta.env.BASE_URL || "/") + "class/" + cid + (sex === "female" ? "_f" : "") + ".png";
+  // Crossfade portrait: layers male+female imgs and toggles opacity for a gentle fade between sexes.
+  // Caller controls the wrapper size/border via wrapStyle; both imgs fill the wrapper.
+  const CrossfadePortrait = ({ cid, sex, wrapStyle, imgStyle, alt }) => {
+    if (!cid) return null;
+    const isFem = sex === "female";
+    const baseImg = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "opacity 480ms ease", ...(imgStyle || {}) };
+    const onErr = (e) => { try { const t = e.currentTarget; if (t.dataset.sex === "female" && !t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(cid, "male"); } else { t.style.display = "none"; } } catch(_){} };
+    return (
+      <div style={{ position: "relative", overflow: "hidden", ...(wrapStyle || {}) }}>
+        <img src={classPortraitUrl(cid, "male")} data-sex="male" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 0 : 1 }} onError={onErr} />
+        <img src={classPortraitUrl(cid, "female")} data-sex="female" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 1 : 0 }} onError={onErr} />
+      </div>
+    );
+  };
   const playerAvatar = (cid, fallbackIc, portraitUrl, sex) => <>
     <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{fallbackIc}</span>
     {cid ? <img src={classPortraitUrl(cid, sex)} data-sex={sex || "male"} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { try { const t = e.currentTarget; if (t.dataset.sex === "female" && !t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(cid, "male"); } else { t.style.display = "none"; } } catch(_){} }} /> : null}
@@ -6028,7 +6042,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
           {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <img key={previewSex + c.id} src={classPortraitUrl(c.id, previewSex)} alt={c.nm} style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover", border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)", transition: "opacity .35s" }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(c.id, "male"); } } catch(_){} }} />
+              <CrossfadePortrait cid={c.id} sex={previewSex} alt={c.nm} wrapStyle={{ width: 40, height: 40, borderRadius: 6, border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)" }} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif", lineHeight: 1.1 }}>{c.nm}</div>
                 <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 7 }}>4 Random</span>}</div>
@@ -6071,7 +6085,7 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 2: IDENTITY */}
       {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 12 }}>
-          {selCls && <img key={cSex + selCls} src={classPortraitUrl(selCls, cSex)} alt={CLS.find(c => c.id === selCls)?.nm} style={{ width: 96, height: 96, borderRadius: 10, objectFit: "cover", border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)" }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(selCls, "male"); } } catch(_){} }} />}
+          {selCls && <CrossfadePortrait cid={selCls} sex={cSex} alt={CLS.find(c => c.id === selCls)?.nm} wrapStyle={{ width: 96, height: 96, borderRadius: 10, border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)", display: "inline-block" }} />}
           <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700, marginTop: 6 }}>{CLS.find(c => c.id === selCls)?.ic} {CLS.find(c => c.id === selCls)?.nm}</div>
           {selBloodmark && (() => { const bm = getBM(selBloodmark); return bm ? <div style={{ marginTop: 4, fontSize: 10, color: bm.cl }}>{bm.ic} {bm.nm}</div> : null; })()}
         </div>
@@ -6100,7 +6114,7 @@ const buildGroupedBattleLog = (entries) => {
         <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Custom Portrait URL <span style={{ fontSize: 8, color: "#9fb0d8", fontWeight: 400 }}>(optional · PNG/JPG/GIF/WebP · animated GIF supported)</span></label>
         <div style={{ display: "flex", gap: 6, alignItems: "stretch", marginBottom: 6 }}>
           <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (cPortrait.trim() ? (isValidPortraitURL(cPortrait) ? "rgba(123,232,143,0.55)" : "rgba(255,138,128,0.55)") : "rgba(212,173,64,0.35)"), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {selCls ? <img key={cSex + selCls + "_bg"} src={classPortraitUrl(selCls, cSex)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.55 }} onError={(e) => { try { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(selCls, "male"); } } catch(_){} }} /> : <span style={{ fontSize: 20 }}>👤</span>}
+            {selCls ? <CrossfadePortrait cid={selCls} sex={cSex} wrapStyle={{ position: "absolute", inset: 0, opacity: 0.55 }} /> : <span style={{ fontSize: 20 }}>👤</span>}
             {portraitOverlay(cPortrait)}
           </div>
           <input value={cPortrait} onChange={e => setCPortrait(e.target.value)} placeholder="https://example.com/your-hero.gif" maxLength={800} style={{ flex: 1, background: "rgba(6,12,28,0.85)", border: "1px solid rgba(212,173,64,0.35)", borderRadius: 7, padding: "8px 10px", color: "#fff7e0", fontSize: 11, fontFamily: "inherit", outline: "none" }} />

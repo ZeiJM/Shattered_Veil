@@ -47,13 +47,13 @@ title = "ranger portrait"
 id = "RKtkx6_Ck-Kbnet6i97oP"
 uri = "file://artifacts/shattered-veil/public/class/koen.png"
 type = "image"
-title = "koen portrait"
+title = "generated_image"
 
 [[generated]]
 id = "Vsq5WTwoz4XBSRkm0toBk"
 uri = "file://artifacts/shattered-veil/public/class/shouei.png"
 type = "image"
-title = "shouei portrait"
+title = "generated_image"
 
 [[generated]]
 id = "sKYbvnbt1QcERCKw_hpEw"
@@ -191,13 +191,13 @@ title = "ranger female portrait"
 id = "qY3OBd9IxsbSJuw8kIX3g"
 uri = "file://artifacts/shattered-veil/public/class/koen_f.png"
 type = "image"
-title = "koen female portrait"
+title = "generated_image"
 
 [[generated]]
 id = "ukj6Oc4y8GZZHP_4psinB"
 uri = "file://artifacts/shattered-veil/public/class/shouei_f.png"
 type = "image"
-title = "shouei female portrait"
+title = "generated_image"
 
 [[generated]]
 id = "FzXx9mAh9QxeC8ZisMu25"
