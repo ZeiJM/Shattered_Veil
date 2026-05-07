@@ -266,37 +266,37 @@ function FX(id) { return FXS.find(f => f.id === id); }
 
 // BLOODMARKS — lineage traits chosen at character creation
 const BLOODMARKS = [
-  { id:"veilvein",  nm:"Veil-Veined",   ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:25},        passive:"veil_surge",    ds:"Ancient veil essence runs through your blood, amplifying arcane channels beyond normal limits.",                          passiveDesc:"Veil Surge: Your first Veil Magic each battle costs 0 MP." },
-  { id:"stoneheart",nm:"Stoneheart",    ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:30},         passive:"iron_will",     ds:"Descended from earth-bound wardens who survived the first rift collapse through sheer endurance.",                          passiveDesc:"Iron Will: When HP drops below 25%, gain +15% effective DEF." },
-  { id:"stormborn", nm:"Storm-Born",    ic:"⚡",  cl:"#ffd740", stat:{spd:4,atk:2},         passive:"lightning_step",ds:"Born under a rift-storm, your nervous system is laced with arc-energy, making you faster than your class would suggest.", passiveDesc:"Lightning Step: 20% chance to act twice on any physical attack turn." },
-  { id:"ashblood",  nm:"Ashblood",      ic:"🔥",  cl:"#ff7043", stat:{atk:3,mag:2},         passive:"ember_aura",    ds:"Fire-element mutations run in the family line — dormant at rest, catastrophic under pressure.",                             passiveDesc:"Ember Aura: Physical attacks have a 15% chance to apply Burn for free." },
-  { id:"frostmere", nm:"Frost-Mere",    ic:"❄️",  cl:"#80d8ff", stat:{mag:2,def:2,lck:1},  passive:"chill_field",   ds:"The cold of Frostmere seeps into your bones — and into the bones of your enemies.",                                        passiveDesc:"Chill Field: Every 3rd turn, all enemies receive Slow at no MP cost." },
-  { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:4,hp:-10,lck:2}, passive:"void_gaze",     ds:"You gazed into the rift and the rift gazed back. Reality bends slightly around your presence.",                            passiveDesc:"Void Gaze: Damage skills have +10% chance to apply Silence." },
-  { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:4,hp:15,mp:15},  passive:"fortune_flame", ds:"A rare spiritual mutation — every gamble turns fractionally your way, every loot pool tips toward gold.",                    passiveDesc:"Fortune Flame: +20% gold from battles. +10% rare item drop chance." },
-  { id:"tidesbrood", nm:"Tides-Brood", ic:"🌊",  cl:"#4dd0e1", stat:{mp:35,def:1,spd:1},  passive:"tidal_flow",    ds:"The sea remembers your ancestors, and sends its pull through your MP reserves.",                                            passiveDesc:"Tidal Flow: Recover 5 MP each time you take damage in battle." },
+  { id:"veilvein",  nm:"Veil-Veined",   ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:25},        passive:"veil_surge",    ds:"An innate technique passed through the blood — your veins carry a thinner membrane between will and the Veil, and energy moves cheaper through you than through anyone else.",  passiveDesc:"Veil Surge: Your first Veil Magic each battle costs 0 MP." },
+  { id:"stoneheart",nm:"Stoneheart",    ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:30},         passive:"iron_will",     ds:"An inherited body trait — your structure densifies under threat, the way some bloodlines reflexively reinforce themselves when their flame begins to gutter.",                  passiveDesc:"Iron Will: When HP drops below 25%, gain +15% effective DEF." },
+  { id:"stormborn", nm:"Storm-Born",    ic:"⚡",  cl:"#ffd740", stat:{spd:4,atk:2},         passive:"lightning_step",ds:"An innate technique that runs the body's responses ahead of conscious thought. Your line moves before the moment lands — sometimes twice within it.",                            passiveDesc:"Lightning Step: 20% chance to act twice on any physical attack turn." },
+  { id:"ashblood",  nm:"Ashblood",      ic:"🔥",  cl:"#ff7043", stat:{atk:3,mag:2},         passive:"ember_aura",    ds:"An inherited combustive technique. Heat rides quietly in your strikes, igniting on contact with anything tense enough to catch.",                                              passiveDesc:"Ember Aura: Physical attacks have a 15% chance to apply Burn for free." },
+  { id:"frostmere", nm:"Frost-Mere",    ic:"❄️",  cl:"#80d8ff", stat:{mag:2,def:2,lck:1},  passive:"chill_field",   ds:"An ambient technique — the air around you cools without conscious cost, a passive territory of stillness that drags every enemy half a step behind.",                            passiveDesc:"Chill Field: Every 3rd turn, all enemies receive Slow at no MP cost." },
+  { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:4,hp:-10,lck:2}, passive:"void_gaze",     ds:"A rare ancestral imprint. Something on the other side of the Veil noticed your line once, and a thread of its silence has stayed in your eyes ever since.",                    passiveDesc:"Void Gaze: Damage skills have +10% chance to apply Silence." },
+  { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:4,hp:15,mp:15},  passive:"fortune_flame", ds:"A subtle warping technique inherited from a charmed bloodline. Probability bends a little around your hands — coins land your way, doors stick on the right side.",            passiveDesc:"Fortune Flame: +20% gold from battles. +10% rare item drop chance." },
+  { id:"tidesbrood", nm:"Tides-Brood", ic:"🌊",  cl:"#4dd0e1", stat:{mp:35,def:1,spd:1},  passive:"tidal_flow",    ds:"An innate cyclical technique. The deeper you are wounded, the more readily your reserves replenish — pressure becomes pressure converted.",                                  passiveDesc:"Tidal Flow: Recover 5 MP each time you take damage in battle." },
 ];
 function getBM(id) { return BLOODMARKS.find(b => b.id === id); }
 
-// RANKS — progression tiers earned by level milestones
+// RANKS — sorcerer grades, formally assessed by the covenants
 const RANKS = [
-  { nm:"Wanderer", min:1,  max:4,   ic:"🚶",  cl:"#aaaaaa", bonus:{}, ds:"A traveler with no allegiance, still finding their path through the fractured world." },
-  { nm:"Acolyte",  min:5,  max:9,   ic:"📿",  cl:"#78c7ff", bonus:{hp:10},          ds:"The first true step into formal power. Marked by the guilds as someone worth watching." },
-  { nm:"Disciple", min:10, max:14,  ic:"⚔️",  cl:"#66bb6a", bonus:{atk:2,def:1},    ds:"Proven in field and rift alike. Granted access to restricted tomes and outpost command." },
-  { nm:"Seeker",   min:15, max:19,  ic:"🔍",  cl:"#ffd740", bonus:{mag:2,mp:20},     ds:"A hunter of deep knowledge. Rifts open their true chambers to Seekers alone." },
-  { nm:"Warden",   min:20, max:24,  ic:"🛡️",  cl:"#ff9800", bonus:{def:3,hp:20},    ds:"A keeper of borders. Wardens shape the flow of power between towns and covenants." },
-  { nm:"Archon",   min:25, max:29,  ic:"🌟",  cl:"#f06292", bonus:{mag:3,atk:2,spd:2}, ds:"A walking legend. Archons bend the rules of elemental law around themselves." },
-  { nm:"Fractured",min:30, max:999, ic:"✦",   cl:"#c688ff", bonus:{hp:30,mp:30,mag:4}, ds:"The highest mortal rank. One who has gazed into the void and remained whole — or chose not to be." },
+  { nm:"Wanderer", min:1,  max:4,   ic:"🚶",  cl:"#aaaaaa", bonus:{}, ds:"Unranked. Untested. The covenants have not yet bothered to grade you, but the Veil already has your name on a list." },
+  { nm:"Acolyte",  min:5,  max:9,   ic:"📿",  cl:"#78c7ff", bonus:{hp:10},          ds:"Grade four. Your first formal assessment is on file. The lower halls open to you, and an instructor has been quietly assigned." },
+  { nm:"Disciple", min:10, max:14,  ic:"⚔️",  cl:"#66bb6a", bonus:{atk:2,def:1},    ds:"Grade three. Cleared for field assignments and rift entry. Restricted tomes can be requested. Most never advance past here." },
+  { nm:"Seeker",   min:15, max:19,  ic:"🔍",  cl:"#ffd740", bonus:{mag:2,mp:20},     ds:"Grade two. The Veil thins around you in a way the assessors can measure. You are now expected to investigate, not merely survive." },
+  { nm:"Warden",   min:20, max:24,  ic:"🛡️",  cl:"#ff9800", bonus:{def:3,hp:20},    ds:"Grade one. Trusted to hold a border alone. Wardens speak directly to the elders of every covenant — and are sometimes refused." },
+  { nm:"Archon",   min:25, max:29,  ic:"🌟",  cl:"#f06292", bonus:{mag:3,atk:2,spd:2}, ds:"Special grade. Cited in the standing records of all five covenants. Capable of a partial Veil Expansion. Tracked, courted, feared." },
+  { nm:"Fractured",min:30, max:999, ic:"✦",   cl:"#c688ff", bonus:{hp:30,mp:30,mag:4}, ds:"Beyond formal grade. One whose unfolded territory is permanent — the Veil no longer fully closes behind them. Few remain themselves at this height." },
 ];
 function getRank(level) { return RANKS.find(r => level >= r.min && level <= r.max) || RANKS[0]; }
 function getNextRankLevel(level) { const ci = RANKS.findIndex(r => level >= r.min && level <= r.max); return (ci >= 0 && ci < RANKS.length-1) ? RANKS[ci+1].min : null; }
 
-// COVENANTS — magical factions joinable in any town
+// COVENANTS — the five sorcerer schools that train, grade, and dispatch veilworkers
 const COVENANTS = [
-  { id:"veilwatch",  nm:"The Veilwatch",      ic:"👁️", cl:"#c688ff", el:"Void",  statBonus:{mag:3,mp:20},    ds:"A secret order of rift-watchers who believe the Veil must be sealed, not exploited. Their archives are the deepest in the world.",                     guildBonus:"Rift missions grant +30% XP. Void element bonus stacks with class element bonus." },
-  { id:"ironcrown",  nm:"Iron Crown",          ic:"👑",  cl:"#ff9800", el:"Earth", statBonus:{def:4,hp:25},    ds:"The old wardens of pre-rift civilization. Domineering, ruthless, and remarkably well-funded.",                                                         guildBonus:"Outpost missions grant +40% gold. DEF gains +2 from all equipped armor pieces." },
-  { id:"embersong",  nm:"Embersong Circle",    ic:"🔥",  cl:"#ff7043", el:"Fire",  statBonus:{atk:3,mag:2},    ds:"Fire-mages and blade-sorcerers who believe raw power, wielded cleanly, is the only honest answer to chaos.",                                           guildBonus:"Fire and Lightning skills deal +8% damage. Kill missions award bonus shards." },
-  { id:"silkweb",    nm:"Silkweb Guild",       ic:"🕸️", cl:"#78c7ff", el:"Wind",  statBonus:{spd:4,lck:2},    ds:"Information brokers and shadow operatives. Infiltrate, extract, vanish. They know something about everyone.",                                           guildBonus:"Evasion and dodge passives are 15% more effective. Arena challenge rewards doubled." },
-  { id:"tidecall",   nm:"Tidecall Conclave",   ic:"🌊",  cl:"#4dd0e1", el:"Water", statBonus:{mp:30,mag:2},    ds:"Healers, shapers of flow, and students of elemental balance. They repair what the rifts break.",                                                        guildBonus:"Healing skills are 20% more effective. Shrine blessings last an additional turn." },
+  { id:"veilwatch",  nm:"The Veilwatch",      ic:"👁️", cl:"#c688ff", el:"Void",  statBonus:{mag:3,mp:20},    ds:"The oldest school, founded to study the Veil rather than wield it. They believe Veil Expansion should be observed, recorded, and — when necessary — quietly contained.",        guildBonus:"Rift missions grant +30% XP. Void element bonus stacks with class element bonus." },
+  { id:"ironcrown",  nm:"Iron Crown",          ic:"👑",  cl:"#ff9800", el:"Earth", statBonus:{def:4,hp:25},    ds:"A traditionalist school of bound techniques and inherited weapons. Discipline first, talent second. Their assessors are notoriously hard to impress and harder to fool.",        guildBonus:"Outpost missions grant +40% gold. DEF gains +2 from all equipped armor pieces." },
+  { id:"embersong",  nm:"Embersong Circle",    ic:"🔥",  cl:"#ff7043", el:"Fire",  statBonus:{atk:3,mag:2},    ds:"A combat-leaning school. They argue that an unfolded technique, openly used, is the only honest answer to a hostile Veil. They lose more students than they graduate.",          guildBonus:"Fire and Lightning skills deal +8% damage. Kill missions award bonus shards." },
+  { id:"silkweb",    nm:"Silkweb Guild",       ic:"🕸️", cl:"#78c7ff", el:"Wind",  statBonus:{spd:4,lck:2},    ds:"A school of intelligence, infiltration, and quiet hands. They never expand a domain in public — they prefer to be the ones inside someone else's when it closes.",                guildBonus:"Evasion and dodge passives are 15% more effective. Arena challenge rewards doubled." },
+  { id:"tidecall",   nm:"Tidecall Conclave",   ic:"🌊",  cl:"#4dd0e1", el:"Water", statBonus:{mp:30,mag:2},    ds:"A school of restorative technique and elemental balance. They mend what other covenants tear open, and quietly outlive most of them as a consequence.",                            guildBonus:"Healing skills are 20% more effective. Shrine blessings last an additional turn." },
 ];
 function getCV(id) { return COVENANTS.find(c => c.id === id); }
 
@@ -5784,7 +5784,7 @@ const buildGroupedBattleLog = (entries) => {
         <div style={{ fontSize: 10, letterSpacing: 8, color: "#d7e1ff", textTransform: "uppercase", fontFamily: "'Cinzel',serif", marginBottom: 10 }}>Chronicles of the Rift</div>
         <h1 style={{ fontSize: 48, fontWeight: 900, fontFamily: "'Cinzel',serif", color: T.gd, lineHeight: 1.02, textShadow: "0 0 34px " + T.gd + "22", marginBottom: 8 }}>Shattered<br/>Veil</h1>
         <div style={{ width: 74, height: 2, background: "linear-gradient(90deg,transparent," + T.gd + ",transparent)", margin: "12px auto" }} />
-        <p style={{ fontSize: 13, color: "#d6def6", fontStyle: "italic", margin: "0 auto 14px", maxWidth: 420 }}>Step into a fractured realm of ancient orders, roaming rifts, living towns, and forbidden Veil Expansions.</p>
+        <p style={{ fontSize: 13, color: "#d6def6", fontStyle: "italic", margin: "0 auto 14px", maxWidth: 460 }}>A fractured world of inherited techniques, formal sorcerer schools, and the unfolded territories of those who can briefly impose their will upon the Veil.</p>
         <div className="title-feature-row">
           {["⚔ 16 Classes","✦ 8 Bloodmarks","🗺 300×300 World","🏛 5 Covenants","📖 Story Quests","🌀 Rifts · Outposts"].map((txt) => <span key={txt} className="feature-chip">{txt}</span>)}
         </div>
@@ -6258,22 +6258,22 @@ const buildGroupedBattleLog = (entries) => {
       </div>}
       {sub === "manual" && <div style={{ display: "grid", gap: 6, maxHeight: "58vh", overflowY: "auto", paddingRight: 2 }}>
         <div className="sb-panel">
-          <div className="sb-title">The Veil, the Rifts, and the End of Time</div>
-          <div className="sb-kv sb-muted">The world is not merely at war. It is fraying. Rifts tear open where reality grows thin, spilling strange ecosystems, twisted beasts, and hostile geometries into human lands. The oldest archives whisper that every rupture is a symptom of one will: the Dream Devourer, a devouring intelligence pressing against memory, time, and the fate of humanity itself. Your journey is not only to survive. It is to keep the line alive long enough to answer that threat.</div>
+          <div className="sb-title">The Veil, the Expansions, and the End of Time</div>
+          <div className="sb-kv sb-muted">Reality has a membrane. The covenants call it the Veil — a thin layer of will and meaning resting between the world humans walk and the silent, hostile geometry beneath it. Trained sorcerers can briefly unfold their own territory through the Veil and impose its rules on whoever stands inside. Most cannot. The unstable few who can, but who cannot fully close their domain again, become the figures the archives call Fractured. And somewhere beneath all of it, the Dream Devourer is pressing upward, eating memory and time as it climbs.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
             <div className="sb-title">✦ Bloodmarks</div>
-            <div className="sb-kv sb-muted">A Bloodmark is a lineage trait selected when you forge your hero. Each of the eight Bloodmarks grants passive stat bonuses and a unique passive ability that shapes how your character plays: Veil-Veined heroes conserve MP, Stormborn heroes may act twice, Ashblood heroes spread fire, and Void-Touched heroes silence their enemies. Bloodmarks are inherited by your heirs with a small chance of mutation across generations.</div>
+            <div className="sb-kv sb-muted">A Bloodmark is an innate technique inherited through your bloodline. It is not learned and cannot be taught — it is simply present at birth, and shapes how energy moves through you. Each of the eight Bloodmarks grants passive stat bonuses and a unique passive ability: Veil-Veined heroes channel cheaper, Storm-Born heroes act twice, Ashblood heroes ignite their strikes, Void-Touched heroes silence the world around them. Bloodmarks pass to your heirs along the family line, with a rare chance of mutation each generation.</div>
           </div>
           <div className="sb-panel">
             <div className="sb-title">🏛 Covenants</div>
-            <div className="sb-kv sb-muted">There are five great orders active in the fractured world: The Veilwatch, Iron Crown, Embersong Circle, Silkweb Guild, and Tidecall Conclave. Each Covenant grants a permanent stat bonus and improves specific types of guild missions. You join a Covenant at the Covenant Hall service in any town. You may renounce and rejoin at a cost. Each generation starts without a Covenant allegiance, but the stat bonus is strong enough to make pledging early worthwhile.</div>
+            <div className="sb-kv sb-muted">Five formal schools train, grade, and dispatch veilworkers across the fractured world: The Veilwatch, Iron Crown, Embersong Circle, Silkweb Guild, and Tidecall Conclave. Each grants a permanent stat bonus and shapes which assignments are most rewarded. You pledge at the Covenant Hall in any town. You may renounce and rejoin for a fee. Each generation starts unaffiliated — your heir must walk back into a school on their own.</div>
           </div>
         </div>
         <div className="sb-panel">
-          <div className="sb-title">🚶 Ranks</div>
-          <div className="sb-kv sb-muted">As your hero gains levels, they advance through seven Ranks: Wanderer, Acolyte, Disciple, Seeker, Warden, Archon, and Fractured. Each new Rank unlocks at a level milestone and permanently applies a stat bonus directly to your base stats. Rank ups are announced during level-up and displayed in your HUD. The final rank, Fractured, is reserved for heroes who survive deep into late levels — where the boundary between mortal and the Veil begins to break down.</div>
+          <div className="sb-title">🚶 Sorcerer Grades (Ranks)</div>
+          <div className="sb-kv sb-muted">As you gain levels, the covenants formally re-grade you. Seven ranks exist: Wanderer (unranked), Acolyte (grade four), Disciple (grade three), Seeker (grade two), Warden (grade one), Archon (special grade), and finally Fractured — beyond formal grading, where the Veil itself no longer closes cleanly around the sorcerer who unfolded it. Each new grade applies a permanent stat bonus and is announced on level up.</div>
         </div>
         <div className="sb-panel">
           <div className="sb-title">What Kind of Game This Is</div>
