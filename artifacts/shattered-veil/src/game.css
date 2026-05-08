@@ -2480,3 +2480,29 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-action-grid .bt,
   .battle-bg button.battle-action-btn { min-height: 76px !important; height: auto !important; padding-bottom: 8px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS
+   Foe lane tokens now show a painted boss/element portrait instead of a flat
+   element emoji. Element icons (in tags, skill labels, etc.) now use the
+   generated transparent PNG sigils with emoji as automatic fallback.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.battle-lane-token.is-rich .ent-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: rgba(0,0,0,0.55);
+  filter: saturate(1.05) contrast(1.04);
+}
+.battle-lane-token.is-rich.foe .ent-portrait-img.is-boss-portrait {
+  filter: saturate(1.1) contrast(1.08) drop-shadow(0 0 6px rgba(255,150,90,0.45));
+}
+.battle-lane-token.is-rich.foe .ent-portrait {
+  border-color: rgba(255,160,140,0.28);
+  background: rgba(40,8,12,0.45);
+}
+.battle-lane-token.is-rich.foe.target-mark .ent-portrait {
+  box-shadow: inset 0 0 0 1px rgba(255,120,120,0.7), inset 0 0 12px rgba(255,80,80,0.35);
+}

@@ -258,3 +258,20 @@ Earlier polish rounds, condensed. Refer back here when touching any of these are
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+
+### v50 — Painted enemy portraits + element icons
+
+User ask: "generate proper images for enemies and implement, as well as new icons for all elements." Generated and wired 58 images.
+
+- **18 element icons** (`public/el/<lower>.png`) — transparent painted sigil emblems for all 16 elements + Physical + Null. Style: gold-leaf heraldic rune with deep matte color matching parchment+navy palette. `removeBackground: true` for clean transparency over any context.
+- **40 boss portraits** (`public/boss/<bossKey>.png`) — head-and-shoulders painted JJK-flavored character busts for every named boss in `OUTPOST_BOSS_TEMPLATES` (20) and `RIFT_BOSS_TEMPLATES` (20). Each prompt baked a unique visual hook tied to the boss's name + element (e.g. `crownofice` = frostbitten queen with glacier-shard crown; `silkweave` = masked puppeteer with silver threads; `entropy` = shrouded cosmic horror with crown of collapsing stars).
+- **Generation cost**: all 58 images produced in **37 seconds, 0 failures** via 6 parallel `generateImage` calls (10 images per call) wrapped in `Promise.all` from a single `code_execution`.
+- **Wiring**:
+  - New `ELEMENT_ICON_PATH(el)` and `BOSS_PORTRAIT_PATH(key)` helpers (~line 23) plus `<ElementIcon el size />` component (~line 25) — img tag with `onError` fallback to the existing emoji map. Sized via `Math.max(10, Math.round(fontSize * 1.45))` so it scales with the surrounding tag.
+  - `ElementTag` (~line 470) now renders `<ElementIcon>` instead of the emoji span. Every battle/HUD/skill element badge picks this up automatically.
+  - Foe lane tokens (`livingFoes.forEach`, ~line 6998) carry a new `portraitSrc` field: boss portrait if `bossKey` exists, otherwise the element PNG.
+  - `renderRichToken` (~line 7062) renders `<img className="ent-portrait-img">` for foes (with `is-boss-portrait` modifier when `isBoss`); falls through to the original emoji path on error.
+  - Sorcerer Dossier popup (~line 7019) — portrait box bumped 56→72px and now shows the same painted portrait at full quality.
+- **CSS** (`v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS` block at end of `game.css`) — `.ent-portrait-img` `object-fit: cover` with subtle saturate/contrast lift; `.is-boss-portrait` adds a warm orange `drop-shadow`; foe portraits get a faint crimson tint border and amplified glow when targeted.
+- **bossKey contract** — already set by `mkOutpostBoss`/`mkRiftBoss` (line 2464+). Wild beasts (`BEASTS` array, 40 entries) intentionally untouched — they fall back to the element PNG which still gives a painted look without per-creature art. Future polish round can add per-beast portraits if desired.
+- **PvP-ready** — `bossKey` and `portraitSrc` are plain strings on the foe snapshot; serializable for live PvP opponent payloads.

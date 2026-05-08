@@ -17,6 +17,14 @@ const cyclePick = (arr, seed, mul = 1, add = 0) => arr[Math.abs(seed * mul + add
 const ELS = ["Fire","Water","Ice","Lightning","Earth","Wind","Light","Dark","Void","Nature","Metal","Poison","Psychic","Sound","Gravity","Arcane"];
 const ELC = {Fire:"#e65100",Water:"#1565c0",Ice:"#4dd0e1",Lightning:"#ffd600",Earth:"#8d6e63",Wind:"#66bb6a",Light:"#fff176",Dark:"#9c27b0",Void:"#4a148c",Nature:"#2e7d32",Metal:"#78909c",Poison:"#ab47bc",Psychic:"#e040fb",Sound:"#26a69a",Gravity:"#455a64",Arcane:"#d500f9",Physical:"#90a4ae",Null:"#616161"};
 const EL_IC = {"Fire":"🔥","Water":"💧","Ice":"❄️","Lightning":"⚡","Earth":"🪨","Wind":"🍃","Light":"✨","Dark":"🌑","Void":"🕳️","Nature":"🌿","Metal":"⚙️","Poison":"☠️","Psychic":"🧠","Sound":"🔔","Gravity":"🌀","Arcane":"💎","Physical":"⚔️","Null":"➖"};
+const ELEMENT_ICON_PATH = (el) => `${import.meta.env.BASE_URL}el/${(el || "null").toLowerCase()}.png`;
+const BOSS_PORTRAIT_PATH = (key) => `${import.meta.env.BASE_URL}boss/${key}.png`;
+function ElementIcon({ el, size = 14, style }) {
+  const safeEl = el || "Null";
+  const [broken, setBroken] = React.useState(false);
+  if (broken) return <span style={{ fontSize: Math.max(10, size - 2), lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", ...style }}>{EL_IC[safeEl] || "➖"}</span>;
+  return <img src={ELEMENT_ICON_PATH(safeEl)} alt={safeEl} draggable={false} onError={() => setBroken(true)} style={{ width: size, height: size, display: "inline-block", verticalAlign: "middle", filter: "drop-shadow(0 0 2px rgba(0,0,0,0.4))", ...style }} />;
+}
 const EL_STR = {Fire:["Ice","Nature"],Water:["Fire","Poison"],Ice:["Wind","Nature"],Lightning:["Water","Metal"],Earth:["Lightning","Fire"],Wind:["Earth","Sound"],Light:["Dark","Void"],Dark:["Psychic","Light"],Void:["Light","Arcane"],Nature:["Water","Earth"],Metal:["Ice","Sound"],Poison:["Nature","Psychic"],Psychic:["Poison","Gravity"],Sound:["Psychic","Ice"],Gravity:["Wind","Lightning"],Arcane:["Void","Dark"]};
 const FISH_TYPES = [
   {nm:"Ember Koi",el:"Fire",rr:3},{nm:"Lava Eel",el:"Fire",rr:2},
@@ -459,7 +467,6 @@ function StatusTag({ ef, showDur }) {
 // ElementTag - clickable element showing strengths/weaknesses
 function ElementTag({ el, showIcon = true, fontSize = 8 }) {
   const safeEl = el || "Null";
-  const icon = EL_IC[safeEl] || "➖";
   const sec = elementSummarySections([safeEl], 3)[0] || { el: safeEl, dealMoreText: "None", takeMoreText: "None" };
   const popup = [
     safeEl,
@@ -469,10 +476,11 @@ function ElementTag({ el, showIcon = true, fontSize = 8 }) {
     "",
     safeEl === "Null" ? "Null remains neutral at 100% in both directions." : "Only " + safeEl + "-aligned skills gain this attack advantage."
   ].join("\n");
+  const iconSize = Math.max(10, Math.round(fontSize * 1.45));
   return (
     <Tooltip text={<span style={{ whiteSpace: "pre-wrap" }}>{popup}</span>}>
       <span className="tg" data-noswipe="1" style={{ background: (ELC[safeEl]||"#666") + "22", color: ELC[safeEl]||"#999", fontSize, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, pointerEvents: "auto" }}>
-        {showIcon && <span>{icon}</span>}
+        {showIcon && <ElementIcon el={safeEl} size={iconSize} />}
         <span>{safeEl}</span>
       </span>
     </Tooltip>
@@ -6986,7 +6994,8 @@ const buildGroupedBattleLog = (entries) => {
           if (allyTok) laneTokens[Math.max(0, Math.min(2, allyLane))].push(allyTok);
           livingFoes.forEach(e => {
             const fp = Math.max(3, Math.min(4, e.pos ?? 3));
-            laneTokens[fp].push({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id, foePos: fp, entity: { name: e.name, hp: e.hp, mhp: e.mhp, mp: e.cmp ?? e.mmp ?? 0, mmp: e.mmp ?? 0, spd: e.spd || 0, els: entityBattleElements(e), efx: e.efx || [], passiveName: e.monPassive || "None", passiveDs: e.monPassive ? (MONSTER_PASSIVE_INFO[e.monPassiveKey] || "A unique trait.") : null, isBoss: !!e.boss, foeEl: e.el, kind: "foe", foeId: e.id } });
+            const portraitSrc = e.bossKey ? BOSS_PORTRAIT_PATH(e.bossKey) : ELEMENT_ICON_PATH(e.el);
+            laneTokens[fp].push({ k: e.id, ic: EL_IC[e.el] || "👾", portraitSrc, cls: "foe", isTarget: btlTarget === e.id, foePos: fp, entity: { name: e.name, hp: e.hp, mhp: e.mhp, mp: e.cmp ?? e.mmp ?? 0, mmp: e.mmp ?? 0, spd: e.spd || 0, els: entityBattleElements(e), efx: e.efx || [], passiveName: e.monPassive || "None", passiveDs: e.monPassive ? (MONSTER_PASSIVE_INFO[e.monPassiveKey] || "A unique trait.") : null, isBoss: !!e.boss, foeEl: e.el, kind: "foe", foeId: e.id, bossKey: e.bossKey || null, portraitSrc } });
           });
           const tiles = [
             { label: "Vanguard", role: "lane-melee" },
@@ -7003,8 +7012,8 @@ const buildGroupedBattleLog = (entries) => {
             const node = (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "#e8eeff", fontSize: 12 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <div style={{ position: "relative", width: 56, height: 56, borderRadius: 10, overflow: "hidden", background: "rgba(20,30,60,0.6)", border: "1px solid rgba(212,173,64,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
-                    {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}
+                  <div style={{ position: "relative", width: 72, height: 72, borderRadius: 10, overflow: "hidden", background: "rgba(20,30,60,0.6)", border: "1px solid rgba(212,173,64,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
+                    {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : (tok.portraitSrc ? <img src={tok.portraitSrc} alt={ent.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(ev) => { ev.target.style.display = "none"; }} /> : <>{tok.ic}{portraitOverlay(tok.img)}</>)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 800, color: nameColor, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
@@ -7049,7 +7058,7 @@ const buildGroupedBattleLog = (entries) => {
             };
             return <div key={tok.k} onClick={handleClick} title={ent ? (ent.name + " — click for details" + (tok.cls === "foe" ? " (click again to target)" : "")) : ""} className={"battle-lane-token is-rich " + tok.cls + (tok.isTarget ? " target-mark" : "")}>
               <div className="ent-portrait">
-                {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", fontSize: 18, position: "relative" }}>{tok.ic}{portraitOverlay(tok.img)}</span>}
+                {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : (tok.portraitSrc ? <img src={tok.portraitSrc} alt={ent?.name || ""} draggable={false} className={"ent-portrait-img" + (tok.cls === "foe" && ent?.isBoss ? " is-boss-portrait" : "")} onError={(ev) => { ev.target.style.display = "none"; }} /> : <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", fontSize: 18, position: "relative" }}>{tok.ic}{portraitOverlay(tok.img)}</span>)}
                 {ent && ent.isBoss ? <span className="ent-boss-mark">★</span> : null}
               </div>
               {ent && <div className="ent-name" title={ent.name}>{ent.name}</div>}

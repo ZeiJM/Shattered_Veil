@@ -288,3 +288,351 @@ id = "RGCzOreg5PtsKhke21yRm"
 uri = "file://attached_assets/generated_images/generated_image.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "bxTnq5l7i7VX-6SBnEOlZ"
+uri = "file://artifacts/shattered-veil/public/boss/entropy.png"
+type = "image"
+title = "boss entropy"
+
+[[generated]]
+id = "dNUQoxZJoRn3F7UkAiFe0"
+uri = "file://artifacts/shattered-veil/public/boss/time.png"
+type = "image"
+title = "boss time"
+
+[[generated]]
+id = "y9k3A7_AHaA4H35wUmKWK"
+uri = "file://artifacts/shattered-veil/public/boss/null.png"
+type = "image"
+title = "boss null"
+
+[[generated]]
+id = "4_NOW-vBfxEPRSMrfZHnR"
+uri = "file://artifacts/shattered-veil/public/boss/reality.png"
+type = "image"
+title = "boss reality"
+
+[[generated]]
+id = "IQKsiqjdIS3Xpse_Cv_oB"
+uri = "file://artifacts/shattered-veil/public/boss/primal.png"
+type = "image"
+title = "boss primal"
+
+[[generated]]
+id = "lav58yj6B_hJMPZs7RewE"
+uri = "file://artifacts/shattered-veil/public/boss/starhunger.png"
+type = "image"
+title = "boss starhunger"
+
+[[generated]]
+id = "2cOxQoouKaBQBmunz_0Ov"
+uri = "file://artifacts/shattered-veil/public/boss/mourningaxis.png"
+type = "image"
+title = "boss mourningaxis"
+
+[[generated]]
+id = "IJ-TmqYhK2uYRwxKZOXLN"
+uri = "file://artifacts/shattered-veil/public/boss/crownofice.png"
+type = "image"
+title = "boss crownofice"
+
+[[generated]]
+id = "2jtxvBy2fISo1ht2dBrtw"
+uri = "file://artifacts/shattered-veil/public/boss/deepjudge.png"
+type = "image"
+title = "boss deepjudge"
+
+[[generated]]
+id = "kXhThgXKfunLjKNk-JKfs"
+uri = "file://artifacts/shattered-veil/public/boss/dreamcaul.png"
+type = "image"
+title = "boss dreamcaul"
+
+[[generated]]
+id = "VZan5OgtJdAgH9s226H1H"
+uri = "file://artifacts/shattered-veil/public/boss/gravitomb.png"
+type = "image"
+title = "boss gravitomb"
+
+[[generated]]
+id = "nA6YvpjrfKLlYcjO1vH4A"
+uri = "file://artifacts/shattered-veil/public/boss/sunkenarchive.png"
+type = "image"
+title = "boss sunkenarchive"
+
+[[generated]]
+id = "PR9Pj5GKv_PAGCZyT8z9w"
+uri = "file://artifacts/shattered-veil/public/boss/voidcathedral.png"
+type = "image"
+title = "boss voidcathedral"
+
+[[generated]]
+id = "Wpcp8VvbgfhHsu96IJ4-e"
+uri = "file://artifacts/shattered-veil/public/boss/glassleviathan.png"
+type = "image"
+title = "boss glassleviathan"
+
+[[generated]]
+id = "hX3Pxq_ShHagAJ5rrL3_G"
+uri = "file://artifacts/shattered-veil/public/boss/plagestar.png"
+type = "image"
+title = "boss plagestar"
+
+[[generated]]
+id = "-vNrfbYTRom00IOlBGhUG"
+uri = "file://artifacts/shattered-veil/public/boss/tempestoracle.png"
+type = "image"
+title = "boss tempestoracle"
+
+[[generated]]
+id = "Yj_KaIJPXQomSY3n-7jXw"
+uri = "file://artifacts/shattered-veil/public/boss/namelessforge.png"
+type = "image"
+title = "boss namelessforge"
+
+[[generated]]
+id = "rb9KP3YP3HVxm1_yUYLb1"
+uri = "file://artifacts/shattered-veil/public/boss/verdantmaw.png"
+type = "image"
+title = "boss verdantmaw"
+
+[[generated]]
+id = "TT5WCAdTWmmEzejxLHmuw"
+uri = "file://artifacts/shattered-veil/public/boss/blackhorizon.png"
+type = "image"
+title = "boss blackhorizon"
+
+[[generated]]
+id = "qpV8Y1q-Bd5BAdOzDrXcE"
+uri = "file://artifacts/shattered-veil/public/boss/palegeometry.png"
+type = "image"
+title = "boss palegeometry"
+
+[[generated]]
+id = "VgHr3QZFXLyzbicy5de1p"
+uri = "file://artifacts/shattered-veil/public/el/metal.png"
+type = "image"
+title = "el metal"
+
+[[generated]]
+id = "QWZ9oH326SsNzazpTdirF"
+uri = "file://artifacts/shattered-veil/public/el/poison.png"
+type = "image"
+title = "el poison"
+
+[[generated]]
+id = "06tVUTCosAuYEoTmyN4dk"
+uri = "file://artifacts/shattered-veil/public/el/psychic.png"
+type = "image"
+title = "el psychic"
+
+[[generated]]
+id = "Vo5M_RhUyhfib_F-f7p_d"
+uri = "file://artifacts/shattered-veil/public/el/sound.png"
+type = "image"
+title = "el sound"
+
+[[generated]]
+id = "iSsDSeD2BjVOPqSUgWIyX"
+uri = "file://artifacts/shattered-veil/public/el/gravity.png"
+type = "image"
+title = "el gravity"
+
+[[generated]]
+id = "KheVt6u3P71kFcseS1Jqm"
+uri = "file://artifacts/shattered-veil/public/el/arcane.png"
+type = "image"
+title = "el arcane"
+
+[[generated]]
+id = "Mo7N9YgTZRYE54bjomuAv"
+uri = "file://artifacts/shattered-veil/public/el/physical.png"
+type = "image"
+title = "el physical"
+
+[[generated]]
+id = "SAzWSmHX9yyAxe3vMl9gm"
+uri = "file://artifacts/shattered-veil/public/el/null.png"
+type = "image"
+title = "el null"
+
+[[generated]]
+id = "nDedqI3GTa348t03uUlpg"
+uri = "file://artifacts/shattered-veil/public/boss/ironjaw.png"
+type = "image"
+title = "boss ironjaw"
+
+[[generated]]
+id = "nKURXSQvRWhCL3mXs4Rbl"
+uri = "file://artifacts/shattered-veil/public/boss/silkweave.png"
+type = "image"
+title = "boss silkweave"
+
+[[generated]]
+id = "G1C2EisXJnzgb8MzGtMV8"
+uri = "file://artifacts/shattered-veil/public/boss/blazefury.png"
+type = "image"
+title = "boss blazefury"
+
+[[generated]]
+id = "RWZ20jjua111WP6AxZ2qk"
+uri = "file://artifacts/shattered-veil/public/boss/scylla.png"
+type = "image"
+title = "boss scylla"
+
+[[generated]]
+id = "yKjlXjhzJdJBlbouiZQ4R"
+uri = "file://artifacts/shattered-veil/public/boss/gravewatch.png"
+type = "image"
+title = "boss gravewatch"
+
+[[generated]]
+id = "Q3b4aIHngSpMNjxKBSB2f"
+uri = "file://artifacts/shattered-veil/public/boss/stormmarshal.png"
+type = "image"
+title = "boss stormmarshal"
+
+[[generated]]
+id = "b55LvWWagzSS3KN2wDWSs"
+uri = "file://artifacts/shattered-veil/public/boss/thornmatron.png"
+type = "image"
+title = "boss thornmatron"
+
+[[generated]]
+id = "kLiPz-cUGlJi2aF6GFfeH"
+uri = "file://artifacts/shattered-veil/public/boss/chalkseer.png"
+type = "image"
+title = "boss chalkseer"
+
+[[generated]]
+id = "Vgx30hN9EwEeFh4vzrNCZ"
+uri = "file://artifacts/shattered-veil/public/boss/floodjudge.png"
+type = "image"
+title = "boss floodjudge"
+
+[[generated]]
+id = "s6BPHUwKfTrm87AjZ8sBg"
+uri = "file://artifacts/shattered-veil/public/boss/hushsaint.png"
+type = "image"
+title = "boss hushsaint"
+
+[[generated]]
+id = "8tB5-fDCMKNk00Q3DDiK3"
+uri = "file://artifacts/shattered-veil/public/boss/sandreaver.png"
+type = "image"
+title = "boss sandreaver"
+
+[[generated]]
+id = "hpHZMfT83cIU0JrLjLiwv"
+uri = "file://artifacts/shattered-veil/public/boss/glacierabbot.png"
+type = "image"
+title = "boss glacierabbot"
+
+[[generated]]
+id = "r5wmGSyOBsmznSwNK0QVr"
+uri = "file://artifacts/shattered-veil/public/boss/sunlancer.png"
+type = "image"
+title = "boss sunlancer"
+
+[[generated]]
+id = "K3Gs7UqZYNYCpDowNBXFR"
+uri = "file://artifacts/shattered-veil/public/boss/velvetfang.png"
+type = "image"
+title = "boss velvetfang"
+
+[[generated]]
+id = "UFWUfotkRSo8_i2mLq1Dl"
+uri = "file://artifacts/shattered-veil/public/boss/mirebishop.png"
+type = "image"
+title = "boss mirebishop"
+
+[[generated]]
+id = "IZgg4-Ly2uyLL0Hp2ALDV"
+uri = "file://artifacts/shattered-veil/public/boss/windvicar.png"
+type = "image"
+title = "boss windvicar"
+
+[[generated]]
+id = "9s_EVPjcXkL555wkjBgMg"
+uri = "file://artifacts/shattered-veil/public/boss/steelmatron.png"
+type = "image"
+title = "boss steelmatron"
+
+[[generated]]
+id = "juAl6s6AooTCHfDMggLpR"
+uri = "file://artifacts/shattered-veil/public/boss/lunacensor.png"
+type = "image"
+title = "boss lunacensor"
+
+[[generated]]
+id = "7q9IqLS2s3QOzqETYQ136"
+uri = "file://artifacts/shattered-veil/public/boss/brazenidol.png"
+type = "image"
+title = "boss brazenidol"
+
+[[generated]]
+id = "l5Vm-uMcyzE_XpiVRLjXV"
+uri = "file://artifacts/shattered-veil/public/boss/gravechorus.png"
+type = "image"
+title = "boss gravechorus"
+
+[[generated]]
+id = "42D4ADB_URIirMxGE5fuM"
+uri = "file://artifacts/shattered-veil/public/el/fire.png"
+type = "image"
+title = "el fire"
+
+[[generated]]
+id = "DXsH5JV-Kw9OK1N9Hkxle"
+uri = "file://artifacts/shattered-veil/public/el/water.png"
+type = "image"
+title = "el water"
+
+[[generated]]
+id = "T6ofPJ7frsPlB13rRZMl3"
+uri = "file://artifacts/shattered-veil/public/el/ice.png"
+type = "image"
+title = "el ice"
+
+[[generated]]
+id = "a90vUXvLnsanHsLhp-Ihy"
+uri = "file://artifacts/shattered-veil/public/el/lightning.png"
+type = "image"
+title = "el lightning"
+
+[[generated]]
+id = "xj1PXmixh8GKTjthvRUUP"
+uri = "file://artifacts/shattered-veil/public/el/earth.png"
+type = "image"
+title = "el earth"
+
+[[generated]]
+id = "UlDl0i7Vz8HwBwnzeb2av"
+uri = "file://artifacts/shattered-veil/public/el/wind.png"
+type = "image"
+title = "el wind"
+
+[[generated]]
+id = "wy9ouf5WspU498ZJO12RA"
+uri = "file://artifacts/shattered-veil/public/el/light.png"
+type = "image"
+title = "el light"
+
+[[generated]]
+id = "7SqyBy58ABTcz4uB-qSNv"
+uri = "file://artifacts/shattered-veil/public/el/dark.png"
+type = "image"
+title = "el dark"
+
+[[generated]]
+id = "VyYTDizhaZtTAxDCJBh5J"
+uri = "file://artifacts/shattered-veil/public/el/void.png"
+type = "image"
+title = "el void"
+
+[[generated]]
+id = "sjThkKRY_HldAvcvl3TNz"
+uri = "file://artifacts/shattered-veil/public/el/nature.png"
+type = "image"
+title = "el nature"
