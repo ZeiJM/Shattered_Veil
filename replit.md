@@ -187,6 +187,31 @@ Compact appendix. All five rounds layered on the same battle loop without state-
 - **Legend pills hidden by default**, expand on hover of the page-panel. Map log shrunk to 80px (60 short).
 - All in one appended `v47 — BATTLE UNIFICATION + WORLD ERGONOMIC PASS` block at end of `game.css` (~line 1955+).
 
+### v48 — Atmospheric audio + map richness + slow portrait fade
+Five-item polish round addressing direct user feedback ("music is annoying / overlapping / chippy", "map is ugly + basic", "portrait swap is abrupt").
+
+- **Music engine rewrite (`music.js` v48)** — full replacement of the v41 chiptune tracks.
+  - **Voices**: only `sine` + `triangle` (no more `square`/`sawtooth` — those caused the "blocky/chippy" complaint). Lead voices use longer attack (0.03–0.20s) and explicit `release` (0.25–1.0s) for cinematic swell instead of sharp 8-bit stabs. New `attack`/`release` fields on each instrument flow through `scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain, attack, release)`.
+  - **Tempos lowered**: title 70→60, travel 116→92, battle 144→116, town 92→78, boss 158→124. Calmer, more listenable for long sessions.
+  - **Ambient delay/echo bus** added in `ensure()` — 380ms `DelayNode` with 0.28 feedback + 0.55 wet gain, parallel to master. Each per-track bus has a 0.22 send into it, producing the spatial "Chrono Trigger soundtrack" reverb tail.
+  - **Track overlap bug fixed** (the "sounds like it's overlapping with old music" complaint). v41 cause: when `play(newTrack)` was called, it cleared the `scheduledTimer` but already-scheduled oscillators in the audio graph kept playing alongside the new track's oscillators. v48 fix: every track owns its own `musicBus = ctx.createGain()` between `scheduleNote` destinations and `masterGain`. On track change, `fadeOutBus(oldBus)` ramps the old bus to 0 over 450ms and disconnects after 700ms — old oscillators still play but are silent. New track gets a fresh bus.
+  - All 5 tracks (TITLE/TRAVEL/BATTLE/TOWN/BOSS) rewritten with new chord voicings, longer phrasing, lush sine pads, walking triangle bass instead of pulsing 8th-note hammer.
+  - Drum pattern now carries optional `gain` (was hardcoded 0.20) — battle 0.10, boss 0.13.
+
+- **Wider map grid (`Game.jsx` ~6852)** — `VW` 14→19, `VH` 9→11, `hfX` 6→9, `hfY` 4→5. Player still slightly left of center on even-VW. Grid aspect-ratio overridden in CSS to `19 / 11` (was square via v47), `max-width: min(88dvw, 760px)`, `max-height: min(50dvh, 460px)`. The map now actually uses the horizontal real estate instead of being a small square in a wide panel.
+
+- **Player aura** (the "your character should be distinct on the map" ask) — JSX adds `className="world-tile is-player"` + a `<span className="player-aura-ring">` to the player's tile (~line 6917). CSS gives it:
+  - Rotating gold conic ring via `radial-gradient(circle, transparent 38%, rgba(242,196,92,0.55) 50%, transparent 62%)` + `playerAuraRotate` 6s linear infinite.
+  - Synchronised `playerAuraPulse` 2.4s ease-in-out (opacity + blur).
+  - Inner gold pulse via `::before` with `playerInnerPulse` 1.6s.
+  - Tile gets `z-index: 2` so it sits above neighbours.
+
+- **Map atlas treatment** — grid container gets gold border, dark vellum background gradient, drop shadow, and an `::after` overlay with crossed `repeating-linear-gradient` lines (1px every 3px both axes) at `mix-blend-mode: overlay` for subtle parchment-grain texture. Vignette via `radial-gradient` ellipse darkens the corners.
+
+- **Portrait crossfade slowed** (`Game.jsx` ~3111) — `transition: opacity 480ms ease` → `transition: opacity 1200ms cubic-bezier(0.4, 0, 0.2, 1)`. 2.5× longer, with a real ease-in-out curve. Used on class-pick thumbnails, Identity preview, and the custom-portrait fallback bg.
+
+- All CSS in a single appended `v48 — MAP RICHNESS + PLAYER AURA + WIDER GRID` block at end of `game.css` (~line 2230+). JSX touched at 3 lines (CrossfadePortrait transition, VW/VH constants, player tile className+aura span).
+
 ### Future combat hooks (queued, not built)
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
 - Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).

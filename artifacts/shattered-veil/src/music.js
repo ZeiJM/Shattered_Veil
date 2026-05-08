@@ -1,6 +1,8 @@
-// Shattered Veil — chiptune-style music engine (v41)
-// SNES-JRPG flavored procedural music via Web Audio API.
-// No assets, no licensing, no network. ~4 looping tracks driven by `scr`.
+// Shattered Veil — atmospheric music engine (v48)
+// Replaces v41 chiptune. Smoother sine + triangle voices with longer envelopes,
+// a master delay/feedback bus for ambient spaciousness, slower BPMs, and a
+// per-track bus that we fade-out cleanly to fix the v41 track-overlap bug
+// (old loop's already-scheduled oscillators kept playing alongside the new one).
 
 const NOTE = {
   "C2":65.41,"D2":73.42,"E2":82.41,"F2":87.31,"G2":98.00,"A2":110.00,"B2":123.47,
@@ -12,225 +14,206 @@ const NOTE = {
   "G5":783.99,"Gs5":830.61,"A5":880.00,"As5":932.33,"B5":987.77,"C6":1046.50,
 };
 
-// Pattern entry: ["NoteOrNull", beats, optionalGainScale]
-// Each instrument list runs sequentially through one loop's worth of beats.
-// Bars × 4 beats must equal the sum of beats in each instrument pattern.
 function rep(pattern, n) { const out = []; for (let i = 0; i < n; i++) for (const e of pattern) out.push(e); return out; }
 
-// ───── TITLE: slow, mysterious, contemplative (Am - F - G - Em) ─────
+// Voice spec: { type, gain, attack, release, detune, pattern }
+//   type: "sine" | "triangle"  (no square / sawtooth — chippy harshness banned)
+//   attack/release in seconds — long attack = string-like swell
+//   pattern: [["NoteOrNull", beats], ...] summing to bars*4 beats
+
+// ───── TITLE: slow, contemplative, mysterious (Am - F - C - G) ─────
 const TITLE = {
-  bpm: 70, bars: 8,
+  bpm: 60, bars: 8,
   instruments: [
-    { type: "triangle", gain: 0.18, detune: 0, pattern: [
-      // Am 2bars
-      ["A4",1.5],["C5",0.5],["E5",2],["C5",2],["B4",2],
-      // F 2bars
-      ["A4",1.5],["F4",0.5],["C5",2],["F5",2],["E5",2],
-      // G 2bars
-      ["D5",1.5],["B4",0.5],["G4",2],["B4",2],["D5",2],
-      // Em 2bars
-      ["E4",1],["G4",1],["B4",2],["E5",2],["B4",2],
+    // Lead: airy triangle melody, long swells
+    { type: "triangle", gain: 0.08, attack: 0.20, release: 0.50, detune: 0, pattern: [
+      ["A4",4],["E5",4],
+      ["F4",4],["C5",4],
+      ["C5",4],["G4",4],
+      ["G4",4],["B4",4],
     ]},
-    { type: "sine", gain: 0.10, detune: 7, pattern: [
-      ["E4",4],["C4",4],
-      ["C4",4],["A3",4],
-      ["B3",4],["G3",4],
-      ["G3",4],["E3",4],
+    // Pad chord: sine drone, long attack for cinematic swell
+    { type: "sine", gain: 0.07, attack: 0.55, release: 1.0, detune: 8, pattern: [
+      ["A3",4],["A3",4],
+      ["F3",4],["F3",4],
+      ["C4",4],["C4",4],
+      ["G3",4],["G3",4],
     ]},
-    { type: "triangle", gain: 0.22, detune: 0, pattern: [
-      // Bass: tonic / fifth alternation
-      ["A2",2],["E3",2],["A2",2],["E3",2],
-      ["F2",2],["C3",2],["F2",2],["C3",2],
-      ["G2",2],["D3",2],["G2",2],["D3",2],
-      ["E2",2],["B2",2],["E2",2],["B2",2],
+    // Pad harmony (slightly flat for chorus-like richness)
+    { type: "sine", gain: 0.06, attack: 0.55, release: 1.0, detune: -8, pattern: [
+      ["E4",4],["E4",4],
+      ["A3",4],["A3",4],
+      ["E4",4],["E4",4],
+      ["B3",4],["B3",4],
+    ]},
+    // Bass: triangle, deep root pulses
+    { type: "triangle", gain: 0.13, attack: 0.05, release: 0.40, detune: 0, pattern: [
+      ["A2",8],
+      ["F2",8],
+      ["C2",8],
+      ["G2",8],
     ]},
   ],
 };
 
-// ───── TRAVEL: bright, hopeful, motion (C - G - Am - F) ─────
+// ───── TRAVEL: hopeful, flowing, lyrical (C - G - Am - F) ─────
 const TRAVEL = {
-  bpm: 116, bars: 8,
+  bpm: 92, bars: 8,
   instruments: [
-    { type: "square", gain: 0.13, detune: 0, pattern: [
-      // C 2bars - melody
-      ["C5",0.5],["E5",0.5],["G5",0.5],["E5",0.5],["C5",0.5],["G4",0.5],["E5",0.5],["G5",0.5],
-      ["A5",1],["G5",0.5],["E5",0.5],["G5",1],["E5",1],
-      // G 2bars
-      ["B4",0.5],["D5",0.5],["G5",0.5],["D5",0.5],["B4",0.5],["G4",0.5],["D5",0.5],["G5",0.5],
-      ["F5",1],["D5",0.5],["B4",0.5],["D5",1],["B4",1],
-      // Am 2bars
-      ["A4",0.5],["C5",0.5],["E5",0.5],["C5",0.5],["A4",0.5],["E4",0.5],["C5",0.5],["E5",0.5],
-      ["F5",1],["E5",0.5],["C5",0.5],["E5",1],["C5",1],
-      // F 2bars
-      ["F4",0.5],["A4",0.5],["C5",0.5],["A4",0.5],["F4",0.5],["C4",0.5],["A4",0.5],["C5",0.5],
-      ["D5",1],["C5",0.5],["A4",0.5],["F4",2],
+    // Lead: triangle, lyrical phrasing
+    { type: "triangle", gain: 0.09, attack: 0.05, release: 0.30, detune: 0, pattern: [
+      ["G4",1],["A4",1],["G4",1],["E4",1],["G4",2],["C5",2],
+      ["G4",1],["A4",1],["B4",1],["G4",1],["D5",2],["B4",2],
+      ["A4",1],["C5",1],["E5",1],["C5",1],["A4",2],["E5",2],
+      ["F4",1],["A4",1],["G4",1],["F4",1],["A4",2],["F4",2],
     ]},
-    { type: "sine", gain: 0.08, detune: 5, pattern: [
-      // Pad harmony: chord 3rd/5th holds
+    // Pad: sine harmony with detune chorus
+    { type: "sine", gain: 0.06, attack: 0.30, release: 0.70, detune: 6, pattern: [
       ["E4",4],["G4",4],
       ["D4",4],["G4",4],
       ["C4",4],["E4",4],
       ["A3",4],["C4",4],
     ]},
-    { type: "triangle", gain: 0.24, detune: 0, pattern: [
-      // Walking bass: root - fifth - root - third
-      ["C3",1],["G2",1],["C3",1],["E3",1],
-      ["C3",1],["G2",1],["C3",1],["E3",1],
-      ["G2",1],["D3",1],["G2",1],["B2",1],
-      ["G2",1],["D3",1],["G2",1],["B2",1],
-      ["A2",1],["E3",1],["A2",1],["C3",1],
-      ["A2",1],["E3",1],["A2",1],["C3",1],
-      ["F2",1],["C3",1],["F2",1],["A2",1],
-      ["F2",1],["C3",1],["F2",1],["A2",1],
+    // Walking bass
+    { type: "triangle", gain: 0.13, attack: 0.04, release: 0.30, detune: 0, pattern: [
+      ["C3",2],["G2",2],["C3",2],["E3",2],
+      ["C3",2],["G2",2],["C3",2],["E3",2],
+      ["G2",2],["D3",2],["G2",2],["B2",2],
+      ["G2",2],["D3",2],["G2",2],["B2",2],
+      ["A2",2],["E3",2],["A2",2],["C3",2],
+      ["A2",2],["E3",2],["A2",2],["C3",2],
+      ["F2",2],["C3",2],["F2",2],["A2",2],
+      ["F2",2],["C3",2],["F2",2],["A2",2],
     ]},
   ],
 };
 
-// ───── BATTLE: driving, tense (Em - C - D - B7) ─────
+// ───── BATTLE: tense, driving, but musical (Em - C - D - B7) ─────
 const BATTLE = {
-  bpm: 144, bars: 8,
+  bpm: 116, bars: 8,
   instruments: [
-    { type: "square", gain: 0.14, detune: 0, pattern: [
-      // Em 2bars - punchy 8ths
-      ["E5",0.5],["E5",0.5],["G5",0.5],["B5",0.5],["A5",0.5],["G5",0.5],["E5",0.5],["D5",0.5],
-      ["E5",1],["B4",1],["E5",1],["G5",1],
-      // C 2bars
-      ["C5",0.5],["C5",0.5],["E5",0.5],["G5",0.5],["A5",0.5],["G5",0.5],["E5",0.5],["C5",0.5],
-      ["E5",1],["G5",1],["C5",1],["E5",1],
-      // D 2bars
-      ["D5",0.5],["D5",0.5],["Fs5",0.5],["A5",0.5],["B5",0.5],["A5",0.5],["Fs5",0.5],["D5",0.5],
-      ["D5",1],["A4",1],["D5",1],["Fs5",1],
-      // B7 2bars
-      ["B4",0.5],["Ds5",0.5],["Fs5",0.5],["A5",0.5],["B5",0.5],["A5",0.5],["Fs5",0.5],["Ds5",0.5],
-      ["B4",2],["Fs5",2],
+    // Lead: triangle (was square — kills the 8-bit shrillness)
+    { type: "triangle", gain: 0.10, attack: 0.03, release: 0.25, detune: 0, pattern: [
+      ["E4",1],["G4",1],["B4",1],["G4",1],["E5",2],["B4",2],
+      ["E4",1],["G4",1],["B4",1],["A4",1],["G4",2],["E4",2],
+      ["C4",1],["E4",1],["G4",1],["E4",1],["C5",2],["G4",2],
+      ["C4",1],["E4",1],["G4",1],["A4",1],["G4",2],["E4",2],
+      ["D4",1],["Fs4",1],["A4",1],["Fs4",1],["D5",2],["A4",2],
+      ["D4",1],["Fs4",1],["A4",1],["B4",1],["A4",2],["Fs4",2],
+      ["B3",1],["Ds4",1],["Fs4",1],["B4",1],["Fs4",2],["Ds4",2],
+      ["B3",1],["Fs4",1],["B4",1],["Fs4",1],["B4",4],
     ]},
-    { type: "sawtooth", gain: 0.06, detune: -7, pattern: [
-      // Counter-melody / harmony
-      ["B4",2],["E4",2],["B4",2],["E5",2],
-      ["G4",2],["C4",2],["G4",2],["E5",2],
-      ["A4",2],["D4",2],["A4",2],["Fs5",2],
-      ["Fs4",2],["B3",2],["Fs4",2],["Ds5",2],
+    // Counter melody: sine pad
+    { type: "sine", gain: 0.06, attack: 0.20, release: 0.50, detune: 7, pattern: [
+      ["B4",4],["E4",4],
+      ["G4",4],["C4",4],
+      ["A4",4],["D4",4],
+      ["Fs4",4],["B3",4],
     ]},
-    { type: "triangle", gain: 0.30, detune: 0, pattern: rep([
-      // Pulsing 8th-note bass
-      ["E2",0.5],["E2",0.5],["E3",0.5],["E2",0.5],["B2",0.5],["E2",0.5],["E3",0.5],["B2",0.5],
+    // Bass: pulsing triangle, no longer hammering 8ths
+    { type: "triangle", gain: 0.15, attack: 0.03, release: 0.30, detune: 0, pattern: rep([
+      ["E2",1],["E3",1],["B2",1],["E3",1],
     ], 2).concat(rep([
-      ["C2",0.5],["C2",0.5],["C3",0.5],["C2",0.5],["G2",0.5],["C2",0.5],["C3",0.5],["G2",0.5],
+      ["C2",1],["C3",1],["G2",1],["C3",1],
     ], 2)).concat(rep([
-      ["D2",0.5],["D2",0.5],["D3",0.5],["D2",0.5],["A2",0.5],["D2",0.5],["D3",0.5],["A2",0.5],
+      ["D2",1],["D3",1],["A2",1],["D3",1],
     ], 2)).concat(rep([
-      ["B2",0.5],["B2",0.5],["B3",0.5],["B2",0.5],["Fs3",0.5],["B2",0.5],["B3",0.5],["Fs3",0.5],
+      ["B2",1],["B3",1],["Fs3",1],["B3",1],
     ], 2)),
     },
   ],
-  // simple kick on every beat for battle
-  drumPattern: { bpm: 144, perBeat: 1, bars: 8 },
+  // Soft kick on every beat — calmer than v41's punchy 144 BPM kick
+  drumPattern: { perBeat: 1, gain: 0.10 },
 };
 
-// ───── TOWN: warm, cozy, lilting (F - C - G - Am) ─────
+// ───── TOWN: warm, intimate, hearth (F - C - G - Am) ─────
 const TOWN = {
-  bpm: 92, bars: 8,
+  bpm: 78, bars: 8,
   instruments: [
-    { type: "triangle", gain: 0.16, detune: 0, pattern: [
-      // F 2bars
-      ["F4",1],["A4",0.5],["C5",0.5],["A4",1],["F4",1],
-      ["G4",1],["A4",1],["F4",2],
-      // C 2bars
-      ["E4",1],["G4",0.5],["C5",0.5],["G4",1],["E4",1],
-      ["F4",1],["G4",1],["E4",2],
-      // G 2bars
-      ["D4",1],["G4",0.5],["B4",0.5],["G4",1],["D4",1],
-      ["E4",1],["F4",1],["D4",2],
-      // Am 2bars
-      ["C4",1],["E4",0.5],["A4",0.5],["E4",1],["C4",1],
-      ["D4",1],["E4",1],["A4",2],
+    { type: "triangle", gain: 0.09, attack: 0.06, release: 0.40, detune: 0, pattern: [
+      ["F4",1.5],["A4",0.5],["C5",2],["A4",2],["F4",2],
+      ["C5",1.5],["E5",0.5],["F5",2],["E5",2],["C5",2],
+      ["E4",1.5],["G4",0.5],["B4",2],["G4",2],["D4",2],
+      ["A4",1.5],["C5",0.5],["E5",2],["A4",2],["E4",2],
     ]},
-    { type: "sine", gain: 0.09, detune: 6, pattern: [
+    { type: "sine", gain: 0.07, attack: 0.30, release: 0.70, detune: 6, pattern: [
       ["C4",4],["F4",4],
       ["G3",4],["E4",4],
       ["B3",4],["D4",4],
       ["E4",4],["C4",4],
     ]},
-    { type: "triangle", gain: 0.24, detune: 0, pattern: [
-      // Arpeggiated chord roots
-      ["F2",1],["C3",1],["F3",1],["C3",1],
-      ["F2",1],["C3",1],["F3",1],["C3",1],
-      ["C3",1],["G3",1],["C3",1],["E3",1],
-      ["C3",1],["G3",1],["C3",1],["E3",1],
-      ["G2",1],["D3",1],["G3",1],["D3",1],
-      ["G2",1],["D3",1],["G3",1],["D3",1],
-      ["A2",1],["E3",1],["A3",1],["E3",1],
-      ["A2",1],["E3",1],["A3",1],["E3",1],
+    { type: "triangle", gain: 0.13, attack: 0.04, release: 0.30, detune: 0, pattern: [
+      ["F2",2],["C3",2],["F2",2],["A2",2],
+      ["F2",2],["C3",2],["F2",2],["A2",2],
+      ["C3",2],["G3",2],["C3",2],["E3",2],
+      ["C3",2],["G3",2],["C3",2],["E3",2],
+      ["G2",2],["D3",2],["G2",2],["B2",2],
+      ["G2",2],["D3",2],["G2",2],["B2",2],
+      ["A2",2],["E3",2],["A2",2],["C3",2],
+      ["A2",2],["E3",2],["A2",2],["C3",2],
     ]},
   ],
 };
 
-// ───── BOSS: darker, faster, menacing (Em - Bm - C - D, E natural minor) ─────
+// ───── BOSS: darker, heavier, but lush — not chippy (Em - Bm - C - D) ─────
 const BOSS = {
-  bpm: 158, bars: 8,
+  bpm: 124, bars: 8,
   instruments: [
-    { type: "square", gain: 0.14, detune: 0, pattern: [
-      // Em 2bars - aggressive 16th-feel
-      ["E5",0.5],["G5",0.5],["B5",0.5],["G5",0.5],["E5",0.5],["B4",0.5],["G5",0.5],["B5",0.5],
-      ["A5",1],["G5",0.5],["E5",0.5],["B4",1],["E5",1],
-      // Bm 2bars
-      ["B4",0.5],["D5",0.5],["Fs5",0.5],["D5",0.5],["B4",0.5],["Fs4",0.5],["D5",0.5],["Fs5",0.5],
-      ["G5",1],["Fs5",0.5],["D5",0.5],["B4",1],["D5",1],
-      // C 2bars
-      ["C5",0.5],["E5",0.5],["G5",0.5],["E5",0.5],["C5",0.5],["G4",0.5],["E5",0.5],["G5",0.5],
-      ["A5",1],["G5",0.5],["E5",0.5],["C5",1],["E5",1],
-      // D 2bars
-      ["D5",0.5],["Fs5",0.5],["A5",0.5],["Fs5",0.5],["D5",0.5],["A4",0.5],["Fs5",0.5],["A5",0.5],
-      ["B5",1],["A5",0.5],["Fs5",0.5],["D5",1],["A5",1],
+    { type: "triangle", gain: 0.10, attack: 0.03, release: 0.25, detune: 0, pattern: [
+      ["E5",1],["G5",1],["B5",1],["G5",1],["E5",2],["B4",2],
+      ["E5",1],["D5",1],["B4",1],["G4",1],["E4",4],
+      ["B4",1],["D5",1],["Fs5",1],["D5",1],["B4",2],["Fs4",2],
+      ["B4",1],["A4",1],["Fs4",1],["D4",1],["B3",4],
+      ["C5",1],["E5",1],["G5",1],["E5",1],["C5",2],["G4",2],
+      ["C5",1],["B4",1],["G4",1],["E4",1],["C4",4],
+      ["D5",1],["Fs5",1],["A5",1],["Fs5",1],["D5",2],["A4",2],
+      ["D5",1],["A4",1],["Fs4",1],["D4",1],["A3",4],
     ]},
-    { type: "sawtooth", gain: 0.07, detune: -9, pattern: [
-      // Tritone-tinted counter-melody for menace
-      ["B4",2],["E4",2],["B4",2],["G5",2],
-      ["Fs4",2],["B3",2],["Fs4",2],["D5",2],
-      ["G4",2],["C4",2],["G4",2],["E5",2],
-      ["A4",2],["D4",2],["A4",2],["Fs5",2],
+    { type: "sine", gain: 0.06, attack: 0.25, release: 0.60, detune: -8, pattern: [
+      ["B3",4],["E4",4],
+      ["Fs3",4],["B3",4],
+      ["G3",4],["C4",4],
+      ["A3",4],["D4",4],
     ]},
-    { type: "triangle", gain: 0.32, detune: 0, pattern: rep([
-      // Pounding 8th-note bass — root, octave-up, fifth
-      ["E2",0.5],["E3",0.5],["B2",0.5],["E2",0.5],["E2",0.5],["E3",0.5],["B2",0.5],["G2",0.5],
+    { type: "triangle", gain: 0.17, attack: 0.03, release: 0.25, detune: 0, pattern: rep([
+      ["E2",1],["E3",1],["B2",1],["G2",1],
     ], 2).concat(rep([
-      ["B2",0.5],["B3",0.5],["Fs3",0.5],["B2",0.5],["B2",0.5],["B3",0.5],["Fs3",0.5],["D3",0.5],
+      ["B2",1],["Fs3",1],["D3",1],["B2",1],
     ], 2)).concat(rep([
-      ["C3",0.5],["C3",0.5],["G3",0.5],["C3",0.5],["E3",0.5],["C3",0.5],["G3",0.5],["E3",0.5],
+      ["C3",1],["G3",1],["E3",1],["C3",1],
     ], 2)).concat(rep([
-      ["D3",0.5],["D3",0.5],["A3",0.5],["D3",0.5],["Fs3",0.5],["D3",0.5],["A3",0.5],["Fs3",0.5],
+      ["D3",1],["A3",1],["Fs3",1],["D3",1],
     ], 2)),
     },
   ],
-  // Heavier kick: every beat plus an off-beat double on the &-of-1 each bar
-  drumPattern: { bpm: 158, perBeat: 1, bars: 8 },
+  drumPattern: { perBeat: 1, gain: 0.13 },
 };
 
 const TRACKS = { title: TITLE, travel: TRAVEL, battle: BATTLE, town: TOWN, boss: BOSS };
 
-function scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain) {
+function scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain, attack, release) {
   const osc = ctx.createOscillator();
   osc.type = type;
   osc.frequency.value = freq;
   if (detune) osc.detune.value = detune;
   const g = ctx.createGain();
-  const safeDur = Math.max(0.05, dur);
-  // Soft ADSR — fast attack, gentle release for chiptune feel.
+  const safeDur = Math.max(0.06, dur);
+  const a = Math.min(attack || 0.04, safeDur * 0.5);
+  const r = release || 0.20;
   g.gain.setValueAtTime(0, startT);
-  g.gain.linearRampToValueAtTime(peakGain, startT + 0.012);
-  g.gain.linearRampToValueAtTime(peakGain * 0.55, startT + safeDur * 0.55);
-  g.gain.linearRampToValueAtTime(0.0001, startT + safeDur);
+  g.gain.linearRampToValueAtTime(peakGain, startT + a);
+  g.gain.setValueAtTime(peakGain * 0.85, startT + safeDur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, startT + safeDur + r);
   osc.connect(g).connect(dest);
   osc.start(startT);
-  osc.stop(startT + safeDur + 0.04);
+  osc.stop(startT + safeDur + r + 0.05);
 }
 
 function scheduleKick(ctx, dest, startT, peakGain) {
-  // Cheap synth kick: pitched-down sine sweep.
   const osc = ctx.createOscillator();
   osc.type = "sine";
-  osc.frequency.setValueAtTime(140, startT);
-  osc.frequency.exponentialRampToValueAtTime(45, startT + 0.10);
+  osc.frequency.setValueAtTime(120, startT);
+  osc.frequency.exponentialRampToValueAtTime(40, startT + 0.10);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0, startT);
   g.gain.linearRampToValueAtTime(peakGain, startT + 0.005);
@@ -242,7 +225,6 @@ function scheduleKick(ctx, dest, startT, peakGain) {
 
 // ─── SFX bank (short percussive cues, all synthesized) ───
 function sfxHit(ctx, dest, t0, gain) {
-  // Noise burst with low-pass filter for a satisfying "thwack"
   const dur = 0.12;
   const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
   const data = buf.getChannelData(0);
@@ -257,9 +239,7 @@ function sfxHit(ctx, dest, t0, gain) {
   src.connect(filt).connect(g).connect(dest);
   src.start(t0); src.stop(t0 + dur + 0.02);
 }
-
 function sfxHeal(ctx, dest, t0, gain) {
-  // Bell-like dyad
   [880, 1320].forEach((f, i) => {
     const osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = f;
     const g = ctx.createGain();
@@ -270,13 +250,11 @@ function sfxHeal(ctx, dest, t0, gain) {
     osc.start(t0); osc.stop(t0 + 0.5);
   });
 }
-
 function sfxLevelUp(ctx, dest, t0, gain) {
-  // Ascending major arpeggio C5-E5-G5-C6
   const notes = [523.25, 659.25, 783.99, 1046.50];
   notes.forEach((f, i) => {
     const tn = t0 + i * 0.085;
-    const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.value = f;
+    const osc = ctx.createOscillator(); osc.type = "triangle"; osc.frequency.value = f;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, tn);
     g.gain.linearRampToValueAtTime(gain * 0.6, tn + 0.008);
@@ -286,9 +264,7 @@ function sfxLevelUp(ctx, dest, t0, gain) {
     osc.start(tn); osc.stop(tn + 0.2);
   });
 }
-
 function sfxVictory(ctx, dest, t0, gain) {
-  // Held major triad C-E-G fanfare
   [523.25, 659.25, 783.99].forEach((f) => {
     const osc = ctx.createOscillator(); osc.type = "triangle"; osc.frequency.value = f;
     const g = ctx.createGain();
@@ -300,10 +276,8 @@ function sfxVictory(ctx, dest, t0, gain) {
     osc.start(t0); osc.stop(t0 + 0.95);
   });
 }
-
 function sfxDefeat(ctx, dest, t0, gain) {
-  // Descending sad sawtooth
-  const osc = ctx.createOscillator(); osc.type = "sawtooth";
+  const osc = ctx.createOscillator(); osc.type = "sine";
   osc.frequency.setValueAtTime(220, t0);
   osc.frequency.exponentialRampToValueAtTime(82, t0 + 0.7);
   const g = ctx.createGain();
@@ -312,27 +286,22 @@ function sfxDefeat(ctx, dest, t0, gain) {
   osc.connect(g).connect(dest);
   osc.start(t0); osc.stop(t0 + 0.85);
 }
-
 function sfxMenu(ctx, dest, t0, gain) {
-  // Soft square click
-  const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.value = 880;
+  const osc = ctx.createOscillator(); osc.type = "sine"; osc.frequency.value = 880;
   const g = ctx.createGain();
   g.gain.setValueAtTime(gain * 0.4, t0);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
   osc.connect(g).connect(dest);
-  osc.start(t0); osc.stop(t0 + 0.06);
+  osc.start(t0); osc.stop(t0 + 0.07);
 }
-
 function sfxCrit(ctx, dest, t0, gain) {
-  // Sharp high square stab + bright noise burst — instant impact
-  const osc = ctx.createOscillator(); osc.type = "square"; osc.frequency.setValueAtTime(1760, t0);
+  const osc = ctx.createOscillator(); osc.type = "triangle"; osc.frequency.setValueAtTime(1760, t0);
   osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.08);
   const og = ctx.createGain();
   og.gain.setValueAtTime(gain * 0.5, t0);
   og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1);
   osc.connect(og).connect(dest);
   osc.start(t0); osc.stop(t0 + 0.12);
-  // Noise crack on top
   const dur = 0.08;
   const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
   const data = buf.getChannelData(0);
@@ -340,14 +309,12 @@ function sfxCrit(ctx, dest, t0, gain) {
   const src = ctx.createBufferSource(); src.buffer = buf;
   const filt = ctx.createBiquadFilter(); filt.type = "highpass"; filt.frequency.value = 2000;
   const ng = ctx.createGain();
-  ng.gain.setValueAtTime(gain * 0.6, t0);
+  ng.gain.setValueAtTime(gain * 0.5, t0);
   ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   src.connect(filt).connect(ng).connect(dest);
   src.start(t0); src.stop(t0 + dur + 0.02);
 }
-
 function sfxCast(ctx, dest, t0, gain) {
-  // Rising sine sweep — magical
   const osc = ctx.createOscillator(); osc.type = "sine";
   osc.frequency.setValueAtTime(220, t0);
   osc.frequency.exponentialRampToValueAtTime(880, t0 + 0.18);
@@ -365,6 +332,10 @@ export function createMusicPlayer() {
   let ctx = null;
   let masterGain = null;
   let sfxGain = null;
+  let delayNode = null;     // ambient echo bus
+  let delayFb = null;
+  let delayWet = null;
+  let musicBus = null;      // per-track bus (swappable for clean transitions)
   let muted = false;
   let sfxMuted = false;
   try { muted = typeof localStorage !== "undefined" && localStorage.getItem("sv_music_muted") === "1"; } catch {}
@@ -391,34 +362,67 @@ export function createMusicPlayer() {
         sfxGain = ctx.createGain();
         sfxGain.gain.value = sfxMuted ? 0 : sfxVolume;
         sfxGain.connect(ctx.destination);
+
+        // Ambient echo: 380ms delay with subtle feedback for spaciousness.
+        delayNode = ctx.createDelay(1.0);
+        delayNode.delayTime.value = 0.38;
+        delayFb = ctx.createGain();
+        delayFb.gain.value = 0.28;
+        delayWet = ctx.createGain();
+        delayWet.gain.value = 0.55;
+        delayNode.connect(delayFb).connect(delayNode);
+        delayNode.connect(delayWet).connect(masterGain);
       } catch (e) { return false; }
     }
     if (ctx.state === "suspended") { try { ctx.resume(); } catch {} }
     return true;
   }
 
+  function makeBus() {
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(masterGain);
+    // Wet send to ambient echo bus
+    const send = ctx.createGain();
+    send.gain.value = 0.22;
+    bus.connect(send).connect(delayNode);
+    return bus;
+  }
+
+  function fadeOutBus(bus) {
+    if (!bus || !ctx) return;
+    const t = ctx.currentTime;
+    try {
+      bus.gain.cancelScheduledValues(t);
+      bus.gain.setValueAtTime(bus.gain.value, t);
+      bus.gain.linearRampToValueAtTime(0, t + 0.45);
+    } catch {}
+    setTimeout(() => { try { bus.disconnect(); } catch {} }, 700);
+  }
+
   function scheduleLoop(track, startTime) {
     const t = TRACKS[track];
-    if (!t) return startTime;
+    if (!t || !musicBus) return startTime;
     const beat = 60 / t.bpm;
     const totalBeats = t.bars * 4;
 
-    t.instruments.forEach(({ type, gain, detune, pattern }) => {
+    t.instruments.forEach(({ type, gain, detune, pattern, attack, release }) => {
       let pos = 0;
       for (const entry of pattern) {
         const [note, dur] = entry;
         if (note && NOTE[note]) {
           const startT = startTime + pos * beat;
           const dt = dur * beat;
-          scheduleNote(ctx, masterGain, type, NOTE[note], detune || 0, startT, dt * 0.92, gain);
+          scheduleNote(ctx, musicBus, type, NOTE[note], detune || 0, startT, dt * 0.92, gain, attack || 0.04, release || 0.20);
         }
         pos += dur;
       }
     });
 
     if (t.drumPattern) {
+      const dGain = t.drumPattern.gain || 0.15;
       for (let b = 0; b < totalBeats; b += t.drumPattern.perBeat) {
-        scheduleKick(ctx, masterGain, startTime + b * beat, 0.20);
+        scheduleKick(ctx, musicBus, startTime + b * beat, dGain);
       }
     }
 
@@ -426,7 +430,7 @@ export function createMusicPlayer() {
   }
 
   function loopForever(track) {
-    if (!ctx) return;
+    if (!ctx || !musicBus) return;
     const now = ctx.currentTime;
     if (nextLoopAt < now + 0.05) nextLoopAt = now + 0.05;
     const endsAt = scheduleLoop(track, nextLoopAt);
@@ -444,15 +448,19 @@ export function createMusicPlayer() {
       if (!track || !TRACKS[track]) {
         currentTrack = null;
         if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
+        if (musicBus) { fadeOutBus(musicBus); musicBus = null; }
         return;
       }
-      if (track === currentTrack && ctx && ctx.state !== "suspended") return;
+      if (track === currentTrack && ctx && ctx.state !== "suspended" && musicBus) return;
       if (!ensure()) return;
       const wasDifferent = track !== currentTrack;
       currentTrack = track;
-      if (wasDifferent) {
-        // Quick fade-in by resetting nextLoopAt to "now"
-        nextLoopAt = ctx.currentTime + 0.08;
+      if (wasDifferent || !musicBus) {
+        // Kill the old bus immediately — fixes the v41 overlap where
+        // already-scheduled oscillators kept playing under the new track.
+        if (musicBus) fadeOutBus(musicBus);
+        musicBus = makeBus();
+        nextLoopAt = ctx.currentTime + 0.10;
         if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
       }
       loopForever(track);
@@ -460,13 +468,7 @@ export function createMusicPlayer() {
     stop() {
       currentTrack = null;
       if (scheduledTimer) { clearTimeout(scheduledTimer); scheduledTimer = null; }
-      if (masterGain && ctx) {
-        const t = ctx.currentTime;
-        masterGain.gain.cancelScheduledValues(t);
-        masterGain.gain.setValueAtTime(masterGain.gain.value, t);
-        masterGain.gain.linearRampToValueAtTime(0, t + 0.2);
-        setTimeout(() => { if (masterGain && !muted) masterGain.gain.value = volume; }, 240);
-      }
+      if (musicBus) { fadeOutBus(musicBus); musicBus = null; }
     },
     setMuted(m) {
       muted = !!m;
@@ -479,7 +481,6 @@ export function createMusicPlayer() {
     },
     isMuted() { return muted; },
     currentTrack() { return currentTrack; },
-    // ── SFX API ──
     playSfx(name) {
       if (sfxMuted) return;
       const fn = SFX_BANK[name];
@@ -520,8 +521,6 @@ export function createMusicPlayer() {
   };
 }
 
-// Boss-tier battle types get the heavier BOSS track. Wild encounters and
-// duels use the standard battle loop.
 const BOSS_BATTLE_TYPES = new Set(["boss", "fieldboss", "rift", "outpost"]);
 
 export function trackForScreen(scr, opts = {}) {
@@ -532,5 +531,5 @@ export function trackForScreen(scr, opts = {}) {
   }
   if (scr === "town") return "town";
   if (scr === "map" || scr === "submap") return "travel";
-  return null; // shell / stats / etc → keep current track playing
+  return null;
 }

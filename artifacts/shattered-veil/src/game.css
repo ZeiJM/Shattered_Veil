@@ -2223,3 +2223,101 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .map-bg .map-dpad-wrap { position: static !important; display: flex; justify-content: center; margin-top: 6px; }
   .map-bg .map-log-card, .map-bg .sb-line-card { margin-right: 0 !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v48 — MAP RICHNESS + PLAYER AURA + WIDER GRID
+   Map grid is now 19×11 (was 14×9) — much wider use of horizontal space.
+   Player tile gets an animated rotating aura ring + pulsing inner glow so
+   it's instantly distinguishable. Tiles get a subtle vignette + parchment
+   atlas inset for that "old-world map" feel.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Wider 19:11 map grid — overrides v47's square cap */
+.map-bg .battle-world-grid {
+  max-width: min(88dvw, 760px) !important;
+  max-height: min(50dvh, 460px) !important;
+  width: 100% !important;
+  aspect-ratio: 19 / 11 !important;
+  margin: 4px auto !important;
+  border: 2px solid rgba(212,173,64,0.55) !important;
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(60,42,20,0.0) 55%, rgba(8,6,4,0.35) 100%),
+    linear-gradient(180deg, #1a1408, #0a0805) !important;
+  box-shadow:
+    0 0 28px rgba(0,0,0,0.65),
+    inset 0 0 0 1px rgba(0,0,0,0.45),
+    inset 0 0 36px rgba(0,0,0,0.55);
+  position: relative;
+}
+/* Atlas-paper grain over the whole grid */
+.map-bg .battle-world-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0,0,0,0.30) 100%),
+    repeating-linear-gradient(0deg, rgba(255,240,200,0.015) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(255,240,200,0.015) 0 1px, transparent 1px 3px);
+  border-radius: 8px;
+  mix-blend-mode: overlay;
+}
+
+/* Player tile — animated aura ring + golden inner pulse */
+.map-bg .world-tile.is-player {
+  z-index: 2;
+}
+.map-bg .player-aura-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle, transparent 38%, rgba(242,196,92,0.55) 50%, transparent 62%);
+  animation: playerAuraRotate 6s linear infinite, playerAuraPulse 2.4s ease-in-out infinite;
+  z-index: 3;
+}
+.map-bg .world-tile.is-player::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 50%, rgba(242,196,92,0.32), transparent 70%);
+  animation: playerInnerPulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes playerAuraRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes playerAuraPulse {
+  0%, 100% { opacity: 0.55; filter: blur(2px); }
+  50%      { opacity: 0.95; filter: blur(0px); }
+}
+@keyframes playerInnerPulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.85; }
+}
+
+/* Tighter d-pad safe-space margins now that the map is wider */
+.map-bg .map-log-card { margin-right: 168px !important; }
+.map-bg .sb-line-card { margin-right: 168px !important; }
+
+@media (max-height: 720px) {
+  .map-bg .battle-world-grid { max-width: min(82dvw, 600px) !important; max-height: min(44dvh, 360px) !important; }
+}
+@media (max-width: 640px) {
+  .map-bg .battle-world-grid { max-width: 100% !important; }
+}
+
+/* ── v48.1 — Re-assert v47.1 mobile fallback (must come AFTER v48 rules) ── */
+@media (max-width: 640px) {
+  .map-bg .map-dpad-wrap { position: static !important; display: flex; justify-content: center; margin-top: 6px; }
+  .map-bg .map-log-card, .map-bg .sb-line-card { margin-right: 0 !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-bg .player-aura-ring { animation: none !important; opacity: 0.7; filter: none; }
+  .map-bg .world-tile.is-player::before { animation: none !important; opacity: 0.6; }
+}
