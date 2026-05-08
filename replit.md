@@ -295,3 +295,25 @@ User feedback: "remove the arrow buttons but leave the WSAD input. Now wherever 
 - **Hover hint** on traversable tiles — gold outline + brightness lift to telegraph "click to walk".
 - All CSS in a single appended `v51 — CLICK-TO-MOVE WORLD MAP + PER-CLASS AURAS` block at end of `game.css`. JSX touched in 4 spots: state declaration, autoMove effect, WASD handler, tile onClick + `data-cls`, d-pad markup.
 - **PvP-ready**: `autoMoveTarget` is local to the client; opponents see only the resulting `pos` updates already broadcast by the existing movement system.
+
+### v52 — Wider map + left rail layout + double-click/Space POI entry
+
+User feedback: "the world map needs to be larger horizontally — too narrow. Move the legend to a side rail. Put the HP/MP/sound buttons next to the legend. Allow Space and double-click to enter POIs. Raise the map and shift things up for more immersion."
+
+- **Map widened.** `VW` 19→27, `VH` 11→13, `hfX` 9→13, `hfY` 5→6 (~Game.jsx line 6898). Aspect-ratio overridden in CSS to `27 / 13` (was `19 / 11` from v48), `max-height: min(72dvh, 660px)`. The map now actually fills the parchment area horizontally.
+- **2-column page-panel grid.** `.map-bg .page-panel` is now `display: grid; grid-template-columns: 168px minmax(0,1fr); grid-template-rows: auto 1fr;`. Header (World title + compass) spans full width on row 1. Row 2 is left rail (168px) + map (1fr).
+- **Left rail (`.map-side-rail`) holds**, top to bottom:
+  - **Big contextual ACTION button** (`.rail-action-btn`) — colored by state: gold pulsing for `is-poi` (Enter), cyan for `is-fish` (Fish/cooldown), red pulsing for `is-moving` (Stop), muted for `is-idle`. Replaces the floating bottom-right d-pad center button from v47/v51.
+  - **HP/MP/Sound triplet** (`.map-rail-quick`) — 3-col grid of small icon buttons.
+  - **Tile status card** — current biome or POI name.
+  - **Meta strip** — repel steps, guild mission progress, paid rumor lead.
+  - **Legend** (`.map-rail-legend`) — anchored at bottom of rail via `margin-top: auto`. 2-col compact pill grid when expanded.
+  - **Hint line** — "Click · DblClick · Space · WASD".
+- **Floating d-pad (`.map-dpad-wrap`) hidden** via `display: none !important` — its job is now done by the rail action button. JSX block removed entirely.
+- **Double-click to enter POI.** `onDoubleClick` on world tiles sets `autoEnterRef.current = true` along with `setAutoMoveTarget`. The autoMove effect on arrival checks the ref and calls `enterPoiRef.current()` via `setTimeout(80ms)` to give state a tick to settle. Single-click still walks (does NOT auto-enter), preserving v51 behavior.
+- **Space already enters POIs** via existing keydown handler — but only `enterPoi()` was being called, which previously bailed for hostile/outpost/rift types. v52 fix: `enterPoi` now self-routes those to `enterHostilePoi`/`enterRiftPoi` first, then delegates remaining types to a new internal `enterPoiInner`. Space now works for every POI category.
+- **Refs**: `autoEnterRef` (used by autoMove effect) and `enterPoiRef` (read inside the setTimeout closure to avoid TDZ since `enterPoi` is declared below the effect). `enterPoiRef.current = enterPoi` is reassigned each render right after `enterPoi`'s declaration — no useEffect needed since refs aren't deps.
+- **Mobile fallback** (`@media max-width: 720px`): rail flips to a flex-row above the map; map gets `max-height: min(50dvh, 380px)`.
+- **Short-screen tweaks** (`@media max-height: 720px`): map cap relaxes to `60dvh / 460px`; action button shrinks 14→12px, quick buttons 16→14px.
+- All CSS in a single appended `v52 — WIDER MAP + LEFT RAIL LAYOUT` block at end of `game.css`. JSX restructure in the map render block (~lines 6938–6991): wrapped grid in `.map-main-area`, replaced the floating d-pad + bottom status/legend with the new `<aside className="map-side-rail">`.
+- **PvP-ready**: layout/routing-only changes. No new state shape, no new fields on `pl` or `btl`. Entry pathways (`enterPoi`/`enterHostilePoi`/`enterRiftPoi`) unchanged — only their callers changed.

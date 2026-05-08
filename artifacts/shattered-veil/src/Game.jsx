@@ -3225,6 +3225,8 @@ function Game() {
   const successionRef = useRef(false);
   const moveThrottleRef = useRef(0);
   const [autoMoveTarget, setAutoMoveTarget] = useState(null);
+  const autoEnterRef = useRef(false);
+  const enterPoiRef = useRef(null);
   const subMoveThrottleRef = useRef(0);
 
   const notify = useCallback((m) => { setNoti(m); setTimeout(() => setNoti(null), 2200); }, []);
@@ -3993,11 +3995,22 @@ function Game() {
     }
   }, [pos, mData, pl, ally, devPos, disc, guildMission, repelSteps]);
 
-  // Auto-trail: step toward autoMoveTarget once per ~160ms while on map
+  // Auto-trail: step toward autoMoveTarget once per ~160ms while on map.
+  // If autoEnterRef is true, enter the POI on arrival (double-click flow).
   useEffect(() => {
-    if (scr !== "map") { if (autoMoveTarget) setAutoMoveTarget(null); return; }
+    if (scr !== "map") { if (autoMoveTarget) { setAutoMoveTarget(null); autoEnterRef.current = false; } return; }
     if (!autoMoveTarget || !pl || !mData) return;
-    if (pos.x === autoMoveTarget.x && pos.y === autoMoveTarget.y) { setAutoMoveTarget(null); return; }
+    if (pos.x === autoMoveTarget.x && pos.y === autoMoveTarget.y) {
+      setAutoMoveTarget(null);
+      if (autoEnterRef.current) {
+        autoEnterRef.current = false;
+        const t = mData[pos.y * MW + pos.x];
+        if (t && t.poi && enterPoiRef.current) {
+          setTimeout(() => { try { enterPoiRef.current && enterPoiRef.current(); } catch (e) {} }, 80);
+        }
+      }
+      return;
+    }
     const id = setTimeout(() => {
       const dx = autoMoveTarget.x - pos.x;
       const dy = autoMoveTarget.y - pos.y;
@@ -4132,6 +4145,12 @@ function Game() {
   const enterPoi = () => {
     if (!mData || !pl) return;
     const tile = mData[pos.y * MW + pos.x];
+    if (!tile?.poi) return;
+    if (tile.poi.type === "hostile" || tile.poi.type === "outpost") { enterHostilePoi(); return; }
+    if (tile.poi.type === "rift") { enterRiftPoi(); return; }
+    enterPoiInner(tile);
+  };
+  const enterPoiInner = (tile) => {
     if (!tile?.poi) return;
     const p = tile.poi;
     if (p.type === "town") { setScr("town"); setSvc(null); setLastTown({ ...pos }); setStory(st => st.map(q => q.id === "s1" ? { ...q, done: true } : q)); }
@@ -4287,6 +4306,9 @@ function Game() {
       }
     }
   };
+
+  // Keep enterPoi reachable from the auto-trail effect (avoids TDZ across closures)
+  enterPoiRef.current = enterPoi;
 
   // SUBMAP MOVEMENT
   const subMapMove = useCallback((dx, dy) => {
@@ -6870,7 +6892,7 @@ const buildGroupedBattleLog = (entries) => {
 
   // MAP
   if (scr === "map" && mData) {
-    const VW = 19, VH = 11, hfX = 9, hfY = 5, tile = mData[pos.y * MW + pos.x];
+    const VW = 27, VH = 13, hfX = 13, hfY = 6, tile = mData[pos.y * MW + pos.x];
     const canN = pos.y > 0, canS = pos.y < MH-1, canW = pos.x > 0, canE = pos.x < MW-1;
     const trailDir = prevPos ? (prevPos.x < pos.x ? "→" : prevPos.x > pos.x ? "←" : prevPos.y < pos.y ? "↓" : "↑") : null;
     const nearOcean = [{x:pos.x-1,y:pos.y},{x:pos.x+1,y:pos.y},{x:pos.x,y:pos.y-1},{x:pos.x,y:pos.y+1}].some(function(p){ if(p.x<0||p.x>=MW||p.y<0||p.y>=MH) return false; return mData[p.y*MW+p.x] && mData[p.y*MW+p.x].bio === "ocean"; });
@@ -6914,12 +6936,37 @@ const buildGroupedBattleLog = (entries) => {
       <div className="pg map-bg"><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
           <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
-          <div style={{ display: "flex", gap: 3, marginBottom: 4, flexWrap: "wrap" }}>
-            <button className="bt bs" style={{ background: T.ok }} onClick={() => { var hp = inv.find(function (i) { return i.ef === "heal"; }); if (hp) { var s = effSt(pl); setPl(function (p) { return Object.assign({}, p, { chp: Math.min(s.hp, p.chp + hp.v) }); }); setInv(function (iv) { var ni = iv.slice(); var ii = ni.findIndex(function (x) { return x.id === hp.id; }); if (ii >= 0) { if (ni[ii].qty > 1) ni[ii] = Object.assign({}, ni[ii], { qty: ni[ii].qty - 1 }); else ni.splice(ii, 1); } return ni; }); notify("Healed!"); } else notify("No potions!"); }}>🧪 HP</button>
-            <button className="bt bs" style={{ background: T.mp }} onClick={() => { var mp = inv.find(function(i){return i.ef === "mp";}); if (mp) { var s = effSt(pl); setPl(function(p){return Object.assign({},p,{cmp:Math.min(s.mp,p.cmp+mp.v)});}); setInv(function(iv){var ni=iv.slice();var ii=ni.findIndex(function(x){return x.id===mp.id;});if(ii>=0){if(ni[ii].qty>1)ni[ii]=Object.assign({},ni[ii],{qty:ni[ii].qty-1});else ni.splice(ii,1);}return ni;}); notify("MP restored!"); } else notify("No mana items!"); }}>💧 MP</button>
-            <button className="bt bs" style={{ background: musicOn ? T.ac : T.c2 }} onClick={() => setMusicOn(m => !m)}>{musicOn ? "🔊" : "🔇"}</button>
-          </div>
-          <div ref={swipeRef} className="battle-world-grid" style={{ display: "grid", gridTemplateColumns: "repeat(" + VW + ",1fr)", gap: 1, marginBottom: 4, maxWidth: 500, width: "100%", margin: "0 auto 6px", background: T.bg, borderRadius: 6, overflow: "hidden", border: "1px solid " + T.bd, animation: "mapMove .15s ease" }} key={pos.x + "," + pos.y}>
+          <aside className="map-side-rail">
+            {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const actLabel = isMoving ? "Stop" : hasPoi ? "Enter" : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "Idle"); const actCls = "rail-action-btn " + (isMoving ? "is-moving" : hasPoi ? "is-poi" : canFish ? "is-fish" : "is-idle"); return (
+              <button className={actCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter (Space)" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step · Space to enter")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (hasPoi) { enterPoi(); return; } if (canFish && !fishingCD) { runFishing(); } }}>
+                <span className="rail-action-label">{actLabel}</span>
+              </button>
+            ); })()}
+            <div className="map-rail-quick">
+              <button className="bt bs map-rail-quick-btn" style={{ background: T.ok }} title="Use HP potion" onClick={() => { var hp = inv.find(function (i) { return i.ef === "heal"; }); if (hp) { var s = effSt(pl); setPl(function (p) { return Object.assign({}, p, { chp: Math.min(s.hp, p.chp + hp.v) }); }); setInv(function (iv) { var ni = iv.slice(); var ii = ni.findIndex(function (x) { return x.id === hp.id; }); if (ii >= 0) { if (ni[ii].qty > 1) ni[ii] = Object.assign({}, ni[ii], { qty: ni[ii].qty - 1 }); else ni.splice(ii, 1); } return ni; }); notify("Healed!"); } else notify("No potions!"); }}>🧪</button>
+              <button className="bt bs map-rail-quick-btn" style={{ background: T.mp }} title="Use MP item" onClick={() => { var mp = inv.find(function(i){return i.ef === "mp";}); if (mp) { var s = effSt(pl); setPl(function(p){return Object.assign({},p,{cmp:Math.min(s.mp,p.cmp+mp.v)});}); setInv(function(iv){var ni=iv.slice();var ii=ni.findIndex(function(x){return x.id===mp.id;});if(ii>=0){if(ni[ii].qty>1)ni[ii]=Object.assign({},ni[ii],{qty:ni[ii].qty-1});else ni.splice(ii,1);}return ni;}); notify("MP restored!"); } else notify("No mana items!"); }}>💧</button>
+              <button className="bt bs map-rail-quick-btn" style={{ background: musicOn ? T.ac : T.c2 }} title={musicOn ? "Mute music" : "Unmute music"} onClick={() => setMusicOn(m => !m)}>{musicOn ? "🔊" : "🔇"}</button>
+            </div>
+            <div className="sb-line-card map-rail-tile" style={{ padding: 6, background: T.c2, borderRadius: 8, fontSize: 10 }}>
+              {tile && tile.poi ? <span><span style={{ fontWeight: 700, color: T.gd }}>{tile.poi.ic} {tile.poi.nm || tile.poi.type}</span> <span className="tg" style={{ background: T.ac + "22", color: T.ac, marginLeft: 4 }}>{tile.poi.type}</span></span> : <span style={{ color: T.dm }}>{tile ? tile.bio.charAt(0).toUpperCase() + tile.bio.slice(1) : "..."}</span>}
+            </div>
+            <div className="map-rail-meta">
+              {repelSteps > 0 && <div style={{ color: T.ok, fontSize: 9 }}>🧴 Repel: {repelSteps} steps</div>}
+              {guildMission && <div style={{ fontSize: 9, color: guildMission.progress >= guildMission.goal ? T.ok : T.ac, lineHeight: 1.35 }}>
+                <div>📜 {guildMission.nm}: {guildMission.progress}/{guildMission.goal}</div>
+                <div style={{ color: T.gd, fontSize: 8 }}>+{guildMission.xp}XP +{guildMission.g}G +{guildMission.sh} sh</div>
+                {guildMission.progress >= guildMission.goal && <div style={{ color: T.ok, fontWeight: 700 }}>Claim at Guild</div>}
+              </div>}
+              {paidRumor && paidRumorCycle === tavernRumorCycle && <div style={{ fontSize: 9, color: T.gd, lineHeight: 1.35 }}>
+                <div style={{ color: T.ac, fontWeight: 700 }}>🍺 Lead</div>
+                <div>{paidRumor}</div>
+              </div>}
+            </div>
+            <details className="map-legend-details map-rail-legend"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{["🐾 Beast",roamingBossIcon + " Roaming Boss","🏕️ Camp","🎰 Den","💎 Loot","⛺ Outpost","🌀 Rift","🏛️ Ruin","⛩️ Shrine","🏘️ Town"].map(function(lbl){return <span key={lbl} className="legend-pill">{lbl}</span>;})}</div></details>
+            <div className="map-rail-hint">Click · DblClick · Space · WASD</div>
+          </aside>
+          <div className="map-main-area">
+          <div ref={swipeRef} className="battle-world-grid" style={{ display: "grid", gridTemplateColumns: "repeat(" + VW + ",1fr)", gap: 1, marginBottom: 0, width: "100%", background: T.bg, borderRadius: 6, overflow: "hidden", border: "1px solid " + T.bd, animation: "mapMove .15s ease" }} key={pos.x + "," + pos.y}>
             {Array.from({ length: VW * VH }).map(function(_, idx) {
               var gx = pos.x - hfX + idx % VW, gy = pos.y - hfY + Math.floor(idx / VW);
               var isMe = gx === pos.x && gy === pos.y;
@@ -6935,32 +6982,9 @@ const buildGroupedBattleLog = (entries) => {
               var isSwimming = isMe && t && t.bio === "ocean";
               var meContent = isMe ? (isSwimming ? <><img src={import.meta.env.BASE_URL + "swim-icon.png"} alt="Swimming" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 2, filter: "drop-shadow(0 0 4px rgba(0,180,255,0.6))" }} />{portraitOverlay(pl?.portrait)}</> : playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)) : null;
               var cellLabel = isMe ? null : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
-              return <div key={idx} className={isMe ? "world-tile is-player" : "world-tile"} data-cls={isMe ? (pl?.cid || cls?.id || "default") : undefined} title={isDev ? "Roaming Boss — click to walk here" : (hasPoi ? ((t.poi.nm || t.poi.type) + " — click to walk here") : "Click to walk here")} onClick={function() { if (gx === pos.x && gy === pos.y) return; if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); if (gx >= 0 && gx < MW && gy >= 0 && gy < MH) setAutoMoveTarget({ x: gx, y: gy }); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: "pointer", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}{isMe ? <span className="player-aura-ring" aria-hidden="true" /> : null}</div>;
+              return <div key={idx} className={isMe ? "world-tile is-player" : "world-tile"} data-cls={isMe ? (pl?.cid || cls?.id || "default") : undefined} title={isDev ? "Roaming Boss — click to walk · double-click to engage" : (hasPoi ? ((t.poi.nm || t.poi.type) + " — click to walk · double-click to enter") : "Click to walk here")} onClick={function() { if (gx === pos.x && gy === pos.y) { if (hasPoi) { autoEnterRef.current = false; enterPoi(); } return; } autoEnterRef.current = false; if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); if (gx >= 0 && gx < MW && gy >= 0 && gy < MH) setAutoMoveTarget({ x: gx, y: gy }); }} onDoubleClick={function(ev){ ev.preventDefault(); if (gx === pos.x && gy === pos.y) { if (hasPoi) enterPoi(); return; } if (gx < 0 || gx >= MW || gy < 0 || gy >= MH) return; autoEnterRef.current = !!hasPoi; setAutoMoveTarget({ x: gx, y: gy }); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 13 : isTrail ? 9 : hasPoi ? 9 : decor ? 8 : 6, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: "pointer", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}{isMe ? <span className="player-aura-ring" aria-hidden="true" /> : null}</div>;
             })}
           </div>
-          {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const centerLabel = isMoving ? "Stop" : hasPoi ? "Enter" : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "·"); const centerCls = "dpad-center" + (isMoving ? " is-moving" : hasPoi ? " is-poi" : canFish ? " is-fish" : " is-idle"); return (
-          <div className="map-dpad-wrap">
-            <div className="map-dpad map-dpad-solo">
-              <button className={"bt bs dpad-btn " + centerCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter location" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (!tile || !tile.poi) { if (canFish && !fishingCD) { runFishing(); } return; } const tp = tile.poi.type; if (tp === "hostile" || tp === "outpost") enterHostilePoi(); else if (tp === "rift") enterRiftPoi(); else enterPoi(); }}>{centerLabel}</button>
-              <div className="map-dpad-hint">Click map · WASD</div>
-            </div>
-          </div>
-          ); })()}
-          <div className="sb-line-card" style={{ padding: 8, background: T.c2, borderRadius: 10, fontSize: 12, marginBottom: 6 }}>
-            {tile && tile.poi ? <span><span style={{ fontWeight: 700, color: T.gd }}>{tile.poi.ic} {tile.poi.nm || tile.poi.type}</span> <span className="tg" style={{ background: T.ac + "22", color: T.ac }}>{tile.poi.type}</span></span> : <span style={{ color: T.dm }}>{tile ? tile.bio.charAt(0).toUpperCase() + tile.bio.slice(1) : "..."}</span>}
-          </div>
-          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", fontSize: 7, color: T.dm }}>
-            {repelSteps > 0 && <div style={{ color: T.ok, fontSize: 8 }}>🧴 Repel: {repelSteps} steps</div>}
-            {guildMission && <div style={{ fontSize: 8, color: guildMission.progress >= guildMission.goal ? T.ok : T.ac, lineHeight: 1.35 }}>
-              <div>📜 {guildMission.nm}: {guildMission.progress}/{guildMission.goal}</div>
-              <div style={{ color: T.gd }}>Reward: +{guildMission.xp}XP +{guildMission.g}G +{guildMission.sh} shards</div>
-              {guildMission.progress >= guildMission.goal && <div style={{ color: T.ok, fontWeight: 700 }}>Complete — claim at Guild</div>}
-            </div>}
-            {paidRumor && paidRumorCycle === tavernRumorCycle && <div style={{ fontSize: 8, color: T.gd, lineHeight: 1.35, maxWidth: 240 }}>
-              <div style={{ color: T.ac, fontWeight: 700 }}>🍺 Purchased Lead</div>
-              <div>{paidRumor}</div>
-            </div>}
-            <details className="map-legend-details"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{["🐾 Beast",roamingBossIcon + " Roaming Boss","🏕️ Camp","🎰 Den","💎 Loot","⛺ Outpost","🌀 Rift","🏛️ Ruin","⛩️ Shrine","🏘️ Town"].map(function(lbl){return <span key={lbl} className="legend-pill">{lbl}</span>;})}</div></details>
           </div>
         </div>
         <div className="cd map-log-card" style={{ maxHeight: 132, overflowY: "auto", padding: 6 }} ref={logR}>{[...log].reverse().map(function(l, i) { const isEvent = String(l).startsWith("EVENT|"); const txt = isEvent ? ("Event: " + String(l).replace(/^EVENT\|/, "")) : l; return <div key={i} className={"feed-entry" + (i === 0 ? " is-current" : "")} style={isEvent ? { color: "#ff8a80", borderLeftColor: "rgba(229,57,53,0.95)" } : null}>{txt}</div>; })}</div>

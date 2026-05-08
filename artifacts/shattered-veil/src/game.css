@@ -2613,3 +2613,198 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   outline: 1px solid rgba(242,196,92,0.35);
   outline-offset: -1px;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v52 — WIDER MAP + LEFT RAIL LAYOUT
+   • The world map page becomes a 2-column grid: left rail with HP/MP/sound,
+     action button (Enter/Fish/Stop), tile status, repel/mission/lead card, and
+     the legend. Right column is the wide map (27×13 viewport, aspect 27/13).
+   • The floating bottom-right d-pad is gone — its action button now lives in
+     the rail (where it visually anchors near the legend per the brief).
+   • Double-click a POI tile = walk there + auto-enter on arrival. Space still
+     enters the current POI (existing keydown handler).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.map-bg .page-panel {
+  display: grid !important;
+  grid-template-columns: 168px minmax(0, 1fr) !important;
+  grid-template-rows: auto 1fr !important;
+  gap: 6px 12px !important;
+  padding: 8px 10px !important;
+  align-items: stretch !important;
+}
+.map-bg .page-panel > .map-top-head {
+  grid-column: 1 / -1 !important;
+}
+.map-bg .map-side-rail {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.map-bg .map-main-area {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The wide world map — 27 cols × 13 rows */
+.map-bg .battle-world-grid {
+  aspect-ratio: 27 / 13 !important;
+  width: 100% !important;
+  max-width: min(100%, 92dvw) !important;
+  max-height: min(72dvh, 660px) !important;
+  margin: 0 !important;
+  border: 2px solid rgba(212,173,64,0.50) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 0 26px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(0,0,0,0.45);
+}
+
+/* Rail: contextual ACTION BUTTON (Enter / Fish / Stop / Idle) */
+.map-bg .rail-action-btn {
+  appearance: none;
+  border: 1px solid rgba(212,173,64,0.40);
+  border-radius: 12px;
+  padding: 12px 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(58,48,98,0.95), rgba(28,22,52,0.98));
+  color: #f2c45c;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+  transition: transform .1s ease, box-shadow .12s ease, background .12s ease;
+  text-transform: uppercase;
+  width: 100%;
+}
+.map-bg .rail-action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.55), 0 0 14px rgba(242,196,92,0.45); border-color: rgba(242,196,92,0.75); }
+.map-bg .rail-action-btn.is-poi {
+  background: linear-gradient(180deg, #f2c45c, #b88a2e);
+  color: #1a1305;
+  border-color: #ffe19a;
+  animation: dpad-poi-pulse 1.4s ease-in-out infinite;
+}
+.map-bg .rail-action-btn.is-fish {
+  background: linear-gradient(180deg, #29b6f6, #0277bd);
+  color: #04223a;
+  border-color: #8fd9ff;
+  box-shadow: 0 0 14px rgba(41,182,246,0.45), inset 0 1px 0 rgba(255,255,255,0.30);
+}
+.map-bg .rail-action-btn.is-moving {
+  background: linear-gradient(180deg, #c44545, #7a1f1f);
+  color: #fff8e0;
+  border-color: #ff9090;
+  animation: dpadStopPulse 1.1s ease-in-out infinite;
+}
+.map-bg .rail-action-btn.is-idle {
+  background: linear-gradient(180deg, rgba(80,70,110,0.85), rgba(40,32,70,0.95));
+  color: rgba(242,196,92,0.55);
+  font-size: 12px;
+}
+
+/* Rail: HP/MP/Sound triplet */
+.map-bg .map-rail-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+.map-bg .map-rail-quick-btn {
+  font-size: 16px !important;
+  padding: 6px 0 !important;
+  border-radius: 8px !important;
+  text-align: center;
+}
+
+/* Rail: tile status + meta strip */
+.map-bg .map-rail-tile {
+  border: 1px solid rgba(212,173,64,0.30);
+}
+.map-bg .map-rail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  color: rgba(220,200,170,0.7);
+}
+.map-bg .map-rail-meta:empty { display: none; }
+
+/* Rail: legend (compact, anchored at bottom of rail) */
+.map-bg .map-rail-legend { margin-top: auto; }
+.map-bg .map-rail-legend > .map-legend-toggle {
+  display: flex !important;
+  justify-content: center;
+  width: 100%;
+  font-size: 9px;
+}
+.map-bg .map-rail-legend[open] .map-legend-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px !important;
+  max-width: 100% !important;
+  padding: 6px !important;
+}
+.map-bg .map-rail-legend .legend-pill {
+  font-size: 8px !important;
+  padding: 2px 5px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-bg .map-rail-hint {
+  font-size: 8px;
+  font-family: 'Nunito', sans-serif;
+  color: rgba(220,200,170,0.55);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* The old log card sits below — a touch shorter to give the wider map room */
+.map-bg .map-log-card {
+  margin-right: 0 !important;
+  max-height: 90px !important;
+  margin-top: 4px !important;
+}
+
+/* Hide any stray d-pad markup remaining (defensive — JSX shouldn't render it) */
+.map-bg .map-dpad-wrap { display: none !important; }
+
+/* Mobile fallback: stack rail above map */
+@media (max-width: 720px) {
+  .map-bg .page-panel {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto 1fr !important;
+  }
+  .map-bg .map-side-rail {
+    grid-column: 1; grid-row: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: stretch;
+  }
+  .map-bg .rail-action-btn { flex: 1 1 100px; padding: 8px 10px; font-size: 12px; }
+  .map-bg .map-rail-quick { flex: 0 0 auto; }
+  .map-bg .map-rail-tile { flex: 1 1 100%; }
+  .map-bg .map-rail-meta { flex: 1 1 100%; }
+  .map-bg .map-rail-legend { flex: 1 1 100%; margin-top: 0; }
+  .map-bg .map-rail-hint { flex: 1 1 100%; }
+  .map-bg .map-main-area { grid-column: 1; grid-row: 3; }
+  .map-bg .battle-world-grid {
+    max-width: 100% !important;
+    max-height: min(50dvh, 380px) !important;
+  }
+}
+
+@media (max-height: 720px) {
+  .map-bg .battle-world-grid { max-height: min(60dvh, 460px) !important; }
+  .map-bg .rail-action-btn { padding: 9px 8px; font-size: 12px; }
+  .map-bg .map-rail-quick-btn { font-size: 14px !important; }
+}
