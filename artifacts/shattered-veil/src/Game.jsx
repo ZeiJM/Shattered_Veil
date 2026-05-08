@@ -3206,6 +3206,8 @@ function Game() {
   const [paidRumorCycle, setPaidRumorCycle] = useState(-1);
   // Battle panels
   const [btlPanel, setBtlPanel] = useState(null);
+  const [battleSection, setBattleSection] = useState("veil");
+  const battleSectionAvailable = (key, ctx) => key === "veil" || key === "combat" || (key === "items" && ctx.hasItems) || (key === "aux" && ctx.isPT);
   const [btlTarget, setBtlTarget] = useState(null); // enemy id to target
   const [btlTimer, setBtlTimer] = useState(0); // battle timer in seconds
   const [campCDs, setCampCDs] = useState({}); // {x_y: timestamp}
@@ -7167,9 +7169,23 @@ const buildGroupedBattleLog = (entries) => {
             <div className="cd battle-actions-card" style={{ padding: 6 }}>
               <div className="battle-turn-head">
                 <span style={{ fontSize: 10, fontWeight: 700, color: isPT ? T.ok : T.bad }}>{isPT ? "Your Turn" : "Enemy Turn..."}</span>
-                <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "Choose an action region below." : "Await enemy actions."}</span>
+                <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "Pick an action region." : "Await enemy actions."}</span>
               </div>
-              <div className="battle-section">
+              {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [
+                { id: "veil",   ic: "✦",   nm: "Veil Magic",  ct: eqSk.length },
+                { id: "combat", ic: "⚔",   nm: "Combat",       ct: 2 + (eq.w2 ? 1 : 0) + (copied && copyN > 0 ? 1 : 0) + (pl.ult.ready ? 1 : 0) },
+                ...(hasItems ? [{ id: "items", ic: "🧪", nm: "Items", ct: (eq.c1 ? 1 : 0) + (eq.c2 ? 1 : 0) }] : []),
+                ...(isPT ? [{ id: "aux",    ic: "⚙",   nm: "Aux", ct: null }] : []),
+              ]; const active = battleSectionAvailable(battleSection, { hasItems, isPT }) ? battleSection : "veil"; return (
+                <div className="battle-tabs" role="tablist">
+                  {tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={active === t.id} className={"battle-tab" + (active === t.id ? " is-active" : "")} onClick={() => setBattleSection(t.id)}>
+                    <span className="battle-tab-ic">{t.ic}</span>
+                    <span className="battle-tab-nm">{t.nm}</span>
+                    {t.ct != null && <span className="battle-tab-ct">{t.ct}</span>}
+                  </button>)}
+                </div>
+              ); })()}
+              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "veil") === "veil" ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Veil Magic</span><span style={{ fontSize: 7, color: T.dm }}>{eqSk.length} equipped</span></div>
                 <div className="battle-action-grid">
                   {eqSk.map((sk, i) => {
@@ -7191,7 +7207,7 @@ const buildGroupedBattleLog = (entries) => {
                   })}
                 </div>
               </div>
-              <div className="battle-section">
+              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "veil") === "combat" ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span><span style={{ fontSize: 7, color: T.dm }}>Basic actions</span></div>
                 <div className="battle-action-grid">
                   <div className="battle-action-card-wrap">
@@ -7247,7 +7263,7 @@ const buildGroupedBattleLog = (entries) => {
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(pl.ult.name, pl.ult.el), fullscreen: true }); }}>?</button>
                   </div>}</div>
               </div>
-              {(eq.c1 || eq.c2) && <div className="battle-section">
+              {(eq.c1 || eq.c2) && <div className="battle-section" style={{ display: battleSection === "items" && battleSectionAvailable("items", { hasItems: true, isPT }) ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Battle Items</span><span style={{ fontSize: 7, color: T.dm }}>Quick consumables</span></div>
                 <div className="battle-action-grid">
                   {eq.c1 && <div className="battle-action-card-wrap"><button className="bt battle-action-btn" style={{ background: T.ok + "22", border: "1px solid " + T.ok + "55", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.c1.nm, "Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.c1.nm, "Null"), fullscreen: true }); return; } bAct("c1"); }}>
@@ -7260,7 +7276,7 @@ const buildGroupedBattleLog = (entries) => {
                   </button><button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.c2.nm, "Null"), fullscreen: true }); }}>?</button></div>}
                 </div>
               </div>}
-              {isPT && <div className="battle-section">
+              {isPT && <div className="battle-section" style={{ display: battleSection === "aux" ? "block" : "none" }} data-battle-aux>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Auxiliary Actions</span><span style={{ fontSize: 7, color: T.dm }}>Loadout changes end turn</span></div>
                 <div className="battle-aux-row">
                   <button className="bt bs" style={{ background: btlPanel === "items" ? "#3486ff" : "#203867" }} onClick={() => setBtlPanel(btlPanel === "items" ? null : "items")}>🧪 Equip Item</button>

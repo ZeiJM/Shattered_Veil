@@ -3128,3 +3128,120 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .title-hero-anim,
   .title-bg-art .title-pillar { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v57 — TABBED BATTLE ACTIONS + LANE GLOW CONTAINMENT
+   • The combat action card now uses a segmented tab bar (Veil / Combat /
+     Items / Aux) so only one action region is visible at a time. Eliminates
+     the scroll on the right column completely. Each region keeps ALL its
+     bubbles + info — only the visibility is gated.
+   • Lane "you are here" cyan glow + clickable hover gold glow were bleeding
+     beyond the lane bar (creating perceived vertical lines down the screen
+     because the lane sits above the action card with no overflow clip).
+     Fix: tighten the box-shadow blur, add `isolation: isolate` + a clipping
+     wrapper on the lane container.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Battle tabs (segmented control above the action grid) ───────────── */
+.battle-bg .battle-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 4px 0 6px;
+  background: linear-gradient(180deg, rgba(8,12,28,0.85), rgba(4,6,18,0.92));
+  border: 1px solid rgba(212,173,64,0.22);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.08), 0 2px 6px rgba(0,0,0,0.35);
+}
+.battle-bg .battle-tab {
+  flex: 1 1 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid rgba(212,173,64,0.18);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(20,28,56,0.85), rgba(12,18,40,0.95));
+  color: #c9d3ee;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  font-weight: 600; font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease, color .12s ease;
+  min-height: 30px;
+  white-space: nowrap;
+  position: relative;
+}
+.battle-bg .battle-tab:hover:not(.is-active) {
+  border-color: rgba(212,173,64,0.45);
+  color: #f1e7c8;
+  background: linear-gradient(180deg, rgba(28,38,72,0.92), rgba(16,22,48,0.98));
+}
+.battle-bg .battle-tab.is-active {
+  background: linear-gradient(180deg, rgba(212,173,64,0.30), rgba(120,90,30,0.55));
+  border-color: rgba(242,196,92,0.85);
+  color: #fff7de;
+  box-shadow:
+    inset 0 1px 0 rgba(255,238,200,0.30),
+    0 2px 8px rgba(212,173,64,0.32),
+    0 0 0 1px rgba(242,196,92,0.55);
+  transform: translateY(-1px);
+}
+.battle-bg .battle-tab-ic { font-size: 13px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)); }
+.battle-bg .battle-tab-nm { font-size: 10px; }
+.battle-bg .battle-tab-ct {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px;
+  font-size: 8.5px; font-family: 'Nunito', sans-serif; font-weight: 800;
+  background: rgba(0,0,0,0.45);
+  color: #f2c45c;
+  border-radius: 999px;
+  padding: 0 5px;
+  letter-spacing: 0;
+  text-transform: none;
+  border: 1px solid rgba(212,173,64,0.30);
+}
+.battle-bg .battle-tab.is-active .battle-tab-ct {
+  background: rgba(0,0,0,0.55);
+  color: #fff7de;
+  border-color: rgba(255,224,160,0.55);
+}
+
+/* On short screens / narrow layouts: hide the name, keep icon + count */
+@media (max-height: 720px), (max-width: 540px) {
+  .battle-bg .battle-tabs { padding: 3px; gap: 3px; margin: 3px 0 4px; }
+  .battle-bg .battle-tab { padding: 5px 6px; min-height: 28px; }
+  .battle-bg .battle-tab-nm { font-size: 9px; }
+}
+@media (max-width: 460px) {
+  .battle-bg .battle-tab-nm { display: none; }
+  .battle-bg .battle-tab { padding: 5px 4px; }
+}
+
+/* The active tab's section gets a touch more breathing room since it's solo */
+.battle-bg .battle-section[style*="block"] { margin-top: 0 !important; }
+
+/* Allow the action card to breathe — no internal scroll needed now that
+   only one section is visible at a time */
+.battle-bg .battle-actions-card { overflow-y: auto !important; }
+
+/* ── Lane glow containment fix (the "blue lines across screen") ──────── */
+/* The cyan player-here ring + gold clickable-hover ring were emitting box
+   shadows that visually streaked downward into the action panel because the
+   lane bar is the first item in the lower grid and has no z/isolation. */
+.battle-bg .battle-lane {
+  isolation: isolate;
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 8px;
+}
+.battle-lane-tile.lane-player-here {
+  border-color: rgba(120,200,255,0.55) !important;
+  box-shadow: inset 0 0 0 1px rgba(120,200,255,0.30), 0 0 6px rgba(120,200,255,0.20) !important;
+}
+.battle-lane-tile.lane-clickable:hover {
+  box-shadow: inset 0 0 0 1px rgba(212,173,64,0.40), 0 0 6px rgba(212,173,64,0.22) !important;
+}
+/* Also clip the lane's overall container so any future glow cannot bleed */
+.battle-bg .wr.battle-viewport { isolation: isolate; }
