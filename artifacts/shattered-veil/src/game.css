@@ -3428,3 +3428,120 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .title-pillar-sheen { display: none; }
   .title-pillar { transition: none !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v59 — FORGE YOUR HERO: BACKGROUND ART, ANIMATIONS, PORTRAIT SHIMMER
+   • Painted forge-hall backdrop (public/forge-hall.png) with darkening grad.
+   • Drifting ember motes layered above the painting (z-index: 1, fixed).
+   • Header + class/bloodmark cards stagger-fade in on mount.
+   • CrossfadePortrait swap is now 2.2s (was 1.2s) with a blur+scale crossfade
+     and a one-shot gold shimmer sweep (.cf-shimmer) over the wrapper for
+     visual impact when sex toggles.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.create-bg-art {
+  background-size: cover !important;
+  background-position: center 35% !important;
+  background-repeat: no-repeat !important;
+}
+.create-bg-art .intro-shell { position: relative; z-index: 2; }
+
+/* Ember motes drifting up over the forge */
+.create-embers {
+  position: fixed; inset: 0;
+  pointer-events: none; z-index: 1;
+  overflow: hidden;
+}
+.create-embers span {
+  position: absolute; bottom: -20px;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,210,140,0.95) 0%, rgba(212,140,60,0.55) 40%, transparent 75%);
+  box-shadow: 0 0 8px rgba(255,180,90,0.6);
+  opacity: 0;
+  animation: createEmber 14s linear infinite;
+}
+.create-embers span:nth-child(1) { left: 6%;  animation-delay: 0s;  animation-duration: 16s; }
+.create-embers span:nth-child(2) { left: 16%; animation-delay: 2.5s;animation-duration: 13s; width: 2px; height: 2px; }
+.create-embers span:nth-child(3) { left: 28%; animation-delay: 5s;  animation-duration: 18s; }
+.create-embers span:nth-child(4) { left: 38%; animation-delay: 1.2s;animation-duration: 15s; width: 4px; height: 4px; }
+.create-embers span:nth-child(5) { left: 48%; animation-delay: 6.4s;animation-duration: 14s; width: 2px; height: 2px; }
+.create-embers span:nth-child(6) { left: 58%; animation-delay: 3.1s;animation-duration: 17s; }
+.create-embers span:nth-child(7) { left: 68%; animation-delay: 7.8s;animation-duration: 12s; width: 2px; height: 2px; }
+.create-embers span:nth-child(8) { left: 78%; animation-delay: 4.3s;animation-duration: 19s; width: 4px; height: 4px; }
+.create-embers span:nth-child(9) { left: 88%; animation-delay: 9.1s;animation-duration: 15s; }
+.create-embers span:nth-child(10){ left: 95%; animation-delay: 0.6s;animation-duration: 17s; width: 2px; height: 2px; }
+@keyframes createEmber {
+  0%   { transform: translateY(0) translateX(0);     opacity: 0; }
+  10%  { opacity: 0.85; }
+  50%  { transform: translateY(-55vh) translateX(22px); opacity: 0.75; }
+  90%  { opacity: 0.55; }
+  100% { transform: translateY(-110vh) translateX(-18px); opacity: 0; }
+}
+
+/* Stagger fade-in for the create page */
+@keyframes createIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.create-anim { animation: createIn 1.0s cubic-bezier(.2,.7,.2,1) both; }
+
+@keyframes createCardIn {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.create-anim .create-class-grid > .cd,
+.create-anim .cd {
+  animation: createCardIn 0.6s cubic-bezier(.2,.7,.2,1) both;
+}
+.create-anim .create-class-grid > .cd:nth-child(1)  { animation-delay: 0.10s; }
+.create-anim .create-class-grid > .cd:nth-child(2)  { animation-delay: 0.14s; }
+.create-anim .create-class-grid > .cd:nth-child(3)  { animation-delay: 0.18s; }
+.create-anim .create-class-grid > .cd:nth-child(4)  { animation-delay: 0.22s; }
+.create-anim .create-class-grid > .cd:nth-child(5)  { animation-delay: 0.26s; }
+.create-anim .create-class-grid > .cd:nth-child(6)  { animation-delay: 0.30s; }
+.create-anim .create-class-grid > .cd:nth-child(7)  { animation-delay: 0.34s; }
+.create-anim .create-class-grid > .cd:nth-child(8)  { animation-delay: 0.38s; }
+.create-anim .create-class-grid > .cd:nth-child(9)  { animation-delay: 0.42s; }
+.create-anim .create-class-grid > .cd:nth-child(n+10) { animation-delay: 0.46s; }
+
+/* Heading polish */
+.create-title {
+  text-shadow: 0 0 22px rgba(212,173,64,0.45), 0 2px 8px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.9);
+  letter-spacing: 0.04em;
+}
+
+/* Class card hover (over painted backdrop) */
+.create-bg-art .class-pick-card {
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  backdrop-filter: blur(3px);
+}
+.create-bg-art .class-pick-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.55), 0 0 16px rgba(212,173,64,0.22);
+}
+
+/* Crossfade portrait shimmer sweep — runs once when sex toggles (key changes) */
+.cf-portrait { isolation: isolate; }
+.cf-shimmer {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg,
+      transparent 0%,
+      rgba(255,235,180,0.0) 38%,
+      rgba(255,235,180,0.55) 50%,
+      rgba(255,235,180,0.0) 62%,
+      transparent 100%);
+  mix-blend-mode: screen;
+  animation: cfShimmerSweep 1.1s cubic-bezier(.2,.7,.2,1) forwards;
+  z-index: 3;
+}
+@keyframes cfShimmerSweep {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-anim, .create-anim .cd, .create-embers span, .cf-shimmer { animation: none !important; }
+}

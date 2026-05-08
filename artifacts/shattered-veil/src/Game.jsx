@@ -3127,12 +3127,16 @@ function Game() {
   const CrossfadePortrait = ({ cid, sex, wrapStyle, imgStyle, alt }) => {
     if (!cid) return null;
     const isFem = sex === "female";
-    const baseImg = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "opacity 1200ms cubic-bezier(0.4, 0, 0.2, 1)", ...(imgStyle || {}) };
+    const [pulseKey, setPulseKey] = React.useState(0);
+    const prevSexRef = React.useRef(sex);
+    React.useEffect(() => { if (prevSexRef.current !== sex) { prevSexRef.current = sex; setPulseKey(k => k + 1); } }, [sex]);
+    const baseImg = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "opacity 2200ms cubic-bezier(0.4, 0, 0.2, 1), filter 2200ms ease, transform 2200ms ease", ...(imgStyle || {}) };
     const onErr = (e) => { try { const t = e.currentTarget; if (t.dataset.sex === "female" && !t.dataset.fb) { t.dataset.fb = "1"; t.src = classPortraitUrl(cid, "male"); } else { t.style.display = "none"; } } catch(_){} };
     return (
-      <div style={{ position: "relative", overflow: "hidden", ...(wrapStyle || {}) }}>
-        <img src={classPortraitUrl(cid, "male")} data-sex="male" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 0 : 1 }} onError={onErr} />
-        <img src={classPortraitUrl(cid, "female")} data-sex="female" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 1 : 0 }} onError={onErr} />
+      <div className="cf-portrait" style={{ position: "relative", overflow: "hidden", ...(wrapStyle || {}) }}>
+        <img src={classPortraitUrl(cid, "male")} data-sex="male" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 0 : 1, filter: isFem ? "blur(2px) brightness(0.85)" : "blur(0) brightness(1)", transform: isFem ? "scale(1.04)" : "scale(1)" }} onError={onErr} />
+        <img src={classPortraitUrl(cid, "female")} data-sex="female" alt={alt || ""} style={{ ...baseImg, opacity: isFem ? 1 : 0, filter: isFem ? "blur(0) brightness(1)" : "blur(2px) brightness(0.85)", transform: isFem ? "scale(1)" : "scale(1.04)" }} onError={onErr} />
+        {pulseKey > 0 && <span key={pulseKey} className="cf-shimmer" aria-hidden />}
       </div>
     );
   };
@@ -3144,7 +3148,7 @@ function Game() {
   const [quote, setQuote] = useState("");
   const [cSex, setCSex] = useState("male");
   const [previewSex, setPreviewSex] = useState("male");
-  useEffect(() => { if (scr !== "create") return; const id = setInterval(() => setPreviewSex(s => s === "male" ? "female" : "male"), 2200); return () => clearInterval(id); }, [scr]);
+  useEffect(() => { if (scr !== "create") return; const id = setInterval(() => setPreviewSex(s => s === "male" ? "female" : "male"), 4500); return () => clearInterval(id); }, [scr]);
   const [companionSeek, setCompanionSeek] = useState("female");
   const [tavernCompanionCycle, setTavernCompanionCycle] = useState(-1);
   const [tavernCompanions, setTavernCompanions] = useState([]);
@@ -6183,9 +6187,11 @@ const buildGroupedBattleLog = (entries) => {
 
   // CHARACTER CREATION
   if (scr === "create") return (
-    <div className="pg create-bg"><div className="wr intro-shell">{notiEl}
-      <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <div style={{ fontFamily: "'Cinzel',serif", fontSize: 22, fontWeight: 700, color: T.gd }}>Forge Your Hero</div>
+    <div className="pg create-bg create-bg-art" style={{ backgroundImage: "linear-gradient(180deg, rgba(4,6,14,0.62) 0%, rgba(4,6,14,0.48) 35%, rgba(4,6,14,0.82) 80%, rgba(4,6,14,0.95) 100%), url(" + (import.meta.env.BASE_URL || "/") + "forge-hall.png)" }}>
+      <div className="create-embers" aria-hidden><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
+      <div className="wr intro-shell create-anim">{notiEl}
+      <div className="create-header" style={{ textAlign: "center", marginBottom: 14 }}>
+        <div className="create-title" style={{ fontFamily: "'Cinzel',serif", fontSize: 22, fontWeight: 700, color: T.gd }}>Forge Your Hero</div>
         <div style={{ fontSize: 11, color: "#d1dcfb", maxWidth: 520, margin: "6px auto 0" }}>Choose a class, claim your bloodmark, then step into the fractured world as a new bearer of the Veil.</div>
         <div style={{ display: "flex", gap: 3, justifyContent: "center", marginTop: 8 }}>
           {["Class","Bloodmark","Identity"].map((lbl, i) => <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>

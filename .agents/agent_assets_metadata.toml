@@ -768,3 +768,9 @@ id = "s8gBR950OL7qyTfAN6Jrx"
 uri = "file://artifacts/shattered-veil/public/sky/h23.png"
 type = "image"
 title = "veilbound hour 23"
+
+[[generated]]
+id = "MaMhZDqhuc3GAz42ZbXeQ"
+uri = "file://artifacts/shattered-veil/public/forge-hall.png"
+type = "image"
+title = "forge hall background"
