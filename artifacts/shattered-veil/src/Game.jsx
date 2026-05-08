@@ -6981,7 +6981,29 @@ const buildGroupedBattleLog = (entries) => {
         <div className="map-sky-veil" />
         <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
-          <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div className="sky-phase-badge" title={"Local time " + skyClock + " — sky reflects your real time of day"}><span className="sky-phase-icon">{skyPhase.icon}</span><span className="sky-phase-text"><span className="sky-phase-label">{skyPhase.label}</span><span className="sky-phase-meta">{skyClock} · {skyPhase.short}</span></span></div></div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
+          {(() => {
+            const last2 = [...log].slice(-2).reverse();
+            const fmtEntry = (l) => { const isEv = String(l).startsWith("EVENT|"); return { isEv, txt: isEv ? String(l).replace(/^EVENT\|/, "") : l }; };
+            return (
+              <div className="map-top-head map-dashboard-bar">
+                <div className="mdb-seg mdb-seg-world"><span className="mdb-label">World</span></div>
+                <div className="mdb-seg mdb-seg-phase" title={"Local time " + skyClock + " — sky reflects your real time of day"}>
+                  <span className="mdb-icon">{skyPhase.icon}</span>
+                  <span className="mdb-stack"><span className="mdb-strong">{skyPhase.label}</span><span className="mdb-meta">{skyClock}</span></span>
+                </div>
+                <div className="mdb-seg mdb-seg-compass">
+                  <span className="mdb-stack"><span className="mdb-strong">🧭 {nearestTownCompass || "—"}</span><span className="mdb-meta">⌖ {nearestPoiCompass || "No active POIs"}</span></span>
+                </div>
+                <div className="mdb-seg mdb-seg-coords"><span className="mdb-icon">📍</span><span className="mdb-strong">{pos.x},{pos.y}</span></div>
+                <div className="mdb-seg mdb-seg-events" title="Latest events">
+                  <span className="mdb-events-head">EVENTS</span>
+                  <div className="mdb-events-list">
+                    {last2.length === 0 ? <span className="mdb-events-empty">— quiet —</span> : last2.map((l, i) => { const e = fmtEntry(l); return <span key={i} className={"mdb-event-pill" + (e.isEv ? " is-event" : "") + (i === 0 ? " is-latest" : "")}>{e.txt}</span>; })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <aside className="map-side-rail">
             {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const enterTypes = { town:1, outpost:1, rift:1, hostile:1 }; const poiVerb = hasPoi ? (enterTypes[tile.poi.type] ? "Enter" : "Interact") : null; const actLabel = isMoving ? "Stop" : hasPoi ? poiVerb : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "Idle"); const actCls = "rail-action-btn " + (isMoving ? "is-moving" : hasPoi ? "is-poi" : canFish ? "is-fish" : "is-idle"); return (
               <button className={actCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter (Space)" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step · Space to enter")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (hasPoi) { enterPoi(); return; } if (canFish && !fishingCD) { runFishing(); } }}>
@@ -7037,7 +7059,7 @@ const buildGroupedBattleLog = (entries) => {
           </div>
           </div>
         </div>
-        <div className="cd map-log-card" style={{ maxHeight: 132, overflowY: "auto", padding: 6 }} ref={logR}>{[...log].reverse().map(function(l, i) { const isEvent = String(l).startsWith("EVENT|"); const txt = isEvent ? ("Event: " + String(l).replace(/^EVENT\|/, "")) : l; return <div key={i} className={"feed-entry" + (i === 0 ? " is-current" : "")} style={isEvent ? { color: "#ff8a80", borderLeftColor: "rgba(229,57,53,0.95)" } : null}>{txt}</div>; })}</div>
+        {/* v62.2 — bottom event log moved into the top dashboard bar (latest 2 only) */}
       </div></div>
     );
   }

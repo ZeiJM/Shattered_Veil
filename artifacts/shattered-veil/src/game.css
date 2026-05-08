@@ -3864,3 +3864,136 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   color: #f2c45c;
 }
 .map-bg .map-rail-help-btn:active { transform: translateY(1px); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v62.2 — MAP TOP DASHBOARD BAR
+   The map's top bar now hosts the events log (last 2) alongside World / Phase /
+   Compass / Coords as a single segmented dashboard strip. Removes the bulky
+   bottom log card to give the map more vertical room.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.map-bg .map-dashboard-bar {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  grid-template-columns: auto auto 1fr auto minmax(220px, 2fr);
+  align-items: stretch;
+  gap: 6px !important;
+  margin-bottom: 6px !important;
+  padding: 4px !important;
+  background: linear-gradient(180deg, rgba(10,12,28,0.78), rgba(6,8,20,0.88));
+  border: 1px solid rgba(212,173,64,0.35);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.15), 0 4px 12px rgba(0,0,0,0.45);
+  min-height: 42px;
+}
+.map-bg .map-dashboard-bar .mdb-seg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: linear-gradient(180deg, rgba(28,22,52,0.55), rgba(16,12,32,0.70));
+  border: 1px solid rgba(212,173,64,0.18);
+  border-radius: 6px;
+  min-width: 0;
+  position: relative;
+}
+.map-bg .map-dashboard-bar .mdb-icon {
+  font-size: 14px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+.map-bg .map-dashboard-bar .mdb-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  min-width: 0;
+}
+.map-bg .map-dashboard-bar .mdb-strong {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f2c45c;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-bg .map-dashboard-bar .mdb-meta {
+  font-size: 8.5px;
+  color: rgba(241,231,200,0.72);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-bg .map-dashboard-bar .mdb-label {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 900;
+  color: #f2c45c;
+  letter-spacing: 0.10em;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+}
+.map-bg .map-dashboard-bar .mdb-seg-world {
+  background: linear-gradient(180deg, rgba(48,32,72,0.7), rgba(28,18,52,0.85));
+  border-color: rgba(242,196,92,0.45);
+  padding: 4px 12px;
+}
+.map-bg .map-dashboard-bar .mdb-seg-compass { min-width: 0; flex: 1 1 auto; }
+.map-bg .map-dashboard-bar .mdb-seg-coords .mdb-strong { color: #f1e7c8; font-size: 11px; }
+.map-bg .map-dashboard-bar .mdb-seg-events {
+  background: linear-gradient(180deg, rgba(40,12,12,0.55), rgba(20,6,8,0.78));
+  border-color: rgba(229,57,53,0.30);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px 8px;
+  min-width: 0;
+}
+.map-bg .map-dashboard-bar .mdb-events-head {
+  font-family: 'Cinzel', serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: rgba(255,138,128,0.85);
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+.map-bg .map-dashboard-bar .mdb-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.map-bg .map-dashboard-bar .mdb-event-pill {
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: rgba(241,231,200,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 2px;
+  border-left: 2px solid rgba(212,173,64,0.5);
+  padding-left: 6px;
+}
+.map-bg .map-dashboard-bar .mdb-event-pill.is-latest {
+  color: #fff5dc;
+  font-weight: 600;
+}
+.map-bg .map-dashboard-bar .mdb-event-pill.is-event {
+  color: #ffb0a8;
+  border-left-color: rgba(229,57,53,0.95);
+}
+.map-bg .map-dashboard-bar .mdb-events-empty {
+  font-size: 9.5px;
+  color: rgba(241,231,200,0.45);
+  font-style: italic;
+}
+@media (max-width: 900px) {
+  .map-bg .map-dashboard-bar {
+    grid-template-columns: auto 1fr auto;
+    grid-auto-rows: auto;
+  }
+  .map-bg .map-dashboard-bar .mdb-seg-events { grid-column: 1 / -1; }
+}
