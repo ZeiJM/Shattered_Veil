@@ -282,7 +282,60 @@ const BLOODMARKS = [
   { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:4,hp:15,mp:15},  passive:"fortune_flame", ds:"A subtle warping technique inherited from a charmed bloodline. Probability bends a little around your hands — coins land your way, doors stick on the right side.",            passiveDesc:"Fortune Flame: +20% gold from battles. +10% rare item drop chance." },
   { id:"tidesbrood", nm:"Tides-Brood", ic:"🌊",  cl:"#4dd0e1", stat:{mp:35,def:1,spd:1},  passive:"tidal_flow",    ds:"An innate cyclical technique. The deeper you are wounded, the more readily your reserves replenish — pressure becomes pressure converted.",                                  passiveDesc:"Tidal Flow: Recover 5 MP each time you take damage in battle." },
 ];
-function getBM(id) { return BLOODMARKS.find(b => b.id === id); }
+// PNG icon path for bloodmarks (filenames match bm.id)
+const BM_ICON_PATH = (id) => (import.meta.env.BASE_URL || "/") + "bm/" + id + ".png";
+
+// Class-specific bloodmark archetypes — each class instantiates 4 of these.
+// Themed per class via cls.nm/cl/el. IDs encoded as cs_<classId>_<slot>.
+const CLASS_BM_TEMPLATES = [
+  { slot: 0, suffix: "Edge",    glyph: "⚔",
+    statKey: "atk", statBonus: 4, secondary: "lck", secondaryBonus: 1,
+    passive: "innate_strike",
+    flavor: (c) => "An innate technique imprinted by your " + c.nm + " bloodline. Each opening strike carries the lineage's full weight.",
+    desc:   (c) => c.nm + " Edge: First attack each battle deals +25% damage and cannot miss." },
+  { slot: 1, suffix: "Bulwark", glyph: "🛡",
+    statKey: "def", statBonus: 3, secondary: "hp", secondaryBonus: 25,
+    passive: "innate_guard",
+    flavor: (c) => "Your " + c.nm + " ancestors learned to densify the body the moment killing intent enters the room.",
+    desc:   (c) => c.nm + " Bulwark: When struck above 50% HP, gain a 12% damage shield for 1 turn." },
+  { slot: 2, suffix: "Tempo",   glyph: "⌁",
+    statKey: "spd", statBonus: 4, secondary: "lck", secondaryBonus: 2,
+    passive: "innate_tempo",
+    flavor: (c) => "An inherited cadence — the " + c.nm + " line acts on the seam between heartbeats.",
+    desc:   (c) => c.nm + " Tempo: 18% chance to act first regardless of speed comparison." },
+  { slot: 3, suffix: "Conduit", glyph: "✦",
+    statKey: "mag", statBonus: 3, secondary: "mp", secondaryBonus: 30,
+    passive: "innate_conduit",
+    flavor: (c) => "A signature unfolding. Your " + c.nm + " bloodline runs Veil energy at lower friction — most never feel it leave them.",
+    desc:   (c) => c.nm + " Conduit: All skills cost 1 less MP (minimum 1)." },
+];
+function buildClassBloodmarks(cls) {
+  if (!cls) return [];
+  return CLASS_BM_TEMPLATES.map(t => ({
+    id: "cs_" + cls.id + "_" + t.slot,
+    nm: cls.nm + " " + t.suffix,
+    ic: t.glyph,
+    cl: cls.cl,
+    cs: true,
+    classId: cls.id,
+    stat: { [t.statKey]: t.statBonus, [t.secondary]: t.secondaryBonus },
+    passive: t.passive,
+    ds: t.flavor(cls),
+    passiveDesc: t.desc(cls),
+  }));
+}
+function getBM(id) {
+  if (!id) return null;
+  const shared = BLOODMARKS.find(b => b.id === id);
+  if (shared) return shared;
+  if (id.indexOf("cs_") === 0) {
+    const parts = id.split("_");
+    // CLS is declared later in module-eval order, but getBM is only invoked at render time
+    const cls = CLS.find(c => c.id === parts[1]);
+    if (cls) return buildClassBloodmarks(cls).find(b => b.id === id) || null;
+  }
+  return null;
+}
 
 // RANKS — sorcerer grades, formally assessed by the covenants
 const RANKS = [
@@ -1646,7 +1699,7 @@ function projectedEffStatsFor(player, equipmentSet, dayValue) {
   Object.keys(ageMult).forEach(k => { if (s[k] != null) s[k] = Math.max(1, Math.floor(s[k] * ageMult[k])); });
   if (player.legacyTrait?.stat && s[player.legacyTrait.stat] != null) s[player.legacyTrait.stat] = Math.max(1, Math.floor(s[player.legacyTrait.stat] * (player.legacyTrait.mult || 1.03)));
   if (player.bloodmark) {
-    const bm = BLOODMARKS.find(b => b.id === player.bloodmark);
+    const bm = getBM(player.bloodmark);
     if (bm && bm.stat) Object.entries(bm.stat).forEach(([k,v]) => { if (s[k] != null) s[k] = Math.max(1, s[k] + v); });
   }
   if (player.covenant) {
@@ -6220,31 +6273,60 @@ const buildGroupedBattleLog = (entries) => {
       </div>}
 
       {/* STEP 1: BLOODMARK */}
-      {cStep === 1 && <div>
-        <div style={{ textAlign: "center", marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: "#cfe0ff" }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
-          <div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, maxHeight: "56vh", overflowY: "auto" }}>
-          {BLOODMARKS.map(bm => <div key={bm.id} className="cd" onClick={() => setSelBloodmark(selBloodmark === bm.id ? null : bm.id)} style={{ padding: 8, cursor: "pointer", border: selBloodmark === bm.id ? "2px solid " + bm.cl : "1px solid rgba(212,173,64,0.18)", background: selBloodmark === bm.id ? "linear-gradient(155deg, " + bm.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: "50%", background: "radial-gradient(circle at 35% 30%, " + bm.cl + "55 0%, " + bm.cl + "22 60%, rgba(6,12,28,0.85) 100%)", border: "1.5px solid " + bm.cl + "88", boxShadow: "0 0 12px " + bm.cl + "44, inset 0 1px 0 rgba(255,255,255,0.18)", fontSize: 18, flexShrink: 0, filter: "drop-shadow(0 0 4px " + bm.cl + "66)" }}>{bm.ic}</span>
-              <div>
-                <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700, color: bm.cl }}>{bm.nm}</div>
-                <div style={{ fontSize: 8, color: "#bcc6e6" }}>
-                  {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
-                </div>
+      {cStep === 1 && (() => {
+        const pickedClass = CLS.find(c => c.id === selCls);
+        const classBMs = buildClassBloodmarks(pickedClass);
+        // Stable random sample of 4 shared bloodmarks per class+step entry
+        const seed = (selCls || "").split("").reduce((a, ch) => a + ch.charCodeAt(0), 0);
+        const sharedShuffled = BLOODMARKS.slice().sort((a, b) => {
+          const ah = ((a.id.charCodeAt(0) * 9301 + seed * 49297) % 233280) / 233280;
+          const bh = ((b.id.charCodeAt(0) * 9301 + seed * 49297) % 233280) / 233280;
+          return ah - bh;
+        });
+        const sharedSample = sharedShuffled.slice(0, 4);
+        const renderCard = (bm, isInnate) => <div key={bm.id} className={"cd bm-card" + (isInnate ? " bm-innate" : "")} data-cl={bm.cl} onClick={() => setSelBloodmark(selBloodmark === bm.id ? null : bm.id)} style={{ padding: 8, cursor: "pointer", border: selBloodmark === bm.id ? "2px solid " + bm.cl : "1px solid " + (isInnate ? "rgba(255,210,120,0.45)" : "rgba(212,173,64,0.18)"), background: selBloodmark === bm.id ? "linear-gradient(155deg, " + bm.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.88) 0%, rgba(6,12,28,0.92) 100%)", color: "#e8eeff", position: "relative" }}>
+          {isInnate && <span className="bm-innate-badge">★ INNATE</span>}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+            <span className="bm-ic-frame" style={{ "--bm-cl": bm.cl, background: "radial-gradient(circle at 35% 30%, " + bm.cl + "55 0%, " + bm.cl + "22 60%, rgba(6,12,28,0.85) 100%)", border: "1.5px solid " + bm.cl + "88", boxShadow: "0 0 12px " + bm.cl + "44, inset 0 1px 0 rgba(255,255,255,0.18)", filter: "drop-shadow(0 0 4px " + bm.cl + "66)" }}>
+              {!isInnate && <img src={BM_ICON_PATH(bm.id)} alt="" className="bm-ic-img" onError={(e) => { try { e.currentTarget.style.display = "none"; } catch(_){} }} />}
+              <span className="bm-ic-glyph">{bm.ic}</span>
+            </span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700, color: bm.cl, lineHeight: 1.15 }}>{bm.nm}</div>
+              <div style={{ fontSize: 8, color: "#bcc6e6", marginTop: 2 }}>
+                {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
               </div>
             </div>
-            <div style={{ fontSize: 8, color: "#cfd6ee", lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
-            <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
-          </div>)}
-        </div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 10 }}>
-          <button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(0)}>← Back</button>
-          <button className="bt" style={{ background: T.gd }} onClick={() => setCStep(2)}>Next: Identity →</button>
-        </div>
-      </div>}
+          </div>
+          <div style={{ fontSize: 8, color: "#cfd6ee", lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
+          <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+        </div>;
+        return <div className="bm-step" style={{ position: "relative" }}>
+          <div className="bm-step-bg" aria-hidden><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
+          <div style={{ textAlign: "center", marginBottom: 10, position: "relative", zIndex: 1 }}>
+            <div style={{ fontSize: 11, color: "#cfe0ff" }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
+            <div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
+          </div>
+          <div style={{ position: "relative", zIndex: 1, maxHeight: "56vh", overflowY: "auto", paddingRight: 4 }}>
+            {pickedClass && <div className="bm-section">
+              <div className="bm-section-head"><span className="bm-section-pip" style={{ background: pickedClass.cl }} /><span className="bm-section-title" style={{ color: pickedClass.cl }}>★ Innate to {pickedClass.nm}</span><span className="bm-section-sub">— sealed in your bloodline alone</span></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                {classBMs.map(bm => renderCard(bm, true))}
+              </div>
+            </div>}
+            <div className="bm-section">
+              <div className="bm-section-head"><span className="bm-section-pip" style={{ background: "#d4ad40" }} /><span className="bm-section-title" style={{ color: "#f5d57a" }}>Ancestral Lineage</span><span className="bm-section-sub">— shared across the old houses</span></div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                {sharedSample.map(bm => renderCard(bm, false))}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 10, position: "relative", zIndex: 1 }}>
+            <button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(0)}>← Back</button>
+            <button className="bt" style={{ background: T.gd }} onClick={() => setCStep(2)}>Next: Identity →</button>
+          </div>
+        </div>;
+      })()}
 
       {/* STEP 2: IDENTITY */}
       {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>

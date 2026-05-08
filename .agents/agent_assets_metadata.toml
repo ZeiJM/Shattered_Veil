@@ -774,3 +774,63 @@ id = "MaMhZDqhuc3GAz42ZbXeQ"
 uri = "file://artifacts/shattered-veil/public/forge-hall.png"
 type = "image"
 title = "forge hall background"
+
+[[generated]]
+id = "3DgE9X0w7LSbpgsvt5K9p"
+uri = "file://artifacts/shattered-veil/public/bm/veilveined.png"
+type = "image"
+title = "veilveined sigil"
+
+[[generated]]
+id = "YHD6MfHJAACB0KiVRy0cE"
+uri = "file://artifacts/shattered-veil/public/bm/stormborn.png"
+type = "image"
+title = "stormborn sigil"
+
+[[generated]]
+id = "NkBZXRpCHA5SkbRizBEvH"
+uri = "file://artifacts/shattered-veil/public/bm/ashblood.png"
+type = "image"
+title = "ashblood sigil"
+
+[[generated]]
+id = "IEpjjoSmBuc5zMb2olwog"
+uri = "file://artifacts/shattered-veil/public/bm/ironblooded.png"
+type = "image"
+title = "ironblooded sigil"
+
+[[generated]]
+id = "R5upqOxSVlvwdqEHIIoy8"
+uri = "file://artifacts/shattered-veil/public/bm/rootbound.png"
+type = "image"
+title = "rootbound sigil"
+
+[[generated]]
+id = "XrjkFzJZi_JBNaQak0l7Z"
+uri = "file://artifacts/shattered-veil/public/bm/voidtouched.png"
+type = "image"
+title = "voidtouched sigil"
+
+[[generated]]
+id = "eFU1fILVthMm2UKV1iMdd"
+uri = "file://artifacts/shattered-veil/public/bm/goldensoul.png"
+type = "image"
+title = "goldensoul sigil"
+
+[[generated]]
+id = "nvbS-4vcwdxsPkaZ2FqN_"
+uri = "file://artifacts/shattered-veil/public/bm/mirrorborn.png"
+type = "image"
+title = "mirrorborn sigil"
+
+[[generated]]
+id = "EK8FDhJiyn4SFQ6np6BVN"
+uri = "file://artifacts/shattered-veil/public/bm/frostmere.png"
+type = "image"
+title = "frostmere sigil"
+
+[[generated]]
+id = "VWzf7EptxT_ChWX0RnOvE"
+uri = "file://artifacts/shattered-veil/public/bm/tidesbrood.png"
+type = "image"
+title = "tidesbrood sigil"
