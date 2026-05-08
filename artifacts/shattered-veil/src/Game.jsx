@@ -7013,7 +7013,6 @@ const buildGroupedBattleLog = (entries) => {
               </div>}
             </div>
             <details className="map-legend-details map-rail-legend"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{["🐾 Beast",roamingBossIcon + " Roaming Boss","🏕️ Camp","🎰 Den","💎 Loot","⛺ Outpost","🌀 Rift","🏛️ Ruin","⛩️ Shrine","🏘️ Town"].map(function(lbl){return <span key={lbl} className="legend-pill">{lbl}</span>;})}</div></details>
-            <div className="map-rail-hint">Click · DblClick · Space · WASD</div>
           </aside>
           <div className="map-main-area">
           <div ref={swipeRef} className="battle-world-grid" style={{ display: "grid", gridTemplateColumns: "repeat(" + VW + ",1fr)", gap: 1, marginBottom: 0, width: "100%", background: T.bg, borderRadius: 6, overflow: "hidden", border: "1px solid " + T.bd, animation: "mapMove .15s ease" }} key={pos.x + "," + pos.y}>
