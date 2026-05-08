@@ -3218,6 +3218,21 @@ function Game() {
   const [timerNow, setTimerNow] = useState(Date.now());
   const [skyHour, setSkyHour] = useState(() => new Date().getHours());
   useEffect(() => { const id = setInterval(() => { const h = new Date().getHours(); setSkyHour(prev => prev === h ? prev : h); }, 60000); return () => clearInterval(id); }, []);
+  const skyPhase = useMemo(() => {
+    const h = skyHour;
+    if (h >= 0 && h <= 3) return { key: "midnight", icon: "🌙", label: "Midnight", short: "Deep night" };
+    if (h >= 4 && h <= 5) return { key: "predawn", icon: "🌌", label: "Pre-dawn", short: "False dawn" };
+    if (h >= 6 && h <= 7) return { key: "sunrise", icon: "🌅", label: "Sunrise", short: "Daybreak" };
+    if (h >= 8 && h <= 11) return { key: "morning", icon: "🌤", label: "Morning", short: "Clear sky" };
+    if (h === 12) return { key: "noon", icon: "☀", label: "Noon", short: "Zenith" };
+    if (h >= 13 && h <= 14) return { key: "afternoon", icon: "🌞", label: "Afternoon", short: "Golden flood" };
+    if (h >= 15 && h <= 16) return { key: "golden", icon: "🌇", label: "Golden hour", short: "Amber light" };
+    if (h === 17) return { key: "sunset", icon: "🌅", label: "Sunset", short: "Last light" };
+    if (h >= 18 && h <= 19) return { key: "dusk", icon: "🌆", label: "Dusk", short: "Veil bleeding" };
+    if (h === 20) return { key: "twilight", icon: "🌃", label: "Twilight", short: "First stars" };
+    return { key: "night", icon: "🌌", label: "Night", short: "Aurora curtain" };
+  }, [skyHour]);
+  const skyClock = useMemo(() => { const h12 = skyHour % 12 === 0 ? 12 : skyHour % 12; return h12 + (skyHour < 12 ? " AM" : " PM"); }, [skyHour]);
   const logR = useRef(null);
   const introAudioRef = useRef(null);
   const swipeRef = useRef(null);
@@ -6935,12 +6950,12 @@ const buildGroupedBattleLog = (entries) => {
     })();
 
     return (
-      <div className="pg map-bg">
+      <div className={"pg map-bg sky-phase-" + skyPhase.key}>
         <div className="map-sky-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}sky/h${String(skyHour).padStart(2,"0")}.png')` }} />
         <div className="map-sky-veil" />
         <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
-          <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
+          <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div className="sky-phase-badge" title={"Local time " + skyClock + " — sky reflects your real time of day"}><span className="sky-phase-icon">{skyPhase.icon}</span><span className="sky-phase-text"><span className="sky-phase-label">{skyPhase.label}</span><span className="sky-phase-meta">{skyClock} · {skyPhase.short}</span></span></div></div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
           <aside className="map-side-rail">
             {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const actLabel = isMoving ? "Stop" : hasPoi ? "Enter" : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "Idle"); const actCls = "rail-action-btn " + (isMoving ? "is-moving" : hasPoi ? "is-poi" : canFish ? "is-fish" : "is-idle"); return (
               <button className={actCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter (Space)" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step · Space to enter")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (hasPoi) { enterPoi(); return; } if (canFish && !fishingCD) { runFishing(); } }}>

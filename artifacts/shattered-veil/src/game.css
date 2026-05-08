@@ -2889,3 +2889,77 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 .map-bg .map-legend-toggle {
   color: #f2c45c !important;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v54 — TIME-OF-DAY PHASE INDICATOR + WORLD-TILE TINT HARMONY
+   • Small badge near "World" heading shows current sky phase + local clock
+     so the player notices the v53 24-hour sky cycle.
+   • Sky-phase className on .map-bg drives a CSS variable (--sky-tint) that
+     gently shifts the world tiles' overlay color to harmonize with the sky
+     overhead — cool blue at night, warm amber at golden hour, neutral noon.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Phase indicator badge */
+.sky-phase-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px;
+  background: linear-gradient(180deg, rgba(28,22,52,0.78), rgba(16,12,32,0.88));
+  border: 1px solid rgba(212,173,64,0.42);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.18), 0 2px 6px rgba(0,0,0,0.35);
+  cursor: help;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.sky-phase-badge:hover {
+  transform: translateY(-1px);
+  border-color: rgba(242,196,92,0.7);
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.28), 0 4px 10px rgba(0,0,0,0.45);
+}
+.sky-phase-icon {
+  font-size: 13px; line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+}
+.sky-phase-text { display: inline-flex; flex-direction: column; line-height: 1.05; }
+.sky-phase-label {
+  font-family: 'Cinzel', serif; font-weight: 600; font-size: 9.5px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: #f2c45c;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+.sky-phase-meta {
+  font-size: 7.5px; color: rgba(241,231,200,0.72);
+  letter-spacing: 0.04em;
+}
+
+/* World-tile tint variable. Each phase paints --sky-tint as an rgba glaze
+   that the tile overlay multiplies onto the existing biome colors. */
+.map-bg                    { --sky-tint: rgba(20, 28, 64, 0.00); --sky-glow: transparent; }
+.map-bg.sky-phase-midnight { --sky-tint: rgba(20, 24, 70, 0.34); --sky-glow: rgba(120, 140, 220, 0.10); }
+.map-bg.sky-phase-predawn  { --sky-tint: rgba(40, 32, 78, 0.28); --sky-glow: rgba(160, 140, 220, 0.10); }
+.map-bg.sky-phase-sunrise  { --sky-tint: rgba(255, 168, 96, 0.22); --sky-glow: rgba(255, 196, 120, 0.14); }
+.map-bg.sky-phase-morning  { --sky-tint: rgba(180, 210, 240, 0.14); --sky-glow: rgba(220, 240, 255, 0.08); }
+.map-bg.sky-phase-noon     { --sky-tint: rgba(255, 240, 200, 0.10); --sky-glow: transparent; }
+.map-bg.sky-phase-afternoon{ --sky-tint: rgba(255, 220, 150, 0.16); --sky-glow: rgba(255, 220, 140, 0.08); }
+.map-bg.sky-phase-golden   { --sky-tint: rgba(255, 180, 90, 0.24); --sky-glow: rgba(255, 200, 110, 0.16); }
+.map-bg.sky-phase-sunset   { --sky-tint: rgba(255, 130, 80, 0.26); --sky-glow: rgba(255, 150, 100, 0.18); }
+.map-bg.sky-phase-dusk     { --sky-tint: rgba(160, 80, 120, 0.30); --sky-glow: rgba(200, 110, 160, 0.16); }
+.map-bg.sky-phase-twilight { --sky-tint: rgba(80, 60, 130, 0.34); --sky-glow: rgba(140, 110, 200, 0.12); }
+.map-bg.sky-phase-night    { --sky-tint: rgba(30, 28, 78, 0.36); --sky-glow: rgba(160, 120, 220, 0.10); }
+
+/* Apply the tint as an overlay layer on the world map grid. Sits on top of
+   tile colors but under the player aura + tokens (which have their own z). */
+.map-bg .battle-world-grid { position: relative; }
+.map-bg .battle-world-grid::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, var(--sky-glow) 0%, transparent 65%),
+    var(--sky-tint);
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  transition: background 1.6s ease;
+  z-index: 1;
+  border-radius: inherit;
+}
+/* Make sure player aura + interactive tokens stay above the tint glaze */
+.map-bg .battle-world-grid > * { position: relative; z-index: 2; }

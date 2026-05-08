@@ -128,101 +128,24 @@ Focused, additive polish on the highest-traffic non-battle screens. No identity 
 
 JSX changes are minimal: only the town `svc-card` markup was retouched to add `data-cat`, `.svc-ic`, `.svc-nm` classes and drop redundant inline color/background (CSS owns it now). Stats / equipment / sub-page headers are styled purely from the appended CSS — no JSX edits needed.
 
-## v40 – v45 — Combat depth + audio engine
+## Changelog history (v40–v50, condensed)
 
-Compact appendix. All five rounds layered on the same battle loop without state-shape breaks.
+Eleven rounds of combat depth, audio, layout, and asset polish layered on the same battle loop. State shape preserved throughout — every change is additive or cosmetic. Highlights:
 
-### v40 — Positional combat + viewport fit
-- **Lanes 0–4** (Vanguard / Front / Mid / Skirmish / Backline). Player default `plPos = 1`, pet on Vanguard, ally behind. Enemies seed at `pos: 3` (first 2) and `pos: 4` (rest).
-- **One free move per turn** (`moved` flag, reset on turn flip in `previewBattleState` + timer-skip setBtl).
-- **`actionRange(act, idx)`** returns 1 (melee: plain strike, Null/Physical skill) or 4 (ranged/AoE/copy/ult/heal/buff). Auto-derived from existing skill data.
-- **Range gate** in `bAct`: melee at distance > range aborts with "Out of range — move closer or use a ranged ability." Copy + ult never gated.
-- **Distance modifier**: `+10%` point-blank (range 1 + dist 1) and `+12%` long-shot (range ≥ 4 + dist ≥ 3), multiplied into `encounterProfile.playerDamage` at top of `bAct`.
-- **Lane bar UI** + `.battle-range-readout` strip read real `plPos`/`pos`. Lanes 0-2 clickable to move when `!btl.moved`; foe tokens click to set target.
-- **Viewport fit**: `html, body, #root, .pg { overflow: hidden; height: 100dvh }`; all wrappers (`shell/town/map/outpost/rift/battle`) become flex-column with `.cd.page-panel` as internal scroller. CSS lives in the `v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS` block at end of `game.css`.
-- **PvP-ready**: `pos`, `plPos`, `moved`, `actionRange` all serializable + deterministic.
+- **v40 — Positional combat + viewport fit.** 5 lanes (Vanguard/Front/Mid/Skirmish/Backline). One free move per turn (`btl.moved`). `actionRange(act)` returns 1 (melee) or 4 (ranged/AoE/copy/ult). Range gate in `bAct` + distance modifier (×1.10 point-blank, ×1.12 long-shot). Lane bar UI reads real `plPos`/`pos`. Viewport fix: all wrappers become flex-column with `.cd.page-panel` as internal scroller. CSS in `v40 — POSITIONAL COMBAT + VIEWPORT FIT PASS` block.
+- **v41 — Procedural background music.** Self-contained `music.js` module with `createMusicPlayer()` + `trackForScreen(scr, opts)`. Lazy AudioContext, schedules one full loop ahead. 4 hand-written looping tracks (title 70 BPM, travel 116, battle 144, town 92). HUD `🎵`/`🔇` toggle persists via `localStorage["sv_music_muted"]`.
+- **v42 — Enemy AI movement + boss music.** Per-enemy free move before action: melee advances, ranged retreats, support stays. Symmetric distance modifier on enemy hits. Added boss track (158 BPM, E minor). `trackForScreen(scr, { battleType })` routes; `BOSS_BATTLE_TYPES = {boss, fieldboss, rift, outpost}`.
+- **v43 — SFX engine + audio settings.** 7-cue procedural SFX bank (hit/heal/levelup/victory/defeat/menu/cast) with separate `sfxGain` node. Wired into `bAct` + enemy turn (try/catch wrapped). Audio settings panel in `sub === "menu"` with mute toggles + 0–100% volume sliders. Persists `sv_sfx_muted`, `sv_music_vol`, `sv_sfx_vol`.
+- **v44 — Critical hits (luck-based).** Crit chance = `min(0.25, st.lck × 0.012)`, ×1.5 damage. New `crit` SFX. Wired into `attackWithWeapon`, skill damage, copy damage. Skipped: ult, heals, gambler multiplier.
+- **v45 — Enemy crits.** Symmetric mirror: `min(0.20, (enemy.lck || enemy.lvl × 0.6) × 0.010)`. Single roll per enemy attack, ×1.5 damage, log + SFX.
+- **v46 — Layout compaction + swim icon + fish-while-swimming.** Painted swim PNG replaces 🏊 emoji. `canFish = nearOcean || onOcean` (was just `nearOcean`). World map vertical fit via CSS caps so d-pad + log stay onscreen.
+- **v47 — Battle unification + world ergonomic pass.** Fixed parchment leak on `.battle-action-btn` — every button forced to dark navy gradient + gold border via `!important`. Element identity now lives in colored *text*. World HUD compacted on map screen. Map grid expanded `min(46dvh,360px)` → `min(62dvh,540px)`. Floating ergonomic d-pad introduced (later removed in v52).
+- **v48 — Atmospheric audio + map richness + slow portrait fade.** Music engine rewrite: only `sine`/`triangle` voices, longer attack/release, ambient delay/echo bus, lower tempos, fixed track-overlap bug via per-track `musicBus`. Wider map grid (VW 14→19, VH 9→11). Player tile gets rotating gold conic aura ring + atlas treatment. Portrait crossfade slowed 480ms → 1200ms.
+- **v49 — Lane+entity merger + action button overflow fix.** Lane bar tokens render portrait + truncated name + HP/MP bars (the lane IS the panel). Click-on-token = info popup ("Sorcerer Dossier"). `.battle-top-grid` hidden via CSS. Action button text overflow fixed (`white-space: normal !important`).
+- **v50 — Painted enemy portraits + element icons.** Generated 58 images in 37 seconds via 6 parallel `generateImage` calls: 18 element sigils (`public/el/<el>.png`, transparent) + 40 boss portraits (`public/boss/<bossKey>.png`). New `ELEMENT_ICON_PATH(el)`, `BOSS_PORTRAIT_PATH(key)`, `<ElementIcon>` component with `onError` emoji fallback. `ElementTag` and lane tokens auto-pick up the new art. Sorcerer Dossier portrait box bumped 56→72px. CSS in `v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS` block.
 
-### v41 — Procedural background music
-- Self-contained `music.js` module: `createMusicPlayer()` + `trackForScreen(scr, opts)`. Lazy AudioContext on first `play()` (autoplay rules). Schedules one full loop ahead, re-arms 300ms before loop end.
-- **4 hand-written looping tracks** (Chrono Trigger flavor): title (70 BPM, A minor, Aeolian pad), travel (116 BPM, C major `C-G-Am-F`), battle (144 BPM, E minor `Em-C-D-B7` with kick), town (92 BPM, F major).
-- Helpers: `scheduleNote(ctx, dest, type, freq, detune, t0, dur, gain)` with chiptune ADSR; `scheduleKick(ctx, dest, t0, gain)` (140→45Hz sine sweep).
-- Single `useRef(createMusicPlayer())` at top of `Game()` (~line 3024). Two effects: one resumes ctx on first user gesture; another swaps tracks on `scr` change. HUD `🎵`/`🔇` toggle persists via `localStorage["sv_music_muted"]`.
+For full implementation details on any of these, see the corresponding `vNN — ...` block in `game.css` and the git history.
 
-### v42 — Enemy AI movement + boss music
-- Per-enemy free move before action: melee skills (Null el) advance to lane 3 if at dist > 2; ranged (non-Null el) retreat to lane 4 if at dist < 2; support skills never move. One lane shift per turn, no crossing to player side.
-- **Symmetric distance modifier**: melee at dist 1 → ×1.10, ranged at dist ≥ 3 → ×1.12, applied to `ed`. Pet/ally hits skip this branch (already ×0.7).
-- Implemented inside the existing enemy `forEach` (~line 5235) — no new state.
-- **Boss track** added: 158 BPM, E natural minor, `Em-Bm-C-D` with grittier sawtooth counter-melody. `BOSS_BATTLE_TYPES = {boss, fieldboss, rift, outpost}`. `trackForScreen(scr, { battleType })` routes; deps array includes `btl?.type` so music swaps mid-battle. Required hoisting `const [btl, setBtl]` above the music hooks.
-
-### v43 — SFX engine + audio settings
-- 7-cue procedural SFX bank in `music.js`, separate `sfxGain` node so music+SFX have independent volume + mute: `hit` (filtered noise burst), `heal` (sine bell dyad), `levelup` (CEGC square fanfare), `victory` (held CEG triad), `defeat` (descending sawtooth A3→A2), `menu` (square click), `cast` (rising sine sweep).
-- API: `playSfx(name)`, `setSfxMuted/isSfxMuted`, `setMusicVolume/setSfxVolume/get*`. Persists `sv_sfx_muted`, `sv_music_vol`, `sv_sfx_vol`.
-- **Wired everywhere in `bAct` + enemy turn** (all `try/catch`-wrapped, all positioned after early-return validation): strike/w2 → hit; guard → menu; mend → heal; skill → heal if `t === heal|support` else cast; copy/ult → cast; enemy hit on player (gated `ed > 0 && type !== "train"`) → hit. Meta cues: giveXP level-up → levelup; victory branches → victory; defeat → defeat; sub change → menu chirp.
-- **Audio settings panel** in `sub === "menu"` (~line 6777): two rows (Music + SFX) each with mute toggle + 0-100% range slider (gold accentColor) + percent readout. Toggling SFX off→on plays a feedback chirp.
-- TDZ note: `subRef = useRef(null)` declared above hooks, populated via `useEffect` placed after the `const [sub, setSub]` declaration (~line 3084).
-
-### v44 — Critical hits (luck-based)
-- Crit chance = `min(0.25, st.lck × 0.012)` — caps at 25% (~20+ lck). Damage ×1.5 with new `crit` SFX (1760→880Hz square stab + high-passed noise crack).
-- Wired into 3 damage paths: `attackWithWeapon` (one roll before the multi-hit loop, gated `!isShieldWeapon`), skill damage (one roll on `base` before `targets.forEach` so AoE shares the crit and SFX fires once), copy damage (same single-roll on `copyBase`).
-- Skipped: ult (already a power moment), heals (no analog), gambler class gamble multiplier (would double-roll).
-- Stacks multiplicatively with existing `armorCritChance` (×1.28). Log line `💥 Critical hit! ×1.5` via `logInfo`.
-
-### v45 — Enemy crits
-- Symmetric mirror of v44 on the enemy turn (~line 5331 area, immediately before `up.chp -= ed`). One roll per enemy attack: `enemyCritChance = min(0.20, (enemy.lck || enemy.lvl * 0.6) × 0.010)` — slightly tamer than the player cap (20% vs 25%) since enemies attack more often. On crit, `ed = floor(ed * 1.5)`, log `💥 Enemy critical!`, plays the `crit` SFX. Gated `ed > 0 && btl.type !== "train"` matching the existing damage-application condition.
-- No new state, no new fields — uses `enemy.lck` if present, otherwise derives a soft estimate from `enemy.lvl`. Pet/ally-targeted enemy hits skip the crit branch (those go through the separate ×0.7 path and don't read `ed` for the player's chp).
-
-### v46 — Layout compaction + swim icon + fish-while-swimming
-- **Swim icon**: replaced the bare 🏊 emoji on the map's player tile with a generated painted PNG (`public/swim-icon.png`). Layered as a full-cell `<img>` with `objectFit: cover` + cyan drop-shadow; preserves the existing custom-portrait overlay on top so player identity still reads through when in ocean tiles.
-- **Fishing while swimming**: previously the action button explicitly excluded ocean tiles (`!tile || tile.bio !== "ocean"`), so once you stepped into the water you couldn't cast. Now `canFish = nearOcean || onOcean` — the button shows "Fish" both adjacent to and standing in ocean, with the same cooldown countdown.
-- **World map vertical fit** (the actual fix for "can't scroll past the up arrow"): the map grid was uncapped and stretched to 500px square at full width, pushing the d-pad + status + log offscreen below the viewport (and `.pg` is `overflow: hidden` from v40). Capped via CSS to `min(46dvh, 360px)`, with a `@media (max-height: 720px)` step down to `min(40dvh, 300px)`. D-pad tiles 34→30px (28px on short screens), action bar (HP/MP/music) buttons shrunk to 24px tall single-line, log card maxHeight 132→96 (72 on short screens), legend pills 8→7px, status card padding tightened.
-- **Battle compaction**: lane tile min-height 38→36 on short screens, tokens 30→26→22px, action buttons min-height 38→32px, range readout font 9→8px, combat title 14→11px. Layered onto the v40 viewport-fit block.
-- All rules in a single appended `v46 — WORLD + BATTLE LAYOUT COMPACTION PASS` block at end of `game.css`. JSX touched only at the swim icon line (~6915) and the action button (~6921, wrapped in IIFE for the new `canFish` derived value).
-
-### v47 — Battle unification + world ergonomic pass
-- **Battle button parchment leak fixed.** All `.battle-action-btn` were inline-styled with parchment-ish colors (`T.c2` cream, `T.ok+"15"` pale green, `ELC[el]+"12"` element tints) which clashed with the dark battle backdrop. v47 forces every action button to one dark navy gradient + gold border via `!important` overrides — element identity now lives in the colored *text* inside the button (which the JSX already renders via `ELC[sk.el]`), not the button background. Veil Expansion (ult) keeps the gold treatment as a deliberate exception (it's the climax button) — selector `.battle-action-btn[style*="pulse"]` matches the inline `animation: pulse 1s infinite` on the ult.
-- **Battle section frames** wrapped in subtle dark cards (`rgba(8,14,30,0.45)` bg + thin gold border), section titles in Cinzel uppercase with gold underline. Action grid `auto-fit minmax(160px, 1fr)` for clean wrapping. Help-chip `?` repositioned as a small gold circle in top-right.
-- **World HUD compacted** on map screen specifically (`.map-bg .hud-shell`): smaller name/sub fonts, thinner HP/MP/XP bars, tighter quick-nav buttons. Saved ~50px vertical.
-- **Map grid expanded** from `min(46dvh, 360px)` → `min(62dvh, 540px)` (down to 54dvh on short screens). Now actually fills the parchment area instead of being a tiny square in the middle.
-- **Floating ergonomic d-pad** (`.map-dpad-wrap`) — repositioned to bottom-right of the page-panel as an absolute-positioned floating control panel. 42px tiles in a navy-glass card with gold border + drop shadow. Center action button is colored by state: gold pulsing for `is-poi` (Enter), cyan for `is-fish` (Fish/cooldown), muted purple for `is-idle` (·). JSX touched only for the d-pad block (~6920) — wrapped in IIFE that derives `centerCls` from `hasPoi`/`canFish`.
-- **Legend pills hidden by default**, expand on hover of the page-panel. Map log shrunk to 80px (60 short).
-- All in one appended `v47 — BATTLE UNIFICATION + WORLD ERGONOMIC PASS` block at end of `game.css` (~line 1955+).
-
-### v48 — Atmospheric audio + map richness + slow portrait fade
-Five-item polish round addressing direct user feedback ("music is annoying / overlapping / chippy", "map is ugly + basic", "portrait swap is abrupt").
-
-- **Music engine rewrite (`music.js` v48)** — full replacement of the v41 chiptune tracks.
-  - **Voices**: only `sine` + `triangle` (no more `square`/`sawtooth` — those caused the "blocky/chippy" complaint). Lead voices use longer attack (0.03–0.20s) and explicit `release` (0.25–1.0s) for cinematic swell instead of sharp 8-bit stabs. New `attack`/`release` fields on each instrument flow through `scheduleNote(ctx, dest, type, freq, detune, startT, dur, peakGain, attack, release)`.
-  - **Tempos lowered**: title 70→60, travel 116→92, battle 144→116, town 92→78, boss 158→124. Calmer, more listenable for long sessions.
-  - **Ambient delay/echo bus** added in `ensure()` — 380ms `DelayNode` with 0.28 feedback + 0.55 wet gain, parallel to master. Each per-track bus has a 0.22 send into it, producing the spatial "Chrono Trigger soundtrack" reverb tail.
-  - **Track overlap bug fixed** (the "sounds like it's overlapping with old music" complaint). v41 cause: when `play(newTrack)` was called, it cleared the `scheduledTimer` but already-scheduled oscillators in the audio graph kept playing alongside the new track's oscillators. v48 fix: every track owns its own `musicBus = ctx.createGain()` between `scheduleNote` destinations and `masterGain`. On track change, `fadeOutBus(oldBus)` ramps the old bus to 0 over 450ms and disconnects after 700ms — old oscillators still play but are silent. New track gets a fresh bus.
-  - All 5 tracks (TITLE/TRAVEL/BATTLE/TOWN/BOSS) rewritten with new chord voicings, longer phrasing, lush sine pads, walking triangle bass instead of pulsing 8th-note hammer.
-  - Drum pattern now carries optional `gain` (was hardcoded 0.20) — battle 0.10, boss 0.13.
-
-- **Wider map grid (`Game.jsx` ~6852)** — `VW` 14→19, `VH` 9→11, `hfX` 6→9, `hfY` 4→5. Player still slightly left of center on even-VW. Grid aspect-ratio overridden in CSS to `19 / 11` (was square via v47), `max-width: min(88dvw, 760px)`, `max-height: min(50dvh, 460px)`. The map now actually uses the horizontal real estate instead of being a small square in a wide panel.
-
-- **Player aura** (the "your character should be distinct on the map" ask) — JSX adds `className="world-tile is-player"` + a `<span className="player-aura-ring">` to the player's tile (~line 6917). CSS gives it:
-  - Rotating gold conic ring via `radial-gradient(circle, transparent 38%, rgba(242,196,92,0.55) 50%, transparent 62%)` + `playerAuraRotate` 6s linear infinite.
-  - Synchronised `playerAuraPulse` 2.4s ease-in-out (opacity + blur).
-  - Inner gold pulse via `::before` with `playerInnerPulse` 1.6s.
-  - Tile gets `z-index: 2` so it sits above neighbours.
-
-- **Map atlas treatment** — grid container gets gold border, dark vellum background gradient, drop shadow, and an `::after` overlay with crossed `repeating-linear-gradient` lines (1px every 3px both axes) at `mix-blend-mode: overlay` for subtle parchment-grain texture. Vignette via `radial-gradient` ellipse darkens the corners.
-
-- **Portrait crossfade slowed** (`Game.jsx` ~3111) — `transition: opacity 480ms ease` → `transition: opacity 1200ms cubic-bezier(0.4, 0, 0.2, 1)`. 2.5× longer, with a real ease-in-out curve. Used on class-pick thumbnails, Identity preview, and the custom-portrait fallback bg.
-
-- All CSS in a single appended `v48 — MAP RICHNESS + PLAYER AURA + WIDER GRID` block at end of `game.css` (~line 2230+). JSX touched at 3 lines (CrossfadePortrait transition, VW/VH constants, player tile className+aura span).
-
-### v49 — Lane+entity merger + action button overflow fix
-User feedback: "merge map for movement on top with player and enemy bubbles… clicking icon shows pertinent summary, but small HP/MP bar always visible. Save space. Also info getting cut off in Veil Magic / Combat Actions buttons."
-
-- **Lane bar IS now the entity panel.** Each lane token (`battle-lane-token.is-rich`) renders portrait + truncated name + HP bar (4px) + MP bar (3px) stacked vertically. Tokens are 60px wide on desktop, 52px on tablet, 44px (name hidden) on mobile.
-- **Click behavior**: empty allied lane area = move (existing); foe token first click = target, second click on already-targeted foe = info popup; ally/player/pet token = info popup directly. Lane-tile `onClick` only fires when clicking outside tokens (token `handleClick` calls `ev.stopPropagation()`).
-- **Sorcerer Dossier popup** (`openEntityInfoPopup`) — uses `setPopup({ title, node, fullscreen: true })` with a React node containing 56px portrait, name with element tags, full HP/MP bars (`pBar`), SPD with color, passive name + description, "View Element Matchups" button (delegates to `openElementSummaryPopup`), and active status effects (`StatusTag` row).
-- **Token data shape**: `{ k, ic, img?, classId?, sex?, cls: "ally"|"foe", isTarget?, entity: { name, hp, mhp, mp, mmp, spd, els[], efx[], passiveName, passiveDs, isBoss?, kind } }`. Built once per render in the lane IIFE (~line 6973), no extra state. PvP-ready: `entity` is a flat snapshot, fully serializable.
-- **`.battle-top-grid` (Player / Allies / Enemies cards) hidden** via `display: none !important` in CSS — those cards duplicated info now living on tokens. JSX kept intact (no removal) so any logic still referencing it doesn't break.
-- **Lane tiles taller** (`min-height: 96px` desktop, 86 tablet, 76 mobile) to fit the new 78px+ rich tokens. Lane bar padding bumped 6→8.
-- **Action button text overflow fixed.** v47's button cards had `padding: 26px 8px 8px 8px` (top space for the `?` help chip) but their inner text used default `white-space` which clipped multi-line stat lines like "Dmg ... Cost ... Additional Effect ...". Fix: forced `white-space: normal !important; word-break: break-word !important; overflow: visible !important; line-height: 1.18` on `.battle-action-btn` + descendants, plus `min-height: 92px` (88 tablet, 76 mobile) and `height: auto` to let content expand.
-- All CSS in a single appended `v49 — LANE+ENTITY MERGER + ACTION BUTTON OVERFLOW FIX` block at end of `game.css` (~line 2380+). JSX touched only inside the lane render IIFE (~line 6973-7090) — added `entity` field to each token, `openEntityInfoPopup` helper, `renderRichToken` helper, and replaced the inline token map with a `renderRichToken` call.
 
 ### Future combat hooks (queued, not built)
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
@@ -336,3 +259,14 @@ User feedback: "change the background behind the map from that ugly tan to a fit
 - **Heading + coords** flipped to gold/cream with text-shadow for legibility against any of the 24 backgrounds.
 - All CSS in a single appended `v53 — TIME-OF-DAY SKY BACKGROUND` block at end of `game.css`. JSX touched in 2 spots: state declaration (~3222) and map render outer wrapper (~6940).
 - **PvP-ready**: pure cosmetic, no game-state change. Each client picks its own local hour — players in different timezones will see different skies, which actually reinforces the "personal scrying basin" lore.
+
+### v54 — Time-of-day phase indicator + world-tile tint harmony
+
+Companion polish to v53. The 24-hour sky cycle was shipping unnoticed because nothing in the UI told the player it was happening. v54 surfaces it and ties the world tiles to it.
+
+- **Phase badge** beside the "World" heading (~Game.jsx 6961). Pill with phase icon (🌙/🌅/🌇/etc), label in Cinzel small-caps gold ("Midnight" / "Sunrise" / "Golden hour" / ...) and a sub-line with local 12h clock + flavor descriptor ("12 AM · Deep night"). Tooltip explains "sky reflects your real time of day".
+- **Phase classification** lives in a `useMemo` next to `skyHour` (~Game.jsx 3224). 11 phases mapped from the 24 hours: midnight (0–3) → predawn (4–5) → sunrise (6–7) → morning (8–11) → noon (12) → afternoon (13–14) → golden (15–16) → sunset (17) → dusk (18–19) → twilight (20) → night (21–23). Each phase carries `{key, icon, label, short}`.
+- **Phase className on `.map-bg`** (`sky-phase-<key>`) drives a `--sky-tint` CSS variable + `--sky-glow` accent. The world map grid gets an `::after` glaze layer (`mix-blend-mode: soft-light`) that softly warms the tiles at golden hour, cools them at midnight, etc — harmonising the map terrain with whichever painted sky is rendering above. 1.6s ease transition between phases so the shift on hour rollover is gentle.
+- **Tile tokens stay above** via `.map-bg .battle-world-grid > * { z-index: 2 }` so player aura, POI ribbons, and click targets read normally.
+- All CSS in a single appended `v54 — TIME-OF-DAY PHASE INDICATOR + WORLD-TILE TINT HARMONY` block. JSX touched in 3 places (skyPhase/skyClock memos, map-bg className, head row).
+- **PvP-ready**: cosmetic only, no state shape change. Each player's local tint reflects their local hour.
