@@ -285,43 +285,154 @@ const BLOODMARKS = [
 // PNG icon path for bloodmarks (filenames match bm.id)
 const BM_ICON_PATH = (id) => (import.meta.env.BASE_URL || "/") + "bm/" + id + ".png";
 
-// Class-specific bloodmark archetypes — each class instantiates 4 of these.
-// Themed per class via cls.nm/cl/el. IDs encoded as cs_<classId>_<slot>.
-const CLASS_BM_TEMPLATES = [
-  { slot: 0, suffix: "Edge",    glyph: "⚔",
-    statKey: "atk", statBonus: 4, secondary: "lck", secondaryBonus: 1,
-    passive: "innate_strike",
-    flavor: (c) => "An innate technique imprinted by your " + c.nm + " bloodline. Each opening strike carries the lineage's full weight.",
-    desc:   (c) => c.nm + " Edge: First attack each battle deals +25% damage and cannot miss." },
-  { slot: 1, suffix: "Bulwark", glyph: "🛡",
-    statKey: "def", statBonus: 3, secondary: "hp", secondaryBonus: 25,
-    passive: "innate_guard",
-    flavor: (c) => "Your " + c.nm + " ancestors learned to densify the body the moment killing intent enters the room.",
-    desc:   (c) => c.nm + " Bulwark: When struck above 50% HP, gain a 12% damage shield for 1 turn." },
-  { slot: 2, suffix: "Tempo",   glyph: "⌁",
-    statKey: "spd", statBonus: 4, secondary: "lck", secondaryBonus: 2,
-    passive: "innate_tempo",
-    flavor: (c) => "An inherited cadence — the " + c.nm + " line acts on the seam between heartbeats.",
-    desc:   (c) => c.nm + " Tempo: 18% chance to act first regardless of speed comparison." },
-  { slot: 3, suffix: "Conduit", glyph: "✦",
-    statKey: "mag", statBonus: 3, secondary: "mp", secondaryBonus: 30,
-    passive: "innate_conduit",
-    flavor: (c) => "A signature unfolding. Your " + c.nm + " bloodline runs Veil energy at lower friction — most never feel it leave them.",
-    desc:   (c) => c.nm + " Conduit: All skills cost 1 less MP (minimum 1)." },
-];
+// v67 — Per-class innate bloodmarks. Each of the 21 classes ships 4 thematically
+// distinct passives (slots 0-3 ≈ offense / defense / tempo / magic), so no two
+// classes share the same flavor + effect combo at character creation.
+// Note: passive ids are display-only flavor (not battle-wired) — the slot-stat
+// math is what actually applies via projectedEffStatsFor.
+const CLASS_INNATES = {
+  paladin: [
+    { suffix:"Aegis Vow",     glyph:"⚔", st:{atk:4,lck:1}, ds:"A Paladin's first oath is sworn before the first blow lands.",                                       desc:"Aegis Vow: First strike each battle deals +30% damage and applies Expose for 2 turns." },
+    { suffix:"Sanctum Wall",  glyph:"🛡", st:{def:4,hp:30}, ds:"Holy steel densifies before the killing intent reaches the heart.",                                  desc:"Sanctum Wall: When struck above 50% HP, gain a 15% damage shield and Regen for 1 turn." },
+    { suffix:"Judgment Step", glyph:"⌁", st:{spd:3,lck:2}, ds:"A line of paladins answer summons before the call has finished sounding.",                          desc:"Judgment Step: 20% chance to act first; that opener cannot miss." },
+    { suffix:"Halo Channel",  glyph:"✦", st:{mag:3,mp:25}, ds:"Light skills run through a paladin's vow at lower friction than mortal channels allow.",            desc:"Halo Channel: Light and Metal skills cost 1 less MP and heal you for 5% of damage dealt." },
+  ],
+  assassin: [
+    { suffix:"Black Edge",    glyph:"⚔", st:{atk:5,lck:2}, ds:"A nightblade's first cut answers a question never asked aloud.",                                    desc:"Black Edge: First strike each battle is a guaranteed crit at +60% damage." },
+    { suffix:"Smoke Skin",    glyph:"🛡", st:{def:2,spd:2}, ds:"The body learns to be elsewhere the moment a blade arrives.",                                       desc:"Smoke Skin: 15% chance to fully evade any incoming attack." },
+    { suffix:"Twin Tempo",    glyph:"⌁", st:{spd:5,lck:2}, ds:"An inherited cadence — two heartbeats drum where one used to.",                                     desc:"Twin Tempo: 22% chance to act first; on first-strike turns, weapon attacks hit twice at 60% each." },
+    { suffix:"Venom Conduit", glyph:"✦", st:{mag:2,mp:25}, ds:"Dark passes through the line as easily as breath. Poison answers it.",                              desc:"Venom Conduit: Dark skills cost 1 less MP and have a 35% chance to apply Bleed." },
+  ],
+  sorcerer: [
+    { suffix:"Arcane Tip",    glyph:"⚔", st:{atk:2,lck:1,mag:2}, ds:"A first cast resolves before the foe's stance has fully closed.",                              desc:"Arcane Tip: First Veil Magic each battle deals +35% damage and ignores 25% magic defense." },
+    { suffix:"Spell Ward",    glyph:"🛡", st:{def:2,hp:20,mp:20}, ds:"Glyphs settle around the body when the killing intent is felt — automatic, half-conscious.",  desc:"Spell Ward: When struck above 50% HP, gain Barrier for 1 turn (reduces magic damage by 25%)." },
+    { suffix:"Quick Cast",    glyph:"⌁", st:{spd:3,mag:3,lck:1}, ds:"The sorcerous line acts on the seam between intention and incantation.",                       desc:"Quick Cast: 18% chance to act first; opener Veil Magic costs 0 MP." },
+    { suffix:"Mana Wellspring", glyph:"✦", st:{mag:4,mp:45}, ds:"A signature unfolding. Mana flows in this line the way blood flows in others.",                    desc:"Mana Wellspring: Recover 6 MP each turn and all skills cost 1 less MP (min 1)." },
+  ],
+  priest: [
+    { suffix:"Sun's Reproof", glyph:"⚔", st:{atk:2,mag:3,lck:1}, ds:"A priestly line strikes only when the strike is the mercy.",                                   desc:"Sun's Reproof: First Light skill each battle deals +30% damage and purges 1 enemy buff." },
+    { suffix:"Sanctified Body", glyph:"🛡", st:{def:3,hp:25,mp:15}, ds:"Sanctified flesh refuses what is not consecrated to it.",                                    desc:"Sanctified Body: When struck above 50% HP, cleanse 1 debuff and gain Fortify for 1 turn." },
+    { suffix:"Choir Cadence", glyph:"⌁", st:{spd:3,lck:2,mag:1}, ds:"The line moves to a hymn the body never had to learn.",                                        desc:"Choir Cadence: 18% chance to act first; on first-strike turns, healing is +25% effective." },
+    { suffix:"Grace Channel", glyph:"✦", st:{mag:4,mp:35}, ds:"Light passes through the priestly line in a way the assessors describe as wasteful and beautiful.",  desc:"Grace Channel: Heals cost 1 less MP and overheal becomes a Shield equal to 50% of the overheal." },
+  ],
+  ranger: [
+    { suffix:"Marked Quarrel",glyph:"⚔", st:{atk:4,spd:1,lck:1}, ds:"The hunter's line marks prey before the prey notices the line is there.",                      desc:"Marked Quarrel: First strike each battle applies Expose for 2 turns and deals +25% damage." },
+    { suffix:"Briar Skin",    glyph:"🛡", st:{def:3,hp:20,spd:1}, ds:"Nature wraps the body in thorn and gale, cheaply, automatically.",                            desc:"Briar Skin: When struck above 50% HP, attacker takes 12% of damage as Nature Thorns." },
+    { suffix:"Wind Step",     glyph:"⌁", st:{spd:5,lck:2}, ds:"The Ranger line acts on the wind's intake, not its exit.",                                          desc:"Wind Step: 22% chance to act first; on first-strike turns, weapon attacks ignore 30% DEF." },
+    { suffix:"Verdant Channel", glyph:"✦", st:{mag:2,mp:25,hp:15}, ds:"Nature and Wind move through the bloodline as cheaply as breath.",                           desc:"Verdant Channel: Nature and Wind skills cost 1 less MP and apply Poison on hit (30% chance)." },
+  ],
+  koen: [
+    { suffix:"Petal Strike",  glyph:"⚔", st:{atk:3,mag:3,lck:1}, ds:"Sien Risetsu's blazing twin opens with a bloom that catches the eye and the throat.",          desc:"Petal Strike: First strike each battle applies Burn (3 turns) and deals +25% damage." },
+    { suffix:"Smolder Guard", glyph:"🛡", st:{def:3,hp:20,mag:1}, ds:"The Risetsu line learned that an ember is a wall when held correctly.",                        desc:"Smolder Guard: When struck above 50% HP, gain 12% shield and burn the attacker for 8 fire damage." },
+    { suffix:"Bloom Cadence", glyph:"⌁", st:{spd:4,lck:2,mag:1}, ds:"Petal-fall rhythm — opening before the foe's stance has settled.",                             desc:"Bloom Cadence: 18% chance to act first; on first-strike turns, Fire skills become AoE at 70% power." },
+    { suffix:"Ash Conduit",   glyph:"✦", st:{mag:4,mp:30}, ds:"Fire and Nature pass through the Risetsu blood in a single inseparable braid.",                      desc:"Ash Conduit: Fire and Nature skills cost 1 less MP; Burn ticks deal +35% damage." },
+  ],
+  shouei: [
+    { suffix:"Mirror Cut",    glyph:"⚔", st:{atk:3,mag:2,lck:1}, ds:"Sien Risetsu's cold twin opens with a strike copied from a memory not its own.",               desc:"Mirror Cut: First strike each battle copies the most recent enemy attack at +30% power." },
+    { suffix:"Frost Skin",    glyph:"🛡", st:{def:4,hp:15,mp:15}, ds:"The Shōuei line meets a blow by lowering its temperature beneath the blow.",                  desc:"Frost Skin: When struck above 50% HP, gain Shield and apply Slow to attacker for 2 turns." },
+    { suffix:"Still Tempo",   glyph:"⌁", st:{spd:3,lck:2,mag:2}, ds:"A signature stillness — Shōuei moves only on the perfect frame.",                              desc:"Still Tempo: 20% chance to act first; on first-strike turns, copied skills cost 0 MP." },
+    { suffix:"Rime Conduit",  glyph:"✦", st:{mag:4,mp:35}, ds:"Ice and Water pass through the line as a single quiet substance.",                                   desc:"Rime Conduit: Ice/Water skills cost 1 less MP and have a 30% chance to Freeze." },
+  ],
+  phoenix: [
+    { suffix:"Cinder Edge",   glyph:"⚔", st:{atk:5,mag:1,lck:1}, ds:"Ash-forged steel learns to land harder when the wielder is closer to dying.",                  desc:"Cinder Edge: First strike each battle deals +25% damage; +50% if you are below 50% HP." },
+    { suffix:"Last Ember",    glyph:"🛡", st:{def:3,hp:35}, ds:"The Phoenix line never quite admits the body has fallen.",                                          desc:"Last Ember: First time you would die in battle, revive at 25% HP (once per battle)." },
+    { suffix:"Rebirth Tempo", glyph:"⌁", st:{spd:3,lck:2,hp:10}, ds:"After collapse, the body answers the next breath without asking the mind.",                    desc:"Rebirth Tempo: After being healed above 50% HP, your next attack gains +30% damage." },
+    { suffix:"Pyre Channel",  glyph:"✦", st:{mag:3,mp:25,atk:1}, ds:"Fire passes through the Phoenix line as freely as the breath that calls it.",                  desc:"Pyre Channel: Fire skills cost 1 less MP and apply Burn (3 turns) on hit." },
+  ],
+  chrono: [
+    { suffix:"Pre-Strike",    glyph:"⚔", st:{atk:3,spd:2,lck:1}, ds:"The Chronomancer line lands the hit on a frame that will exist in two heartbeats.",            desc:"Pre-Strike: First strike each battle resolves before any enemy action and applies Slow." },
+    { suffix:"Stutter Ward",  glyph:"🛡", st:{def:3,spd:2,mp:15}, ds:"Time skips, briefly, around the wounded body.",                                               desc:"Stutter Ward: When struck above 50% HP, 30% chance the attacker loses their next turn." },
+    { suffix:"Time Step",     glyph:"⌁", st:{spd:6,lck:2}, ds:"A inherited tempo that does not require permission from the present moment.",                        desc:"Time Step: 25% chance to act first; on first-strike turns, gain Haste for 2 turns." },
+    { suffix:"Temporal Channel", glyph:"✦", st:{mag:3,mp:30,spd:1}, ds:"Arcane and Gravity slip through the bloodline at a fraction of their usual cost.",          desc:"Temporal Channel: Arcane/Gravity skills cost 1 less MP and extend Slow on hit by 1 turn." },
+  ],
+  dream: [
+    { suffix:"Lucid Cut",     glyph:"⚔", st:{atk:2,mag:3,lck:2}, ds:"The Dreamweaver line opens by reminding the foe of a wound it has not yet received.",          desc:"Lucid Cut: First strike each battle deals +30% damage and applies Sleep (1 turn, 50% chance)." },
+    { suffix:"Veil Mind",     glyph:"🛡", st:{def:2,hp:15,mag:2}, ds:"The mind closes a door before the strike can reach the body's understanding.",                 desc:"Veil Mind: When struck above 50% HP, 25% chance the attack is treated as a miss." },
+    { suffix:"Dream Cadence", glyph:"⌁", st:{spd:3,lck:3,mag:1}, ds:"The line acts on a rhythm the foe is dreaming of, not the one it is keeping.",                 desc:"Dream Cadence: 18% chance to act first; first-strike turns apply Confuse on hit (40% chance)." },
+    { suffix:"Devourer's Channel", glyph:"✦", st:{mag:4,mp:35}, ds:"A splinter of the Dream Devourer runs through the bloodline, faintly hungry, always cheap.",   desc:"Devourer's Channel: Psychic/Null skills cost 1 less MP and drain 8 MP from the target on hit." },
+  ],
+  voidmage: [
+    { suffix:"Null Strike",   glyph:"⚔", st:{atk:2,mag:4,lck:1}, ds:"Void opens the engagement by removing the foe's protections from the world.",                 desc:"Null Strike: First Void skill each battle dispels all enemy buffs and deals +30% damage." },
+    { suffix:"Abyss Skin",    glyph:"🛡", st:{def:2,hp:15,mp:25}, ds:"The Void line answers killing intent by becoming briefly less here.",                          desc:"Abyss Skin: When struck above 50% HP, gain Barrier and reduce all incoming damage by 30% for 1 turn." },
+    { suffix:"Hollow Tempo",  glyph:"⌁", st:{spd:3,lck:2,mag:2}, ds:"The line moves on a rhythm none of the watchers can hear.",                                    desc:"Hollow Tempo: 18% chance to act first; on first-strike turns, target loses 10% max HP to Void burn." },
+    { suffix:"Void Conduit",  glyph:"✦", st:{mag:5,mp:40}, ds:"Void passes through the Void Mage line at almost no cost — the rest is the price the world pays.",  desc:"Void Conduit: Void skills cost 2 less MP (min 1) and apply Curse (40% chance) on hit." },
+  ],
+  rune: [
+    { suffix:"Seal Strike",   glyph:"⚔", st:{atk:4,def:1,mag:1}, ds:"The Runekeeper opens by carving a binding glyph into the foe's stance.",                       desc:"Seal Strike: First strike each battle applies Stun (1 turn) and deals +25% damage." },
+    { suffix:"Iron Bulwark",  glyph:"🛡", st:{def:5,hp:35}, ds:"The line's body is a fortress before the runes are even drawn.",                                     desc:"Iron Bulwark: When struck above 50% HP, gain Shield + Fortify for 2 turns." },
+    { suffix:"Glyph Cadence", glyph:"⌁", st:{spd:2,lck:2,def:2}, ds:"An inherited rhythm — measured, deliberate, impossible to interrupt.",                         desc:"Glyph Cadence: 15% chance to act first; first-strike turns are uninterruptible (immune to Stun/Silence for 1 turn)." },
+    { suffix:"Warding Channel", glyph:"✦", st:{mag:3,mp:25,def:1}, ds:"Earth and Metal pass through the line as cheaply as their elements allow.",                  desc:"Warding Channel: Earth/Metal skills cost 1 less MP; defensive buffs you cast last +1 turn." },
+  ],
+  bard: [
+    { suffix:"Opening Verse", glyph:"⚔", st:{atk:3,mag:2,lck:1}, ds:"The Bard line opens the song with the verse that ruins the listener.",                          desc:"Opening Verse: First strike each battle grants you Empower (2 turns) and deals +20% damage." },
+    { suffix:"Refrain Ward",  glyph:"🛡", st:{def:3,hp:15,mp:15}, ds:"A reprise of an inherited refrain — the body answers it without conscious thought.",            desc:"Refrain Ward: When struck above 50% HP, gain Shield and refresh 1 active buff." },
+    { suffix:"Crescendo Step",glyph:"⌁", st:{spd:4,lck:2,mag:1}, ds:"The Bard line moves on the downbeat the foe has not heard yet.",                                desc:"Crescendo Step: 20% chance to act first; on first-strike turns, all party buffs gain +1 turn." },
+    { suffix:"Resonance Channel", glyph:"✦", st:{mag:3,mp:30}, ds:"Sound and Wind move through the bloodline like a single carried note.",                          desc:"Resonance Channel: Sound/Wind skills cost 1 less MP and grant a random ally Haste (1 turn) on hit." },
+  ],
+  gravity: [
+    { suffix:"Crushing Open", glyph:"⚔", st:{atk:5,def:1}, ds:"The Graviton opens by adding worldweight to the foe's stance.",                                       desc:"Crushing Open: First strike each battle deals +30% damage and applies Slow for 2 turns." },
+    { suffix:"Anchor Skin",   glyph:"🛡", st:{def:5,hp:30}, ds:"The line's body refuses to be moved — by intent, by force, by gravity itself.",                       desc:"Anchor Skin: When struck above 50% HP, gain Fortify and immunity to displacement/back-step for 2 turns." },
+    { suffix:"Slow Tempo",    glyph:"⌁", st:{spd:1,lck:2,def:3}, ds:"A heavy line. It does not move first — it ensures nothing else moves at all.",                  desc:"Slow Tempo: When you act last in a turn, your action gains +25% damage." },
+    { suffix:"Worldweight Channel", glyph:"✦", st:{mag:3,mp:25,def:1}, ds:"Gravity passes through the bloodline as cheaply as the rest of the world resists it.",   desc:"Worldweight Channel: Gravity skills cost 1 less MP and have a 35% chance to Stun." },
+  ],
+  sound: [
+    { suffix:"First Note",    glyph:"⚔", st:{atk:2,mag:3,lck:2}, ds:"The Echo Mage opens the engagement on a frequency the foe's body cannot ignore.",               desc:"First Note: First Sound skill each battle applies Confuse and deals +25% damage." },
+    { suffix:"Echo Ward",     glyph:"🛡", st:{def:3,hp:15,mp:15}, ds:"The blow is reflected back through the air it traveled.",                                       desc:"Echo Ward: When struck above 50% HP, reflect 20% of the damage back at the attacker." },
+    { suffix:"Reverb Tempo",  glyph:"⌁", st:{spd:4,lck:2,mag:1}, ds:"The Echo line moves twice in the same standing wave.",                                          desc:"Reverb Tempo: 20% chance to act first; on first-strike turns, Sound damage skills hit twice at 60% each." },
+    { suffix:"Resonance Conduit", glyph:"✦", st:{mag:4,mp:30}, ds:"Sound passes through the bloodline as cheaply as breath that already knew the song.",            desc:"Resonance Conduit: Sound skills cost 1 less MP and have a 35% chance to Silence." },
+  ],
+  puppet: [
+    { suffix:"Thread Strike", glyph:"⚔", st:{atk:3,mag:2,lck:2}, ds:"The Puppeteer line opens by attaching a thread the foe will not be able to see.",               desc:"Thread Strike: First strike each battle applies Weaken (2 turns) and deals +25% damage." },
+    { suffix:"Marionette Skin", glyph:"🛡", st:{def:2,hp:15,mp:20}, ds:"A blow falls — but the body it falls on is not quite where the foe believed.",                 desc:"Marionette Skin: When struck above 50% HP, 25% chance to redirect the attack to a random enemy." },
+    { suffix:"Web Cadence",   glyph:"⌁", st:{spd:3,lck:2,mag:2}, ds:"The line moves on a tug only it has felt.",                                                     desc:"Web Cadence: 18% chance to act first; on first-strike turns, debuffs you apply last +1 turn." },
+    { suffix:"Soulthread Channel", glyph:"✦", st:{mag:3,mp:30}, ds:"Dark and Psychic pass through the bloodline like a pulled thread.",                              desc:"Soulthread Channel: Dark/Psychic skills cost 1 less MP and drain 6 HP from the target on hit." },
+  ],
+  tide: [
+    { suffix:"Undertow Open", glyph:"⚔", st:{atk:2,mag:3,lck:1}, ds:"The Tidesinger line opens by pulling the ground out from under the foe's footing.",             desc:"Undertow Open: First Water/Sound skill each battle applies Slow and deals +25% damage." },
+    { suffix:"Tide Skin",     glyph:"🛡", st:{def:3,hp:20,mp:15}, ds:"The body absorbs the strike the way a wave absorbs a stone.",                                   desc:"Tide Skin: When struck above 50% HP, heal 8% max HP and gain Regen for 2 turns." },
+    { suffix:"Current Cadence", glyph:"⌁", st:{spd:3,lck:2,mag:2}, ds:"The line moves the way water finds the lowest stone — without choosing.",                     desc:"Current Cadence: 18% chance to act first; on first-strike turns, healing is +30% effective." },
+    { suffix:"Hymn Channel",  glyph:"✦", st:{mag:4,mp:35}, ds:"Water and Sound pass through the bloodline like one continuous song.",                                desc:"Hymn Channel: Water/Sound skills cost 1 less MP and recover 4 MP per cast." },
+  ],
+  monk: [
+    { suffix:"Iron Fist",     glyph:"⚔", st:{atk:6,def:1}, ds:"The Iron Monk opens with a strike that has been practiced for four generations.",                     desc:"Iron Fist: First weapon strike each battle deals +35% damage and ignores 25% DEF." },
+    { suffix:"Stone Body",    glyph:"🛡", st:{def:4,hp:30}, ds:"The body has become its own discipline — a wall before the wall is needed.",                          desc:"Stone Body: When struck above 50% HP, gain a 15% damage shield and counter for 8 ATK." },
+    { suffix:"Sutra Tempo",   glyph:"⌁", st:{spd:3,lck:2,atk:2}, ds:"The line moves on a sutra the muscles already know.",                                           desc:"Sutra Tempo: 18% chance to act first; on first-strike turns, weapon strikes hit twice at 60% each." },
+    { suffix:"Earth Channel", glyph:"✦", st:{mag:2,mp:20,atk:1}, ds:"Earth runs through the monastic bloodline as cheaply as the body's breath.",                    desc:"Earth Channel: Earth skills cost 1 less MP and scale from ATK instead of MAG." },
+  ],
+  primal: [
+    { suffix:"Wild Open",     glyph:"⚔", st:{atk:3,mag:2,lck:2}, ds:"The Primal Shifter opens with whichever element answers first.",                                desc:"Wild Open: First strike each battle picks a random element and deals +30% damage." },
+    { suffix:"Beast Skin",    glyph:"🛡", st:{def:3,hp:20,spd:1}, ds:"The body shifts toward the form best suited to surviving the next blow.",                       desc:"Beast Skin: When struck above 50% HP, swap to the best-resisting elemental form for 2 turns (–25% damage taken)." },
+    { suffix:"Instinct Tempo",glyph:"⌁", st:{spd:4,lck:3}, ds:"The line moves on instinct that predates any of its ancestors.",                                      desc:"Instinct Tempo: 20% chance to act first; on first-strike turns, gain element advantage on the next skill." },
+    { suffix:"Shifting Channel", glyph:"✦", st:{mag:3,mp:30}, ds:"Whichever element is currently rolled passes through the bloodline at lower friction.",            desc:"Shifting Channel: Skills of your currently-shifted element cost 1 less MP and gain +10% power." },
+  ],
+  hexblade: [
+    { suffix:"Cursed Edge",   glyph:"⚔", st:{atk:4,mag:2,lck:1}, ds:"The Hexblade opens with a strike that leaves a debt on the foe.",                              desc:"Cursed Edge: First strike each battle applies Curse (3 turns) and deals +25% damage." },
+    { suffix:"Bleed Skin",    glyph:"🛡", st:{def:3,hp:20,mag:1}, ds:"The body answers a wound by passing the venom outward.",                                       desc:"Bleed Skin: When struck above 50% HP, the attacker takes 12 Poison damage per turn for 3 turns." },
+    { suffix:"Venom Tempo",   glyph:"⌁", st:{spd:3,lck:3,mag:1}, ds:"An inherited cadence — every beat lands a drop of poison.",                                    desc:"Venom Tempo: 18% chance to act first; on first-strike turns, attacks apply Poison (50% chance)." },
+    { suffix:"Hex Conduit",   glyph:"✦", st:{mag:3,mp:30}, ds:"Poison and Dark run through the bloodline cheaply, hungrily, on their own.",                         desc:"Hex Conduit: Poison/Dark skills cost 1 less MP; all DoT ticks deal +20% damage." },
+  ],
+  gambler: [
+    { suffix:"Loaded Strike", glyph:"⚔", st:{atk:3,lck:4}, ds:"The Gambler opens with a strike whose roll is already weighted in their favor.",                       desc:"Loaded Strike: First strike each battle is guaranteed a lucky roll (≥1.3× damage)." },
+    { suffix:"House Edge",    glyph:"🛡", st:{def:2,hp:15,lck:3}, ds:"The line's luck answers a hit before the body has to.",                                          desc:"House Edge: When struck above 50% HP, 25% chance to halve the damage taken." },
+    { suffix:"Snake Eyes Tempo", glyph:"⌁", st:{spd:3,lck:5}, ds:"An inherited cadence — the dice come up the way the line wants them to.",                          desc:"Snake Eyes Tempo: 22% chance to act first; on first-strike turns, your next roll is guaranteed ≥1.5×." },
+    { suffix:"Lucky Channel", glyph:"✦", st:{mag:2,mp:25,lck:2}, ds:"Arcane and Lightning pass through the bloodline at whichever cost the dice decide.",            desc:"Lucky Channel: Arcane/Lightning skills cost a random 0–2 MP less and crit chance is doubled." },
+  ],
+};
 function buildClassBloodmarks(cls) {
   if (!cls) return [];
-  return CLASS_BM_TEMPLATES.map(t => ({
-    id: "cs_" + cls.id + "_" + t.slot,
+  const list = CLASS_INNATES[cls.id];
+  if (!list) return [];
+  return list.map((t, i) => ({
+    id: "cs_" + cls.id + "_" + i,
     nm: cls.nm + " " + t.suffix,
     ic: t.glyph,
     cl: cls.cl,
     cs: true,
     classId: cls.id,
-    stat: { [t.statKey]: t.statBonus, [t.secondary]: t.secondaryBonus },
-    passive: t.passive,
-    ds: t.flavor(cls),
-    passiveDesc: t.desc(cls),
+    stat: t.st,
+    passive: "innate_" + cls.id + "_" + i,
+    ds: t.ds,
+    passiveDesc: cls.nm + " " + t.suffix + ": " + t.desc.replace(new RegExp("^" + t.suffix + ":\\s*"), ""),
   }));
 }
 function getBM(id) {
@@ -6457,7 +6568,7 @@ const buildGroupedBattleLog = (entries) => {
           </div>
           <div style={{ position: "relative", zIndex: 1, maxHeight: "56vh", overflowY: "auto", paddingRight: 4 }}>
             {pickedClass && <div className="bm-section">
-              <div className="bm-section-head"><span className="bm-section-pip" style={{ background: pickedClass.cl }} /><span className="bm-section-title" style={{ color: pickedClass.cl }}>★ Innate to {pickedClass.nm}</span><span className="bm-section-sub">— sealed in your bloodline alone</span></div>
+              <div className="bm-section-head"><span className="bm-section-pip" style={{ background: pickedClass.cl }} /><span className="bm-section-title" style={{ color: pickedClass.cl }}>★ Innate to {pickedClass.nm}</span></div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
                 {classBMs.map(bm => renderCard(bm, true))}
               </div>
