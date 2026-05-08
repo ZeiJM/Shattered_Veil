@@ -152,7 +152,6 @@ For full implementation details on any of these, see the corresponding `vNN — 
 - Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).
 - Player back-step interrupt when a melee enemy advances.
 - Per-skill `range` overrides (finer than the current el-based heuristic).
-- Music intensity layer — heartbeat tom on the active battle track when player HP < 30% (the scheduling model supports stacking instruments mid-loop).
 - Veilcourt covenant sub-channels + WebSocket upgrade.
 
 ## Compact change history (v30 – v39)
@@ -182,107 +181,13 @@ Earlier polish rounds, condensed. Refer back here when touching any of these are
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
 
-### v50 — Painted enemy portraits + element icons
+## Compact change history (v50 – v55)
 
-User ask: "generate proper images for enemies and implement, as well as new icons for all elements." Generated and wired 58 images.
+Most recent polish/depth rounds, condensed. Refer to git history for full diff context.
 
-- **18 element icons** (`public/el/<lower>.png`) — transparent painted sigil emblems for all 16 elements + Physical + Null. Style: gold-leaf heraldic rune with deep matte color matching parchment+navy palette. `removeBackground: true` for clean transparency over any context.
-- **40 boss portraits** (`public/boss/<bossKey>.png`) — head-and-shoulders painted JJK-flavored character busts for every named boss in `OUTPOST_BOSS_TEMPLATES` (20) and `RIFT_BOSS_TEMPLATES` (20). Each prompt baked a unique visual hook tied to the boss's name + element (e.g. `crownofice` = frostbitten queen with glacier-shard crown; `silkweave` = masked puppeteer with silver threads; `entropy` = shrouded cosmic horror with crown of collapsing stars).
-- **Generation cost**: all 58 images produced in **37 seconds, 0 failures** via 6 parallel `generateImage` calls (10 images per call) wrapped in `Promise.all` from a single `code_execution`.
-- **Wiring**:
-  - New `ELEMENT_ICON_PATH(el)` and `BOSS_PORTRAIT_PATH(key)` helpers (~line 23) plus `<ElementIcon el size />` component (~line 25) — img tag with `onError` fallback to the existing emoji map. Sized via `Math.max(10, Math.round(fontSize * 1.45))` so it scales with the surrounding tag.
-  - `ElementTag` (~line 470) now renders `<ElementIcon>` instead of the emoji span. Every battle/HUD/skill element badge picks this up automatically.
-  - Foe lane tokens (`livingFoes.forEach`, ~line 6998) carry a new `portraitSrc` field: boss portrait if `bossKey` exists, otherwise the element PNG.
-  - `renderRichToken` (~line 7062) renders `<img className="ent-portrait-img">` for foes (with `is-boss-portrait` modifier when `isBoss`); falls through to the original emoji path on error.
-  - Sorcerer Dossier popup (~line 7019) — portrait box bumped 56→72px and now shows the same painted portrait at full quality.
-- **CSS** (`v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS` block at end of `game.css`) — `.ent-portrait-img` `object-fit: cover` with subtle saturate/contrast lift; `.is-boss-portrait` adds a warm orange `drop-shadow`; foe portraits get a faint crimson tint border and amplified glow when targeted.
-- **bossKey contract** — already set by `mkOutpostBoss`/`mkRiftBoss` (line 2464+). Wild beasts (`BEASTS` array, 40 entries) intentionally untouched — they fall back to the element PNG which still gives a painted look without per-creature art. Future polish round can add per-beast portraits if desired.
-- **PvP-ready** — `bossKey` and `portraitSrc` are plain strings on the foe snapshot; serializable for live PvP opponent payloads.
-
-### v51 — Click-to-move world map + per-class auras
-
-User feedback: "remove the arrow buttons but leave the WSAD input. Now wherever you click, your character automatically trails and moves. Also make each class have a different starting aura effect that is fitting with the class theme."
-
-- **Arrow d-pad removed.** The 3×3 grid (N/S/E/W + center) collapsed to a single 64px circular floating action button. Same `.map-dpad-wrap` shell so the layout/positioning logic from v47 still applies, but the inner grid is now `map-dpad-solo` (flex column). Small "Click map · WASD" hint underneath.
-- **Click-to-walk auto-trail.** New `autoMoveTarget` state (~line 3230). Tile `onClick` (~line 6942) sets the target to the clicked coords. A new effect (~line 3960) runs a `setTimeout(160ms)` greedy-step: each tick picks the larger of `|dx|`/`|dy|` and calls `move(±1, 0)` or `move(0, ±1)` toward the target. Stops when reached, when `scr` leaves `"map"`, or when WASD is pressed.
-  - WASD handler updated to `setAutoMoveTarget(null)` before each manual step so player input always wins.
-  - Re-uses the existing `move()` 130ms throttle, ocean HP-loss, encounter rolls, fieldboss triggers, and Dream Devourer trigger — no behavioral changes to single-tile movement.
-  - POI tiles still don't auto-enter on arrival; the action button changes to "Enter" and waits for confirmation. Smart fallback for edge cases (POI is gated behind ocean, etc).
-- **Action button modes**: `is-moving` (red pulsing "Stop") cancels auto-walk; `is-poi` (gold "Enter"); `is-fish` (cyan "Fish" or countdown); `is-idle` (·).
-- **Per-class aura tints (21 classes).** Player tile gets `data-cls={pl?.cid || cls?.id}`. CSS variables `--aura-c1` (ring color), `--aura-c2` (inner pulse color), `--aura-spd` (rotation speed) overridden per class. Themes:
-  - paladin: warm gold radiance · assassin: blood-red shadow (fast 4s) · sorcerer: violet arcane · priest: white halo (tight ring) · ranger: forest green
-  - koen: silver moonlight · shouei: deep blue · phoenix: orange flame (3.5s, blurred) · chrono: cyan ticking conic dial (slow 9s) · dream: lavender shimmer
-  - voidmage: black void conic-gradient · rune: teal glyph · bard: pink sparkle · gravity: slate vortex (slow 8.5s, conic) · sound: aqua wave
-  - puppet: magenta · tide: ocean blue · monk: amber qi · primal: earthen brown · hexblade: crimson curse (4.5s, blurred) · gambler: gold-and-red mix
-  - Special overlays: phoenix/hexblade get blurred saturated bloom; voidmage/gravity get conic-gradient sectors instead of soft radial; chrono gets a 6-spoke conic dial; priest/paladin get a tighter brighter ring.
-- **Hover hint** on traversable tiles — gold outline + brightness lift to telegraph "click to walk".
-- All CSS in a single appended `v51 — CLICK-TO-MOVE WORLD MAP + PER-CLASS AURAS` block at end of `game.css`. JSX touched in 4 spots: state declaration, autoMove effect, WASD handler, tile onClick + `data-cls`, d-pad markup.
-- **PvP-ready**: `autoMoveTarget` is local to the client; opponents see only the resulting `pos` updates already broadcast by the existing movement system.
-
-### v52 — Wider map + left rail layout + double-click/Space POI entry
-
-User feedback: "the world map needs to be larger horizontally — too narrow. Move the legend to a side rail. Put the HP/MP/sound buttons next to the legend. Allow Space and double-click to enter POIs. Raise the map and shift things up for more immersion."
-
-- **Map widened.** `VW` 19→27, `VH` 11→13, `hfX` 9→13, `hfY` 5→6 (~Game.jsx line 6898). Aspect-ratio overridden in CSS to `27 / 13` (was `19 / 11` from v48), `max-height: min(72dvh, 660px)`. The map now actually fills the parchment area horizontally.
-- **2-column page-panel grid.** `.map-bg .page-panel` is now `display: grid; grid-template-columns: 168px minmax(0,1fr); grid-template-rows: auto 1fr;`. Header (World title + compass) spans full width on row 1. Row 2 is left rail (168px) + map (1fr).
-- **Left rail (`.map-side-rail`) holds**, top to bottom:
-  - **Big contextual ACTION button** (`.rail-action-btn`) — colored by state: gold pulsing for `is-poi` (Enter), cyan for `is-fish` (Fish/cooldown), red pulsing for `is-moving` (Stop), muted for `is-idle`. Replaces the floating bottom-right d-pad center button from v47/v51.
-  - **HP/MP/Sound triplet** (`.map-rail-quick`) — 3-col grid of small icon buttons.
-  - **Tile status card** — current biome or POI name.
-  - **Meta strip** — repel steps, guild mission progress, paid rumor lead.
-  - **Legend** (`.map-rail-legend`) — anchored at bottom of rail via `margin-top: auto`. 2-col compact pill grid when expanded.
-  - **Hint line** — "Click · DblClick · Space · WASD".
-- **Floating d-pad (`.map-dpad-wrap`) hidden** via `display: none !important` — its job is now done by the rail action button. JSX block removed entirely.
-- **Double-click to enter POI.** `onDoubleClick` on world tiles sets `autoEnterRef.current = true` along with `setAutoMoveTarget`. The autoMove effect on arrival checks the ref and calls `enterPoiRef.current()` via `setTimeout(80ms)` to give state a tick to settle. Single-click still walks (does NOT auto-enter), preserving v51 behavior.
-- **Space already enters POIs** via existing keydown handler — but only `enterPoi()` was being called, which previously bailed for hostile/outpost/rift types. v52 fix: `enterPoi` now self-routes those to `enterHostilePoi`/`enterRiftPoi` first, then delegates remaining types to a new internal `enterPoiInner`. Space now works for every POI category.
-- **Refs**: `autoEnterRef` (used by autoMove effect) and `enterPoiRef` (read inside the setTimeout closure to avoid TDZ since `enterPoi` is declared below the effect). `enterPoiRef.current = enterPoi` is reassigned each render right after `enterPoi`'s declaration — no useEffect needed since refs aren't deps.
-- **Mobile fallback** (`@media max-width: 720px`): rail flips to a flex-row above the map; map gets `max-height: min(50dvh, 380px)`.
-- **Short-screen tweaks** (`@media max-height: 720px`): map cap relaxes to `60dvh / 460px`; action button shrinks 14→12px, quick buttons 16→14px.
-- All CSS in a single appended `v52 — WIDER MAP + LEFT RAIL LAYOUT` block at end of `game.css`. JSX restructure in the map render block (~lines 6938–6991): wrapped grid in `.map-main-area`, replaced the floating d-pad + bottom status/legend with the new `<aside className="map-side-rail">`.
-- **PvP-ready**: layout/routing-only changes. No new state shape, no new fields on `pl` or `btl`. Entry pathways (`enterPoi`/`enterHostilePoi`/`enterRiftPoi`) unchanged — only their callers changed.
-
-### v53 — Time-of-day painted sky background (24 hourly variants)
-
-User feedback: "change the background behind the map from that ugly tan to a fitting picture... 24 possible background images, beautiful, immersive, representative of the world, dusk to dawn, swap based on real local time."
-
-- **24 painted Veilbound landscapes** in `public/sky/h00.png` ... `h23.png` (16:9, ~1MB each). Each one a torn-veil sky over the silhouette of a ruined sorcerer city, with hour-appropriate lighting:
-  - **00–04** deep night → pre-dawn (starfield, twin moons, void rift, false dawn indigo)
-  - **05–07** dawn → sunrise (gold seam, coral horizon, soft yellow morning)
-  - **08–11** clear morning → late morning (cerulean sky, painterly clouds, faint rift scar)
-  - **12–14** noon → afternoon (saturated blue, golden flood, lengthening shadows)
-  - **15–17** golden hour → sunset (amber-gold, layered fire sky, ruins haloed)
-  - **18–20** dusk → early night (crimson-violet, first stars, rift glowing pink-white)
-  - **21–23** night → late night (aurora curtains, full moon, magenta rift-roar)
-- **Hour state** (`skyHour`) initialised from `new Date().getHours()`, refreshed every 60s via setInterval (~Game.jsx line 3222). Only triggers a re-render when the hour actually changes.
-- **Layered like the battle arena** (~Game.jsx line 6940): a fixed `<div className="map-sky-img">` with `backgroundImage` set inline + a `<div className="map-sky-veil">` darkening overlay, both `z-index: 0`. UI wrapper sits at `z-index: 1`. Slow `mapSkyDrift` 60s ken-burns animation. Cross-fade `transition: opacity 1.2s ease` between hours.
-- **Parchment tan removed** from the map page-panel: `.map-bg .page-panel` now uses a translucent navy/violet glass with gold edges (preserves v52 grid layout + v37 gold hairline); `backdrop-filter: blur(2px)`. Map grid, log card, rail tile, legend pills all rebalanced to dark vellum so they read against the painted scene.
-- **Heading + coords** flipped to gold/cream with text-shadow for legibility against any of the 24 backgrounds.
-- All CSS in a single appended `v53 — TIME-OF-DAY SKY BACKGROUND` block at end of `game.css`. JSX touched in 2 spots: state declaration (~3222) and map render outer wrapper (~6940).
-- **PvP-ready**: pure cosmetic, no game-state change. Each client picks its own local hour — players in different timezones will see different skies, which actually reinforces the "personal scrying basin" lore.
-
-### v54 — Time-of-day phase indicator + world-tile tint harmony
-
-Companion polish to v53. The 24-hour sky cycle was shipping unnoticed because nothing in the UI told the player it was happening. v54 surfaces it and ties the world tiles to it.
-
-- **Phase badge** beside the "World" heading (~Game.jsx 6961). Pill with phase icon (🌙/🌅/🌇/etc), label in Cinzel small-caps gold ("Midnight" / "Sunrise" / "Golden hour" / ...) and a sub-line with local 12h clock + flavor descriptor ("12 AM · Deep night"). Tooltip explains "sky reflects your real time of day".
-- **Phase classification** lives in a `useMemo` next to `skyHour` (~Game.jsx 3224). 11 phases mapped from the 24 hours: midnight (0–3) → predawn (4–5) → sunrise (6–7) → morning (8–11) → noon (12) → afternoon (13–14) → golden (15–16) → sunset (17) → dusk (18–19) → twilight (20) → night (21–23). Each phase carries `{key, icon, label, short}`.
-- **Phase className on `.map-bg`** (`sky-phase-<key>`) drives a `--sky-tint` CSS variable + `--sky-glow` accent. The world map grid gets an `::after` glaze layer (`mix-blend-mode: soft-light`) that softly warms the tiles at golden hour, cools them at midnight, etc — harmonising the map terrain with whichever painted sky is rendering above. 1.6s ease transition between phases so the shift on hour rollover is gentle.
-- **Tile tokens stay above** via `.map-bg .battle-world-grid > * { z-index: 2 }` so player aura, POI ribbons, and click targets read normally.
-- All CSS in a single appended `v54 — TIME-OF-DAY PHASE INDICATOR + WORLD-TILE TINT HARMONY` block. JSX touched in 3 places (skyPhase/skyClock memos, map-bg className, head row).
-- **PvP-ready**: cosmetic only, no state shape change. Each player's local tint reflects their local hour.
-
-### v55 — Combat depth pass (boss charge, back-step interrupt, crit-damage gear, low-HP heartbeat)
-
-Four queued combat hooks shipped together. All additive — no state-shape break, no PvP regressions.
-
-- **Boss charge attack** (telegraph + execute). When a boss is at distance ≥ 3 with no `chargeCD`, 32% chance per turn to telegraph: this turn it deals **0 damage** and the log reads `🐉 <boss> coils for a devastating charge…`. Next turn, it advances straight to the player's lane and deals **×1.6 damage** with `💢 <boss> CHARGES across the field!`. Then `chargeCD = 3` so it can't spam. New per-enemy fields: `enemy.charging` (boolean) and `enemy.chargeCD` (counter). Bosses identified by the existing `enemy.boss` flag, so all 40 outpost/rift bosses get this for free.
-
-- **Player back-step interrupt** (counter to the boss charge). When a melee enemy advances on you AND `!btl.moved` AND `s2.spd > enemy.spd` AND `plPos < 2`, the player automatically retreats one lane (capped at lane 2): `🦶 You back-step the advance — <enemy> stalls!`. Consumes the player's free move for the turn (`btl.moved = true`) so it can't double-dip with a manual move. The advancing enemy holds its lane (ate the bait), losing the point-blank distance bonus next turn. Speed actually matters now.
-
-- **Crit damage from gear** (`crit_damage` fx). New armor effect added to the `enhanceFoundGear` random pool. Each piece worn adds **+15%** to the player crit multiplier (`1.5 → 1.65 → 1.80 → 1.95 → 2.10` at 4 pieces). Derived as `armorCritDmgBoost` next to the existing `armorCritChance` (`Game.jsx ~4540`). Wired into both crit paths: `attackWithWeapon` (line 4653) and skill damage (line 4845). Crit log now prints the actual multiplier (`💥 Critical hit! ×1.95`). FX_DESC entry added so equipment tooltips read `Crit damage: critical hits land harder (+15% per piece)`.
-
-- **Low-HP heartbeat intensity layer**. New `sfxHeartbeat` cue in `music.js` — slow lub-dub sub-bass pair (90Hz → 48Hz, then 110Hz → 60Hz). Triggered by a `setInterval(1400ms)` `useEffect` in `Game.jsx` (~line 3061) that fires only when `btl` is active, `btl.type !== "train"`, and `pl.chp / pl.mhp < 0.30`. Plays through the existing `sfxGain` bus so it respects SFX mute + volume settings. Layers under the active battle/boss music, giving a tangible audio cue when you're about to die.
-
-- **PvP-ready**: `chargeCD`, `charging`, `crit_damage` fx are all plain serializable fields. Back-step is fully client-side reactive — when PvP comes online, both clients evaluate the same condition independently from the same shared `btl` state.
-
-Files touched: `Game.jsx` (8 small edits, all behind `// v55` comments), `music.js` (1 added function + SFX_BANK entry).
+- **v50 — Painted enemy portraits + element icons.** Generated 58 images in 37s via 6 parallel `generateImage` calls: 18 transparent element sigils (`public/el/<el>.png`) + 40 boss portraits (`public/boss/<bossKey>.png`, one per `OUTPOST_BOSS_TEMPLATES` + `RIFT_BOSS_TEMPLATES`). New `ELEMENT_ICON_PATH(el)` / `BOSS_PORTRAIT_PATH(key)` helpers + `<ElementIcon>` component with `onError` emoji fallback. `ElementTag` and lane tokens auto-pick up the art. Foe lane tokens carry a `portraitSrc` field; `renderRichToken` renders `.ent-portrait-img` for foes (`.is-boss-portrait` modifier when boss). Sorcerer Dossier portrait box bumped 56→72px. CSS in `v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS` block. Wild beasts intentionally untouched (fall back to element PNG).
+- **v51 — Click-to-move world map + per-class auras.** Arrow d-pad collapsed to a single 64px floating action button. New `autoMoveTarget` state (~line 3230); tile `onClick` sets target, a `setTimeout(160ms)` greedy-step effect calls `move(±1, 0)` toward it. WASD always wins (`setAutoMoveTarget(null)` before each manual step). POIs don't auto-enter — action button changes to "Enter" and waits. Per-class aura tints for all 21 classes via `data-cls` + CSS variables `--aura-c1 / --aura-c2 / --aura-spd` (paladin gold, assassin red, sorcerer violet, etc). Special overlays: phoenix/hexblade blurred bloom; voidmage/gravity conic-gradient sectors; chrono 6-spoke dial. Hover hint on traversable tiles. CSS in `v51 — CLICK-TO-MOVE WORLD MAP + PER-CLASS AURAS` block.
+- **v52 — Wider map + left rail layout + dblclick/Space POI entry.** `VW` 19→27, `VH` 11→13. Map page-panel becomes a 2-col grid: 168px left rail + 1fr map. Rail holds (top→bottom): big contextual ACTION button (gold pulse for POI, cyan for fish, red for stop), HP/MP/Sound triplet, tile status card, meta strip (repel/missions/rumor), bottom-anchored legend, hint line. Floating d-pad hidden via CSS. `onDoubleClick` sets `autoEnterRef.current = true` + autoMoveTarget — on arrival, autoMove effect calls `enterPoiRef.current()` via `setTimeout(80ms)`. `enterPoi` now self-routes hostile/outpost/rift types so Space works for every POI category. Mobile fallback: rail flips to flex-row above map. CSS in `v52 — WIDER MAP + LEFT RAIL LAYOUT` block.
+- **v53 — Time-of-day painted sky background.** 24 painted Veilbound landscapes in `public/sky/h00.png ... h23.png` (16:9, ~1MB each), torn-veil skies over silhouettes of ruined sorcerer cities, hour-appropriate lighting (deep night → dawn → noon → golden hour → sunset → dusk → night). `skyHour` initialised from `new Date().getHours()`, refreshed every 60s. Layered like battle arena: fixed `.map-sky-img` (background-image inline) + `.map-sky-veil` darkening overlay, both `z-index: 0`. Slow 60s ken-burns drift, 1.2s opacity crossfade between hours. Parchment tan replaced with translucent navy/violet glass + gold edges + `backdrop-filter: blur(2px)`. CSS in `v53 — TIME-OF-DAY SKY BACKGROUND` block.
+- **v54 — Time-of-day phase indicator + world-tile tint harmony.** Phase badge beside "World" heading: pill with phase icon, Cinzel gold label ("Midnight" / "Sunrise" / "Golden hour" / ...), sub-line with local 12h clock + flavor. 11 phases mapped from 24 hours via `useMemo` next to `skyHour` (midnight 0–3 → predawn 4–5 → sunrise 6–7 → morning 8–11 → noon 12 → afternoon 13–14 → golden 15–16 → sunset 17 → dusk 18–19 → twilight 20 → night 21–23). `sky-phase-<key>` className on `.map-bg` drives `--sky-tint` + `--sky-glow` CSS vars. World grid gets an `::after` glaze layer (`mix-blend-mode: soft-light`) — warms tiles at golden hour, cools them at midnight. Tile tokens stay above via `z-index: 2`. CSS in `v54 — TIME-OF-DAY PHASE INDICATOR + WORLD-TILE TINT HARMONY` block.
+- **v55 — Combat depth pass.** Four queued combat hooks shipped together, all additive. **Boss charge attack**: at distance ≥ 3 with no `chargeCD`, 32% chance to telegraph (`🐉 coils for a devastating charge…`, 0 damage that turn). Next turn boss advances to player's lane and hits ×1.6 (`💢 CHARGES`); 3-turn cooldown. New fields: `enemy.charging`, `enemy.chargeCD`. Wired via existing `enemy.boss` flag — all 40 outpost/rift bosses get it free. **Back-step interrupt**: when a melee enemy advances AND `!btl.moved` AND `s2.spd > enemy.spd` AND `plPos < 2`, player auto-retreats one lane (`🦶 You back-step the advance`); enemy holds lane (lost point-blank bonus); consumes the free move. **Crit damage from gear** (`crit_damage` fx): new armor effect, +15% per piece to crit multiplier (1.5 → 2.10 at 4 pieces). Derived as `armorCritDmgBoost` next to `armorCritChance` (~4540), wired into weapon (4653) + skill (4845) crit paths. Crit log now shows actual multiplier. **Low-HP heartbeat**: new `sfxHeartbeat` cue in `music.js` (lub-dub sub-bass, 90→48Hz / 110→60Hz). `useEffect` `setInterval(1400ms)` plays it when `btl && btl.type !== "train" && pl.chp/pl.mhp < 0.30`. Routes through existing `sfxGain` bus.
