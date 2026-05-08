@@ -3053,19 +3053,6 @@ function Game() {
     const t = trackForScreen(scr, { battleType: btl?.type });
     if (t) musicRef.current.play(t);
   }, [scr, btl?.type]);
-  // v55: low-HP heartbeat intensity layer — when in battle and HP under 30%, a
-  // slow lub-dub sub-bass plays every 1.4s on top of the existing battle track.
-  useEffect(() => {
-    if (!btl || btl.type === "train") return;
-    const id = setInterval(() => {
-      const cur = pl?.chp || 0;
-      const max = pl?.mhp || pl?.hp || 1;
-      if (max > 0 && cur > 0 && (cur / max) < 0.30) {
-        try { musicRef.current.playSfx("heartbeat"); } catch {}
-      }
-    }, 1400);
-    return () => clearInterval(id);
-  }, [btl, pl?.chp, pl?.mhp]);
   const toggleMusicMute = useCallback(() => {
     const next = !musicRef.current.isMuted();
     musicRef.current.setMuted(next);
@@ -3097,6 +3084,20 @@ function Game() {
   const [pet, setPet] = useState(null);
   const [ally, setAlly] = useState(null);
   // btl declared earlier (above music hooks) so audio can react to btl?.type
+  // v55: low-HP heartbeat intensity layer — when in battle and HP under 30%, a
+  // slow lub-dub sub-bass plays every 1.4s on top of the existing battle track.
+  // (must live below `pl` declaration to avoid TDZ)
+  useEffect(() => {
+    if (!btl || btl.type === "train") return;
+    const id = setInterval(() => {
+      const cur = pl?.chp || 0;
+      const max = pl?.mhp || pl?.hp || 1;
+      if (max > 0 && cur > 0 && (cur / max) < 0.30) {
+        try { musicRef.current.playSfx("heartbeat"); } catch {}
+      }
+    }, 1400);
+    return () => clearInterval(id);
+  }, [btl, pl?.chp, pl?.mhp]);
   const [log, setLog] = useState([]);
   const [noti, setNoti] = useState(null);
   const [sub, setSub] = useState(null);
