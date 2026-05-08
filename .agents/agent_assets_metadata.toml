@@ -972,3 +972,63 @@ id = "5l4tK8PmHboGM1Gz204So"
 uri = "file://artifacts/shattered-veil/public/ui/music.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "p72p1PjiSh_EMCWCLKq7N"
+uri = "file://artifacts/shattered-veil/public/battle/biome-plains.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dhSdQUGu6D46clSUbI4Xa"
+uri = "file://artifacts/shattered-veil/public/battle/biome-forest.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oqXn5nLUBCTWIvnzR9SBd"
+uri = "file://artifacts/shattered-veil/public/battle/biome-mountain.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "FUytRWTX2QGvS0oWX9GQx"
+uri = "file://artifacts/shattered-veil/public/battle/biome-desert.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "TNOET7WRxxBYLAtttCK5Z"
+uri = "file://artifacts/shattered-veil/public/battle/biome-snow.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "CxwpTo2X9iwWM-8NqueEc"
+uri = "file://artifacts/shattered-veil/public/battle/biome-swamp.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "YfzkU1tisMsX3nfj9eSn5"
+uri = "file://artifacts/shattered-veil/public/battle/biome-coast.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "N1Z7GONg4H22K0HbVaDw8"
+uri = "file://artifacts/shattered-veil/public/battle/biome-volcanic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Yv0qi69x6KMQCDCz3GtqC"
+uri = "file://artifacts/shattered-veil/public/battle/biome-void.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "pNQ_o9AJItC3CWYEyk3wV"
+uri = "file://artifacts/shattered-veil/public/battle/biome-jungle.png"
+type = "image"
+title = "generated_image"

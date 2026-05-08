@@ -3269,8 +3269,32 @@ function Game() {
   const [paidRumorCycle, setPaidRumorCycle] = useState(-1);
   // Battle panels
   const [btlPanel, setBtlPanel] = useState(null);
-  const [battleSection, setBattleSection] = useState("veil");
-  const battleSectionAvailable = (key, ctx) => key === "veil" || key === "combat" || (key === "items" && ctx.hasItems) || (key === "aux" && ctx.isPT);
+  const [battleSection, setBattleSection] = useState("combat");
+  const battleSectionAvailable = (key, ctx) => key === "veil" || key === "combat" || (key === "items" && ctx.hasItems);
+  // v66 — biome-aware battle backdrop picker
+  const BATTLE_BIOME_BGS = useMemo(() => new Set(["plains","forest","mountain","desert","snow","swamp","coast","volcanic","void","jungle"]), []);
+  const battleBgUrl = useMemo(() => {
+    if (!btl) return null;
+    const base = import.meta.env.BASE_URL || "/";
+    if (btl.type === "rift" || btl.type === "boss" || btl.type === "fieldboss") {
+      try { const idx = (pl?.y ?? 0) * 300 + (pl?.x ?? 0); const b = mData?.[idx]?.bio; if (b === "void") return base + "battle/biome-void.png"; } catch (_) {}
+      return base + "battle-rift.png";
+    }
+    try {
+      const idx = (pl?.y ?? 0) * 300 + (pl?.x ?? 0);
+      const b = mData?.[idx]?.bio;
+      if (b && BATTLE_BIOME_BGS.has(b)) return base + "battle/biome-" + b + ".png";
+    } catch (_) {}
+    if (btl.type === "wild" || btl.type === "beast") return base + "battle-forest.png";
+    return base + "battle-arena.png";
+  }, [btl, pl?.x, pl?.y, mData, BATTLE_BIOME_BGS]);
+  // Per-battle deterministic visual seed for subtle variety (parallax shift, hue rotate)
+  const battleBgSeed = useMemo(() => {
+    if (!btl) return { dx: 0, dy: 0, hue: 0, scale: 1 };
+    const t = (btl.tn || 0) * 17 + ((pl?.x || 0) * 31) + ((pl?.y || 0) * 53) + ((btl.en?.[0]?.id || 0) * 7);
+    const r = (n) => ((Math.sin(n) + 1) / 2);
+    return { dx: Math.round((r(t) - 0.5) * 8), dy: Math.round((r(t * 1.3) - 0.5) * 6), hue: Math.round((r(t * 1.7) - 0.5) * 24), scale: 1.04 + r(t * 2.1) * 0.08 };
+  }, [btl, pl?.x, pl?.y]);
   const [btlTarget, setBtlTarget] = useState(null); // enemy id to target
   const [btlTimer, setBtlTimer] = useState(0); // battle timer in seconds
   const [campCDs, setCampCDs] = useState({}); // {x_y: timestamp}
@@ -7259,7 +7283,7 @@ const buildGroupedBattleLog = (entries) => {
     const spdColor = (spd) => spd >= maxBattleSpd ? T.ok : T.bad;
     return (
       <div className="pg battle-bg">
-        <div className="battle-arena-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}${(btl.type === "rift" || btl.type === "boss" || btl.type === "fieldboss") ? "battle-rift.png" : (btl.type === "wild" || btl.type === "beast") ? "battle-forest.png" : "battle-arena.png"}')` }} />
+        <div className="battle-arena-img" style={{ backgroundImage: `url('${battleBgUrl}')`, transform: `translate(${battleBgSeed.dx}px, ${battleBgSeed.dy}px) scale(${battleBgSeed.scale})`, filter: `hue-rotate(${battleBgSeed.hue}deg) saturate(1.05)` }} />
         <div className="battle-arena-veil" />
         <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
@@ -7476,20 +7500,21 @@ const buildGroupedBattleLog = (entries) => {
                 <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "Pick an action region." : "Await enemy actions."}</span>
               </div>
               {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [
-                { id: "veil",   ic: "✦",   nm: "Veil Magic",  ct: eqSk.length },
-                { id: "combat", ic: "⚔",   nm: "Combat",       ct: 2 + (eq.w2 ? 1 : 0) + (copied && copyN > 0 ? 1 : 0) + (pl.ult.ready ? 1 : 0) },
+                { id: "combat", ic: "⚔",   nm: "Combat Actions", ct: 2 + (eq.w2 ? 1 : 0) + (copied && copyN > 0 ? 1 : 0) + (pl.ult.ready ? 1 : 0) },
+                { id: "veil",   ic: "✦",   nm: "Veil Magic",     ct: eqSk.length },
                 ...(hasItems ? [{ id: "items", ic: "🧪", nm: "Items", ct: (eq.c1 ? 1 : 0) + (eq.c2 ? 1 : 0) }] : []),
-                ...(isPT ? [{ id: "aux",    ic: "⚙",   nm: "Aux", ct: null }] : []),
-              ]; const active = battleSectionAvailable(battleSection, { hasItems, isPT }) ? battleSection : "veil"; return (
-                <div className="battle-tabs" role="tablist">
-                  {tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={active === t.id} className={"battle-tab" + (active === t.id ? " is-active" : "")} onClick={() => setBattleSection(t.id)}>
+              ]; const active = battleSectionAvailable(battleSection, { hasItems, isPT }) ? battleSection : "combat"; return (
+                <div className="battle-tabs v66" role="tablist">
+                  {tabs.map(t => <button key={t.id} type="button" role="tab" aria-selected={active === t.id} className={"battle-tab v66 tab-" + t.id + (active === t.id ? " is-active" : "")} onClick={() => setBattleSection(t.id)}>
+                    <span className="battle-tab-glow" />
                     <span className="battle-tab-ic">{t.ic}</span>
                     <span className="battle-tab-nm">{t.nm}</span>
                     {t.ct != null && <span className="battle-tab-ct">{t.ct}</span>}
+                    <span className="battle-tab-underline" />
                   </button>)}
                 </div>
               ); })()}
-              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "veil") === "veil" ? "block" : "none" }}>
+              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "combat") === "veil" ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Veil Magic</span><span style={{ fontSize: 7, color: T.dm }}>{eqSk.length} equipped</span></div>
                 <div className="battle-action-grid">
                   {eqSk.map((sk, i) => {
@@ -7511,7 +7536,7 @@ const buildGroupedBattleLog = (entries) => {
                   })}
                 </div>
               </div>
-              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "veil") === "combat" ? "block" : "none" }}>
+              <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "combat") === "combat" ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span><span style={{ fontSize: 7, color: T.dm }}>Basic actions</span></div>
                 <div className="battle-action-grid">
                   <div className="battle-action-card-wrap">
@@ -7580,7 +7605,7 @@ const buildGroupedBattleLog = (entries) => {
                   </button><button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.c2.nm, "Null"), fullscreen: true }); }}>?</button></div>}
                 </div>
               </div>}
-              {isPT && <div className="battle-section" style={{ display: battleSection === "aux" ? "block" : "none" }} data-battle-aux>
+              {isPT && <div className="battle-section battle-aux-shared" data-battle-aux>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Auxiliary Actions</span><span style={{ fontSize: 7, color: T.dm }}>Loadout changes end turn</span></div>
                 <div className="battle-aux-row">
                   <button className="bt bs" style={{ background: btlPanel === "items" ? "#3486ff" : "#203867" }} onClick={() => setBtlPanel(btlPanel === "items" ? null : "items")}>🧪 Equip Item</button>

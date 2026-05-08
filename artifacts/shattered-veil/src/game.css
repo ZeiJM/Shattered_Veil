@@ -4828,3 +4828,232 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .hud-veilcourt-badge { animation: none; }
   .veilcourt-portrait-btn { transition: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v66 — COMBAT CANVAS REDESIGN + BIOME BACKDROPS + TITLE TRANSPARENCY
+   • Battle backdrop now driven by biome (10 painted variants) + subtle parallax
+   • Action cards/log/lane bar gain glassmorphism so the painted scene shows through
+   • Tabs redesigned: hex-clip icon, animated underline, per-tab accent glow
+   • Aux row docked at the bottom of every tab (no separate Aux tab)
+   • Title screen card lightened so the painted hero artwork reads through
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop layering — slow ken-burns drift ─────────────────────────────── */
+.battle-bg .battle-arena-img {
+  transition: transform 1.6s cubic-bezier(.22,.85,.36,1), filter 1.6s ease, background-image 0.5s ease;
+  will-change: transform, filter;
+}
+.battle-bg .battle-arena-veil {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(148,26,26,0.16) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(8,12,28,0.85) 0%, rgba(8,12,28,0.55) 60%, transparent 100%),
+    linear-gradient(180deg, rgba(6,10,24,0.40) 0%, rgba(6,10,24,0.25) 50%, rgba(6,10,24,0.55) 100%) !important;
+}
+
+/* ── Glassmorph cards on the battle screen ─────────────────────────────────── */
+.battle-bg .battle-actions-card,
+.battle-bg .battle-info-card,
+.battle-bg .battle-log-card {
+  background:
+    linear-gradient(165deg, rgba(12,18,40,0.62) 0%, rgba(8,12,28,0.74) 100%) !important;
+  border: 1px solid rgba(212,173,64,0.32) !important;
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  box-shadow:
+    0 12px 38px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(212,173,64,0.10),
+    inset 0 1px 0 rgba(255,240,200,0.10) !important;
+  position: relative;
+  overflow: hidden;
+}
+.battle-bg .battle-actions-card::before,
+.battle-bg .battle-info-card::before,
+.battle-bg .battle-log-card::before {
+  content: "";
+  position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,220,140,0.55), rgba(212,54,54,0.40), rgba(255,220,140,0.55), transparent);
+  pointer-events: none;
+}
+.battle-bg .battle-section {
+  background: rgba(8,12,28,0.30) !important;
+  border-color: rgba(212,173,64,0.18) !important;
+}
+.battle-bg .battle-lane {
+  background: linear-gradient(180deg, rgba(8,12,28,0.55), rgba(4,8,20,0.72)) !important;
+  border: 1px solid rgba(212,173,64,0.20);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+.battle-bg .battle-entity-row {
+  background: linear-gradient(165deg, rgba(14,20,42,0.78), rgba(8,12,28,0.92)) !important;
+  border: 1px solid rgba(120,140,200,0.22) !important;
+}
+
+/* ── Redesigned tabs ──────────────────────────────────────────────────────── */
+.battle-bg .battle-tabs.v66 {
+  display: flex;
+  gap: 6px;
+  padding: 6px 4px 0;
+  margin: 2px 0 6px;
+  position: relative;
+  border-bottom: 1px solid rgba(212,173,64,0.18);
+}
+.battle-bg .battle-tab.v66 {
+  --tab-c1: #d4ad40;
+  --tab-c2: #a87f1a;
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 10px 9px !important;
+  background: linear-gradient(180deg, rgba(14,20,42,0.55), rgba(8,12,28,0.78)) !important;
+  border: 1px solid rgba(120,140,200,0.20) !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 2px 2px !important;
+  color: #cfd6ee !important;
+  font-family: 'Cinzel', serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  overflow: hidden;
+  transition: color 0.18s ease, transform 0.15s ease, background 0.18s ease;
+  isolation: isolate;
+}
+/* Per-tab accent palette */
+.battle-bg .battle-tab.v66.tab-combat { --tab-c1: #ff8a55; --tab-c2: #d43636; }
+.battle-bg .battle-tab.v66.tab-veil   { --tab-c1: #c2a8ff; --tab-c2: #6b3aff; }
+.battle-bg .battle-tab.v66.tab-items  { --tab-c1: #7fffa3; --tab-c2: #2bb785; }
+
+.battle-bg .battle-tab.v66 .battle-tab-glow {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 110%, var(--tab-c1) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+.battle-bg .battle-tab.v66 .battle-tab-ic {
+  display: inline-flex;
+  width: 26px; height: 26px;
+  align-items: center; justify-content: center;
+  font-size: 14px;
+  background: linear-gradient(160deg, rgba(20,28,56,0.85), rgba(6,10,24,0.95));
+  border: 1px solid rgba(212,173,64,0.30);
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  color: var(--tab-c1);
+  text-shadow: 0 0 6px rgba(0,0,0,0.55);
+  transition: transform 0.25s ease, color 0.18s ease, background 0.18s ease;
+}
+.battle-bg .battle-tab.v66 .battle-tab-nm {
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.65);
+  white-space: nowrap;
+}
+.battle-bg .battle-tab.v66 .battle-tab-ct {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0;
+  color: #1a1206;
+  background: linear-gradient(180deg, var(--tab-c1), var(--tab-c2));
+  border: 1px solid rgba(0,0,0,0.45);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.30), 0 1px 3px rgba(0,0,0,0.45);
+}
+.battle-bg .battle-tab.v66 .battle-tab-underline {
+  position: absolute;
+  left: 12%; right: 12%; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--tab-c1), var(--tab-c2), var(--tab-c1), transparent);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.28s cubic-bezier(.22,.85,.36,1), box-shadow 0.25s ease;
+  box-shadow: 0 0 0 rgba(212,173,64,0);
+}
+
+.battle-bg .battle-tab.v66:hover {
+  color: #f5e8b8 !important;
+  background: linear-gradient(180deg, rgba(20,28,56,0.75), rgba(10,16,36,0.88)) !important;
+  border-color: var(--tab-c1) !important;
+}
+.battle-bg .battle-tab.v66:hover .battle-tab-glow { opacity: 0.18; }
+.battle-bg .battle-tab.v66:hover .battle-tab-ic { transform: rotate(-6deg) scale(1.06); color: #fff7c8; background: linear-gradient(160deg, var(--tab-c1), var(--tab-c2)); }
+
+.battle-bg .battle-tab.v66.is-active {
+  color: #fff7c8 !important;
+  background: linear-gradient(180deg, rgba(28,38,72,0.92), rgba(14,20,42,0.92)) !important;
+  border-color: var(--tab-c1) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 -4px 18px rgba(0,0,0,0.45), 0 0 22px rgba(212,173,64,0.18);
+}
+.battle-bg .battle-tab.v66.is-active .battle-tab-glow { opacity: 0.32; }
+.battle-bg .battle-tab.v66.is-active .battle-tab-ic {
+  background: linear-gradient(160deg, var(--tab-c1), var(--tab-c2));
+  color: #fff7c8;
+  border-color: var(--tab-c1);
+  box-shadow: 0 0 14px rgba(255,220,140,0.45);
+}
+.battle-bg .battle-tab.v66.is-active .battle-tab-underline {
+  transform: scaleX(1);
+  box-shadow: 0 0 12px var(--tab-c1);
+}
+
+/* ── Aux row — docked at the bottom of every tab ──────────────────────────── */
+.battle-bg .battle-section.battle-aux-shared {
+  display: block !important;
+  margin-top: 8px !important;
+  padding: 6px 7px !important;
+  background: linear-gradient(180deg, rgba(8,12,28,0.50), rgba(4,8,20,0.70)) !important;
+  border-top: 1px dashed rgba(212,173,64,0.28) !important;
+  border-radius: 0 0 8px 8px !important;
+}
+.battle-bg .battle-section.battle-aux-shared .battle-section-title {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 5px;
+  opacity: 0.85;
+}
+.battle-bg .battle-aux-row .bt {
+  font-family: 'Cinzel', serif !important;
+  font-size: 10px !important;
+  letter-spacing: 0.03em;
+  border: 1px solid rgba(212,173,64,0.30) !important;
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.10), 0 2px 6px rgba(0,0,0,0.35) !important;
+  transition: transform 0.12s ease, box-shadow 0.18s ease;
+}
+.battle-bg .battle-aux-row .bt:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.18), 0 4px 10px rgba(0,0,0,0.45), 0 0 12px rgba(212,173,64,0.30) !important;
+}
+
+/* Hide on narrow screens — show only icons */
+@media (max-width: 540px) {
+  .battle-bg .battle-tab.v66 .battle-tab-nm { display: none; }
+  .battle-bg .battle-tab.v66 { padding: 6px 4px 7px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .battle-bg .battle-arena-img { transition: none !important; }
+  .battle-bg .battle-tab.v66, .battle-bg .battle-tab.v66 .battle-tab-ic, .battle-bg .battle-tab.v66 .battle-tab-underline { transition: none !important; }
+}
+
+/* ── Title screen — let the painted hero artwork breathe through ──────────── */
+.title-bg .cd, .title-bg-art .cd {
+  background:
+    linear-gradient(165deg, rgba(10,14,32,0.55) 0%, rgba(6,10,24,0.62) 60%, rgba(4,8,20,0.70) 100%) !important;
+  border: 1px solid rgba(212,173,64,0.32) !important;
+  backdrop-filter: blur(6px) saturate(1.08);
+  -webkit-backdrop-filter: blur(6px) saturate(1.08);
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(212,173,64,0.10),
+    inset 0 1px 0 rgba(255,240,200,0.10) !important;
+}
+.title-bg::before, .create-bg::before {
+  background: linear-gradient(180deg, rgba(6,10,24,0.18) 0%, rgba(6,10,24,0.32) 60%, rgba(6,10,24,0.55) 100%) !important;
+}
