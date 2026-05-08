@@ -6156,19 +6156,25 @@ const buildGroupedBattleLog = (entries) => {
         <p className="title-tagline">The sky tore open a hundred years ago. The dead walked out of it. <span style={{ color: T.gd, fontStyle: "normal" }}>You inherited what bled through.</span></p>
         <div className="title-pillars">
           {[
-            { ic: "⚔", nm: "16 Sorcerer Classes", ds: "Phoenix monks, mirror-puppet duelists, void-bound runeweavers" },
-            { ic: "✦", nm: "8 Bloodmarks", ds: "Innate techniques carved into your bloodline" },
-            { ic: "🌀", nm: "Unfolded Territories", ds: "Walk into a domain. Survive its rules" },
-            { ic: "🏛", nm: "5 Rival Covenants", ds: "Pledge a faction. Inherit its enemies" },
-            { ic: "🗺", nm: "Continent of the Veil", ds: "300² tiles of ruined towns, drifting rifts, roaming bosses" },
-            { ic: "👑", nm: "Bloodline Succession", ds: "Die. Pass the mark to an heir. Begin stronger" },
-          ].map((p, i) => <div key={p.nm} className="title-pillar" style={{ animationDelay: (0.18 + i * 0.07) + "s" }}>
-            <div className="title-pillar-ic">{p.ic}</div>
-            <div className="title-pillar-nm">{p.nm}</div>
+            { id: "classes",   ic: "⚔", sg: "❖", nm: "16 Sorcerer Classes",   ds: "Phoenix monks, mirror-puppet duelists, void-bound runeweavers" },
+            { id: "bloodmark", ic: "✦", sg: "❈", nm: "8 Bloodmarks",            ds: "Innate techniques carved into your bloodline" },
+            { id: "domain",    ic: "🌀", sg: "❂", nm: "Unfolded Territories",   ds: "Walk into a domain. Survive its rules" },
+            { id: "covenant",  ic: "🏛", sg: "✜", nm: "5 Rival Covenants",      ds: "Pledge a faction. Inherit its enemies" },
+            { id: "continent", ic: "🗺", sg: "✦", nm: "Continent of the Veil",  ds: "300² tiles of ruined towns, drifting rifts, roaming bosses" },
+            { id: "heir",      ic: "👑", sg: "♛", nm: "Bloodline Succession",   ds: "Die. Pass the mark to an heir. Begin stronger" },
+          ].map((p, i) => <div key={p.id} className="title-pillar" data-pillar={p.id} style={{ animationDelay: (0.18 + i * 0.07) + "s" }}>
+            <span className="title-pillar-sigil" aria-hidden>{p.sg}</span>
+            <span className="title-pillar-sheen" aria-hidden />
+            <span className="title-pillar-corner tl" aria-hidden /><span className="title-pillar-corner tr" aria-hidden />
+            <span className="title-pillar-corner bl" aria-hidden /><span className="title-pillar-corner br" aria-hidden />
+            <div className="title-pillar-head">
+              <span className="title-pillar-ic-frame"><span className="title-pillar-ic-ring" aria-hidden /><span className="title-pillar-ic">{p.ic}</span></span>
+              <div className="title-pillar-nm">{p.nm}</div>
+            </div>
             <div className="title-pillar-ds">{p.ds}</div>
           </div>)}
         </div>
-        <div className="title-button-stack" style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 340, margin: "8px auto 0" }}>
+        <div className="title-button-stack" style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 360, margin: "26px auto 0" }}>
           <button className="bt title-cta" onClick={() => { setMode("single"); setScr("create"); setCStep(0); }}>⚔ Enter the Rift</button>
         </div>
       </div>

@@ -3245,3 +3245,186 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 }
 /* Also clip the lane's overall container so any future glow cannot bleed */
 .battle-bg .wr.battle-viewport { isolation: isolate; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v58 — TITLE PILLARS REDESIGN + CTA SOFTEN
+   • Pillars: per-theme accent color (data-pillar), hex icon frame with
+     animated rotating ring, large background sigil watermark, gold filigree
+     corner notches, sheen sweep on hover, glass background tinted toward the
+     pillar's accent so the painted artwork still bleeds through.
+   • CTA: dropped down (button stack margin-top: 26px), default opacity 0.92
+     with backdrop-blur softening so the painting + tagline read through it.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Per-pillar accent colors (used as CSS vars on the card) */
+.title-pillar[data-pillar="classes"]   { --pl-c1: 232,86,76;   --pl-c2: 180,40,30; }   /* crimson — combat */
+.title-pillar[data-pillar="bloodmark"] { --pl-c1: 198,136,255; --pl-c2: 130,70,210; } /* violet — innate */
+.title-pillar[data-pillar="domain"]    { --pl-c1: 120,200,255; --pl-c2: 60,110,200; } /* cyan — void/domain */
+.title-pillar[data-pillar="covenant"]  { --pl-c1: 240,180,80;  --pl-c2: 168,118,30; } /* amber — faction */
+.title-pillar[data-pillar="continent"] { --pl-c1: 130,210,150; --pl-c2: 60,140,80; }  /* green — wilds */
+.title-pillar[data-pillar="heir"]      { --pl-c1: 255,224,140; --pl-c2: 200,160,60; } /* gold — lineage */
+
+/* Glass card themed by accent */
+.title-pillar {
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(var(--pl-c1, 212,173,64), 0.16) 0%, transparent 55%),
+    linear-gradient(160deg, rgba(14,20,42,0.52) 0%, rgba(6,10,24,0.74) 100%) !important;
+  border: 1px solid rgba(var(--pl-c1, 212,173,64), 0.28) !important;
+  border-top: 1px solid rgba(var(--pl-c1, 212,173,64), 0.55) !important;
+  border-radius: 12px !important;
+  padding: 11px 11px 10px !important;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(6px) saturate(1.1);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
+  box-shadow:
+    0 6px 18px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 0 22px rgba(var(--pl-c1, 212,173,64), 0.05) !important;
+  transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s ease, box-shadow .25s ease;
+}
+/* Kill the old top-right radial blob (we have a richer one now) */
+.title-pillar::before { display: none; }
+
+/* Big background sigil watermark — slow drift */
+.title-pillar-sigil {
+  position: absolute;
+  right: -14px; bottom: -22px;
+  font-size: 110px;
+  line-height: 1;
+  font-family: 'Cinzel', serif;
+  font-weight: 900;
+  color: rgba(var(--pl-c1, 212,173,64), 0.10);
+  text-shadow: 0 0 22px rgba(var(--pl-c1, 212,173,64), 0.18);
+  pointer-events: none;
+  user-select: none;
+  transition: transform 1.2s ease, color .35s ease, opacity .35s ease;
+  transform: rotate(-8deg);
+}
+.title-pillar:hover .title-pillar-sigil {
+  color: rgba(var(--pl-c1, 212,173,64), 0.22);
+  transform: rotate(-12deg) scale(1.08);
+}
+
+/* Filigree corner notches (gold L-brackets) */
+.title-pillar-corner {
+  position: absolute; width: 12px; height: 12px;
+  border: 1.5px solid rgba(var(--pl-c1, 212,173,64), 0.65);
+  pointer-events: none;
+  transition: border-color .3s ease, width .3s ease, height .3s ease;
+}
+.title-pillar-corner.tl { top: 5px;    left: 5px;    border-right: none; border-bottom: none; border-top-left-radius: 4px; }
+.title-pillar-corner.tr { top: 5px;    right: 5px;   border-left: none;  border-bottom: none; border-top-right-radius: 4px; }
+.title-pillar-corner.bl { bottom: 5px; left: 5px;    border-right: none; border-top: none;    border-bottom-left-radius: 4px; }
+.title-pillar-corner.br { bottom: 5px; right: 5px;   border-left: none;  border-top: none;    border-bottom-right-radius: 4px; }
+.title-pillar:hover .title-pillar-corner {
+  border-color: rgba(var(--pl-c1, 212,173,64), 1);
+  width: 16px; height: 16px;
+}
+
+/* Sheen sweep — diagonal highlight that sweeps across on hover */
+.title-pillar-sheen {
+  position: absolute; top: 0; left: -120%;
+  width: 60%; height: 100%;
+  background: linear-gradient(115deg, transparent 0%, rgba(255,240,200,0.0) 35%, rgba(255,240,200,0.22) 50%, rgba(255,240,200,0.0) 65%, transparent 100%);
+  pointer-events: none;
+  transition: left 0.85s cubic-bezier(.2,.7,.2,1);
+}
+.title-pillar:hover .title-pillar-sheen { left: 130%; }
+
+/* Hover lift + ring intensification */
+.title-pillar:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(var(--pl-c1, 212,173,64), 0.85) !important;
+  box-shadow:
+    0 12px 28px rgba(0,0,0,0.65),
+    0 0 22px rgba(var(--pl-c1, 212,173,64), 0.30),
+    inset 0 1px 0 rgba(255,255,255,0.14),
+    inset 0 0 32px rgba(var(--pl-c1, 212,173,64), 0.12) !important;
+}
+
+/* Header row (icon frame + name) */
+.title-pillar-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 5px;
+  position: relative; z-index: 1;
+}
+.title-pillar-ic-frame {
+  position: relative;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 32px;
+  /* hex shape via clip-path */
+  background:
+    radial-gradient(circle at 50% 35%, rgba(var(--pl-c1, 212,173,64), 0.55) 0%, rgba(var(--pl-c2, 130,90,30), 0.85) 60%, rgba(8,12,22,0.95) 100%);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  filter: drop-shadow(0 0 6px rgba(var(--pl-c1, 212,173,64), 0.45));
+}
+.title-pillar-ic-ring {
+  position: absolute; inset: -2px;
+  background:
+    conic-gradient(from 0deg,
+      rgba(var(--pl-c1, 212,173,64), 0.85) 0deg,
+      rgba(var(--pl-c1, 212,173,64), 0.0) 90deg,
+      rgba(var(--pl-c1, 212,173,64), 0.85) 180deg,
+      rgba(var(--pl-c1, 212,173,64), 0.0) 270deg,
+      rgba(var(--pl-c1, 212,173,64), 0.85) 360deg);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  opacity: 0.55;
+  animation: pillarIcRingSpin 9s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+@keyframes pillarIcRingSpin { to { transform: rotate(360deg); } }
+.title-pillar-ic {
+  position: relative;
+  z-index: 1;
+  font-size: 16px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.85));
+  text-shadow: 0 0 6px rgba(var(--pl-c1, 212,173,64), 0.85);
+}
+.title-pillar-nm {
+  font-family: 'Cinzel', serif;
+  font-size: 11px !important;
+  font-weight: 700;
+  color: #fff5d2;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  margin-bottom: 0 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85), 0 0 8px rgba(var(--pl-c1, 212,173,64), 0.45);
+  flex: 1;
+}
+.title-pillar-ds {
+  font-size: 10px;
+  color: #d4dcf2;
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  line-height: 1.38;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+
+/* On the hero-art context (.title-bg-art), tighten sizing */
+.title-bg-art .title-pillar { padding: 9px 9px 8px !important; }
+.title-bg-art .title-pillar-sigil { font-size: 96px; right: -10px; bottom: -18px; }
+.title-bg-art .title-pillar-ic-frame { width: 28px; height: 28px; flex-basis: 28px; }
+.title-bg-art .title-pillar-ic { font-size: 14px; }
+.title-bg-art .title-pillar-nm { font-size: 10.5px !important; }
+.title-bg-art .title-pillar-ds { font-size: 9.5px; line-height: 1.32; }
+
+/* CTA: dropped, softened, lets painting + tagline read through */
+.title-cta {
+  opacity: 0.92;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: opacity .25s ease, transform .15s ease, box-shadow .25s ease !important;
+}
+.title-cta:hover { opacity: 1; }
+
+/* Reduce-motion: kill ring spin + sheen sweep */
+@media (prefers-reduced-motion: reduce) {
+  .title-pillar-ic-ring { animation: none; }
+  .title-pillar-sheen { display: none; }
+  .title-pillar { transition: none !important; }
+}
