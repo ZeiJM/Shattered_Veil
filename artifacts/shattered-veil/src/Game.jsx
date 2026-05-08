@@ -3216,6 +3216,8 @@ function Game() {
   // Timers
   const [timerStart, setTimerStart] = useState(() => Date.now());
   const [timerNow, setTimerNow] = useState(Date.now());
+  const [skyHour, setSkyHour] = useState(() => new Date().getHours());
+  useEffect(() => { const id = setInterval(() => { const h = new Date().getHours(); setSkyHour(prev => prev === h ? prev : h); }, 60000); return () => clearInterval(id); }, []);
   const logR = useRef(null);
   const introAudioRef = useRef(null);
   const swipeRef = useRef(null);
@@ -6933,7 +6935,10 @@ const buildGroupedBattleLog = (entries) => {
     })();
 
     return (
-      <div className="pg map-bg"><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
+      <div className="pg map-bg">
+        <div className="map-sky-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}sky/h${String(skyHour).padStart(2,"0")}.png')` }} />
+        <div className="map-sky-veil" />
+        <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
           <div className="map-top-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}><div className="map-heading" style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>World</div><div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}><div className="map-coords">🧭 {nearestTownCompass} · <span>({pos.x},{pos.y})</span></div><div className="map-coords" style={{ fontSize: 8, opacity: 0.95 }}>⌖ {nearestPoiCompass || "No active POIs"}</div></div></div>
           <aside className="map-side-rail">

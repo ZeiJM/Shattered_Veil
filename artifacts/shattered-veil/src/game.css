@@ -2808,3 +2808,84 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .map-bg .rail-action-btn { padding: 9px 8px; font-size: 12px; }
   .map-bg .map-rail-quick-btn { font-size: 14px !important; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v53 — TIME-OF-DAY SKY BACKGROUND (24 painted hourly variants)
+   • The map screen now uses a painted Veilbound landscape behind the panel,
+     swapped every hour from public/sky/h00.png ... h23.png.
+   • The parchment tan that used to fill the panel is replaced with a
+     translucent dark vellum so the sky shows through naturally.
+   • Same z-index pattern as the battle arena (image 0, veil 0, UI 1).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.map-sky-img {
+  position: fixed; inset: 0;
+  background-position: center; background-size: cover; background-repeat: no-repeat;
+  pointer-events: none; z-index: 0; opacity: 0.95;
+  filter: saturate(0.96) contrast(1.04);
+  animation: mapSkyDrift 60s ease-in-out infinite alternate;
+  transition: opacity 1.2s ease;
+}
+.map-sky-veil {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(6,8,18,0.18) 0%, rgba(6,8,18,0.55) 65%, rgba(2,4,12,0.88) 100%),
+    linear-gradient(180deg, rgba(6,6,18,0.30) 0%, rgba(6,6,18,0.05) 28%, rgba(6,6,18,0.60) 100%);
+  pointer-events: none; z-index: 0;
+}
+@keyframes mapSkyDrift {
+  0%   { transform: scale(1.04) translateY(0px); }
+  100% { transform: scale(1.09) translateY(-8px); }
+}
+
+/* Replace the parchment tan on the map page-panel with a translucent dark vellum
+   so the painted sky reads through. Preserves the v52 grid layout + v37 gold
+   edge treatment, but swaps the tan fill for a navy/violet glass. */
+.map-bg .page-panel {
+  background:
+    linear-gradient(180deg, rgba(14,18,42,0.78) 0%, rgba(10,12,28,0.85) 100%) !important;
+  border: 1px solid rgba(212,173,64,0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,224,160,0.22),
+    inset 0 0 0 1px rgba(212,173,64,0.18),
+    0 14px 36px rgba(0,0,0,0.55) !important;
+  color: #f1e7c8 !important;
+  backdrop-filter: blur(2px);
+}
+.map-bg .page-panel::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(242,196,92,0.55) 50%, transparent 100%) !important;
+  opacity: 0.85;
+}
+.map-bg .map-heading { color: #f2c45c !important; text-shadow: 0 1px 6px rgba(0,0,0,0.8); }
+.map-bg .map-coords { color: #f1e7c8 !important; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+.map-bg .map-rail-tile {
+  background: linear-gradient(180deg, rgba(28,22,52,0.85), rgba(16,12,32,0.92)) !important;
+  border: 1px solid rgba(212,173,64,0.30) !important;
+  color: #f1e7c8 !important;
+}
+.map-bg .map-rail-meta { color: rgba(241,231,200,0.78) !important; }
+.map-bg .map-rail-hint { color: rgba(241,231,200,0.55) !important; }
+
+/* The world map grid keeps its dark frame but reads as a clear vellum panel */
+.map-bg .battle-world-grid {
+  background: rgba(6,8,20,0.72) !important;
+  border-color: rgba(212,173,64,0.55) !important;
+}
+
+/* Map log card under the panel — also goes translucent vellum so it harmonises */
+.map-bg .map-log-card {
+  background: linear-gradient(180deg, rgba(14,18,42,0.78), rgba(10,12,28,0.85)) !important;
+  border: 1px solid rgba(212,173,64,0.30) !important;
+  color: #f1e7c8 !important;
+}
+.map-bg .map-log-card .feed-entry { color: #f1e7c8 !important; border-left-color: rgba(242,196,92,0.6) !important; }
+
+/* Legend pills get a dark glass treatment so they're readable on the new bg */
+.map-bg .legend-pill {
+  background: rgba(8,10,24,0.72) !important;
+  color: #f1e7c8 !important;
+  border: 1px solid rgba(212,173,64,0.30);
+}
+.map-bg .map-legend-toggle {
+  color: #f2c45c !important;
+}

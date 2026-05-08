@@ -317,3 +317,22 @@ User feedback: "the world map needs to be larger horizontally — too narrow. Mo
 - **Short-screen tweaks** (`@media max-height: 720px`): map cap relaxes to `60dvh / 460px`; action button shrinks 14→12px, quick buttons 16→14px.
 - All CSS in a single appended `v52 — WIDER MAP + LEFT RAIL LAYOUT` block at end of `game.css`. JSX restructure in the map render block (~lines 6938–6991): wrapped grid in `.map-main-area`, replaced the floating d-pad + bottom status/legend with the new `<aside className="map-side-rail">`.
 - **PvP-ready**: layout/routing-only changes. No new state shape, no new fields on `pl` or `btl`. Entry pathways (`enterPoi`/`enterHostilePoi`/`enterRiftPoi`) unchanged — only their callers changed.
+
+### v53 — Time-of-day painted sky background (24 hourly variants)
+
+User feedback: "change the background behind the map from that ugly tan to a fitting picture... 24 possible background images, beautiful, immersive, representative of the world, dusk to dawn, swap based on real local time."
+
+- **24 painted Veilbound landscapes** in `public/sky/h00.png` ... `h23.png` (16:9, ~1MB each). Each one a torn-veil sky over the silhouette of a ruined sorcerer city, with hour-appropriate lighting:
+  - **00–04** deep night → pre-dawn (starfield, twin moons, void rift, false dawn indigo)
+  - **05–07** dawn → sunrise (gold seam, coral horizon, soft yellow morning)
+  - **08–11** clear morning → late morning (cerulean sky, painterly clouds, faint rift scar)
+  - **12–14** noon → afternoon (saturated blue, golden flood, lengthening shadows)
+  - **15–17** golden hour → sunset (amber-gold, layered fire sky, ruins haloed)
+  - **18–20** dusk → early night (crimson-violet, first stars, rift glowing pink-white)
+  - **21–23** night → late night (aurora curtains, full moon, magenta rift-roar)
+- **Hour state** (`skyHour`) initialised from `new Date().getHours()`, refreshed every 60s via setInterval (~Game.jsx line 3222). Only triggers a re-render when the hour actually changes.
+- **Layered like the battle arena** (~Game.jsx line 6940): a fixed `<div className="map-sky-img">` with `backgroundImage` set inline + a `<div className="map-sky-veil">` darkening overlay, both `z-index: 0`. UI wrapper sits at `z-index: 1`. Slow `mapSkyDrift` 60s ken-burns animation. Cross-fade `transition: opacity 1.2s ease` between hours.
+- **Parchment tan removed** from the map page-panel: `.map-bg .page-panel` now uses a translucent navy/violet glass with gold edges (preserves v52 grid layout + v37 gold hairline); `backdrop-filter: blur(2px)`. Map grid, log card, rail tile, legend pills all rebalanced to dark vellum so they read against the painted scene.
+- **Heading + coords** flipped to gold/cream with text-shadow for legibility against any of the 24 backgrounds.
+- All CSS in a single appended `v53 — TIME-OF-DAY SKY BACKGROUND` block at end of `game.css`. JSX touched in 2 spots: state declaration (~3222) and map render outer wrapper (~6940).
+- **PvP-ready**: pure cosmetic, no game-state change. Each client picks its own local hour — players in different timezones will see different skies, which actually reinforces the "personal scrying basin" lore.
