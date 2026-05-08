@@ -839,61 +839,61 @@ title = "tidesbrood sigil"
 id = "17ztE3dw2SLJeZVc0T_FQ"
 uri = "file://artifacts/shattered-veil/public/biome/plains.png"
 type = "image"
-title = "biome plains"
+title = "generated_image"
 
 [[generated]]
 id = "UXpm-6OuvROXUeePZIAh9"
 uri = "file://artifacts/shattered-veil/public/biome/forest.png"
 type = "image"
-title = "biome forest"
+title = "generated_image"
 
 [[generated]]
 id = "xrDKzXgCrlFz68JoLezBW"
 uri = "file://artifacts/shattered-veil/public/biome/mountain.png"
 type = "image"
-title = "biome mountain"
+title = "generated_image"
 
 [[generated]]
 id = "0RxpoOA00hCE0rDkLL5Yi"
 uri = "file://artifacts/shattered-veil/public/biome/desert.png"
 type = "image"
-title = "biome desert"
+title = "generated_image"
 
 [[generated]]
 id = "GWCrZNbRT3SzwaIjet8c2"
 uri = "file://artifacts/shattered-veil/public/biome/snow.png"
 type = "image"
-title = "biome snow"
+title = "generated_image"
 
 [[generated]]
 id = "RwpLycZyPirHeeLCke-Lq"
 uri = "file://artifacts/shattered-veil/public/biome/swamp.png"
 type = "image"
-title = "biome swamp"
+title = "generated_image"
 
 [[generated]]
 id = "x-bASq9CS-orU3iyj6uJF"
 uri = "file://artifacts/shattered-veil/public/biome/coast.png"
 type = "image"
-title = "biome coast"
+title = "generated_image"
 
 [[generated]]
 id = "9ksCD7mtoo5Jy8TEL1fj1"
 uri = "file://artifacts/shattered-veil/public/biome/volcanic.png"
 type = "image"
-title = "biome volcanic"
+title = "generated_image"
 
 [[generated]]
 id = "iFWm4y9lX2CRWxNGqSQte"
 uri = "file://artifacts/shattered-veil/public/biome/void.png"
 type = "image"
-title = "biome void"
+title = "generated_image"
 
 [[generated]]
 id = "B97Uv_mc0yDqrnCdyyJVX"
 uri = "file://artifacts/shattered-veil/public/biome/jungle.png"
 type = "image"
-title = "biome jungle"
+title = "generated_image"
 
 [[generated]]
 id = "uKp3ZYmO6orz-yJOb1xmC"
@@ -1030,5 +1030,65 @@ title = "generated_image"
 [[generated]]
 id = "pNQ_o9AJItC3CWYEyk3wV"
 uri = "file://artifacts/shattered-veil/public/battle/biome-jungle.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Gfj7I_W77IT4Lk5iWXm7j"
+uri = "file://artifacts/shattered-veil/public/poi/town.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "JWhBelw6yIhUNwKZ1ra2S"
+uri = "file://artifacts/shattered-veil/public/poi/hostile.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "5-GxydKzAUWZObPbxm_51"
+uri = "file://artifacts/shattered-veil/public/poi/outpost.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "h4QsCBkmQt-tQjxgQUXAx"
+uri = "file://artifacts/shattered-veil/public/poi/rift.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "XeT7fqLcwNxpkrZCtebVU"
+uri = "file://artifacts/shattered-veil/public/poi/ruin.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "2HGGHAopFWbh47PD_LRZ6"
+uri = "file://artifacts/shattered-veil/public/poi/shrine.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "W6lXhlKP9G_H2rNZvhWQR"
+uri = "file://artifacts/shattered-veil/public/poi/treasure.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "pLEHHWPvBRtBEuhz37HQT"
+uri = "file://artifacts/shattered-veil/public/poi/beast.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0gJxdCG-NC5crYM5Ci_CK"
+uri = "file://artifacts/shattered-veil/public/poi/den.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nH1L3q7tjThcpdrfG2yXj"
+uri = "file://artifacts/shattered-veil/public/poi/dev.png"
 type = "image"
 title = "generated_image"

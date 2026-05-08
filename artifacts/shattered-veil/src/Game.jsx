@@ -2875,6 +2875,9 @@ function mapTrailGlyph(dir) { return dir === "↑" ? "⬆" : dir === "↓" ? "�
 // the URL works under any artifact path prefix.
 const BIOME_TX_PATH = (bio) => `${import.meta.env.BASE_URL}biome/${bio}.png`;
 const BIOME_TX_BIOMES = new Set(["plains","forest","mountain","desert","snow","swamp","coast","volcanic","void","jungle"]);
+// v71 — POI tile art mapping (full-square painted scenes)
+const POI_ART_KEY = { town:"town", hostile:"hostile", camp:"hostile", outpost:"outpost", ruin:"ruin", gambling:"den", den:"den", rift:"rift", beastzone:"beast", beast:"beast", shrine:"shrine", treasure:"treasure", fieldboss:"dev", dev:"dev" };
+function poiArtUrl(type) { const k = POI_ART_KEY[type]; return k ? `${import.meta.env.BASE_URL}poi/${k}.png` : null; }
 function worldTileVisual(t) {
   if (!t) return "#0d1220";
   const base = tileShade(t);
@@ -3804,6 +3807,9 @@ function Game() {
   useEffect(() => {
     if (scr !== "map" || !pl || !mData) return;
     const handler = (e) => {
+      if (chatOpenRef.current) return;
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return;
       const k = e.key.toLowerCase();
       if (k === "w" || k === "arrowup") { e.preventDefault(); setAutoMoveTarget(null); move(0, -1); }
       else if (k === "s" || k === "arrowdown") { e.preventDefault(); setAutoMoveTarget(null); move(0, 1); }
@@ -6970,6 +6976,12 @@ const buildGroupedBattleLog = (entries) => {
               {pl.bloodmark && (() => { const bm = getBM(pl.bloodmark); return bm ? <span className="hud-tag" style={{ background: bm.cl + "22", borderColor: bm.cl + "44", color: bm.cl }}>{bm.ic} {bm.nm}</span> : null; })()}
               {pl.covenant && (() => { const cv = getCV(pl.covenant); return cv ? <span className="hud-tag" style={{ background: cv.cl + "22", borderColor: cv.cl + "44", color: cv.cl }}>{cv.ic} {cv.nm}</span> : null; })()}
             </div>
+            {/* v71 — compact stacked HP/MP/XP bars inside the character box */}
+            <div className="hud-char-bars">
+              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.hp }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span className="hud-char-bar-num">{pl.chp}/{st.hp}</span></div>
+              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.mp }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span className="hud-char-bar-num">{pl.cmp}/{st.mp}</span></div>
+              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.xp }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span className="hud-char-bar-num">{pl.xp}/{xpFor(pl.level)}</span></div>
+            </div>
           </div>
         </div>
         {/* RESOURCE BOX */}
@@ -6992,12 +7004,7 @@ const buildGroupedBattleLog = (entries) => {
           {showFishLedger && fishLedger.length > 0 && <div className="hud-fish-ledger">{fishLedger.map(f => <div key={f.nm} className="hud-fish-row"><span>{f.nm}</span><span className="hud-fish-qty">×{f.qty}</span></div>)}</div>}
         </div>
       </div>
-      {/* v63 — compact bar strip */}
-      <div className="hud-bars-strip">
-        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.hp }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span className="hud-bar-num">{pl.chp}/{st.hp}</span></div>
-        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.mp }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span className="hud-bar-num">{pl.cmp}/{st.mp}</span></div>
-        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.xp }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span className="hud-bar-num">{pl.xp}/{xpFor(pl.level)}</span></div>
-      </div>
+      {/* v71 — bars relocated into hud-char-info above */}
       {(() => { const tileNow = mData && pos ? mData[pos.y * MW + pos.x] : null; return tileNow && tileNow.bio === "ocean" ? <div className="hud-drown-warn">🌊 Drowning — swim to land. Ocean travel drains 1 HP and 1 MP every 2 seconds.</div> : null; })()}
       {pl.efx && pl.efx.length > 0 && <div className="hud-efx-row">{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
       <details className="hud-element-summary"><summary>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
@@ -7031,7 +7038,7 @@ const buildGroupedBattleLog = (entries) => {
             </div>
             <div className="hud-nav-sep" />
             <div className="hud-nav-group" data-group="system">
-              {navBtn("music", musicMuted ? "music_off.png" : "music.png", musicMuted ? "🔇" : "🎵", musicMuted ? "Music · Muted" : "Music", musicMuted ? "click to unmute" : "click to mute", toggleMusicMute)}
+              {navBtn("music", musicMuted ? "music_off.png" : "music.png", musicMuted ? "🔇" : "🎵", musicMuted ? "sound.off" : "sound.on", musicMuted ? "click to unmute" : "click to mute", toggleMusicMute)}
               {navBtn("menu",  "menu.png", "☰", "Menu", "save, load, settings", () => setSub(sub === "menu" ? null : "menu"))}
             </div>
           </div>
@@ -7820,8 +7827,9 @@ const buildGroupedBattleLog = (entries) => {
             const last2 = [...log].slice(-2).reverse();
             const fmtEntry = (l) => { const isEv = String(l).startsWith("EVENT|"); return { isEv, txt: isEv ? String(l).replace(/^EVENT\|/, "") : l }; };
             return (
+              <>
+              <div className="map-locale-label">World</div>
               <div className="map-top-head map-dashboard-bar">
-                <div className="mdb-seg mdb-seg-world"><span className="mdb-label">World</span></div>
                 <div className="mdb-seg mdb-seg-phase" title={"Local time " + skyClock + " — sky reflects your real time of day"}>
                   <span className="mdb-icon">{skyPhase.icon}</span>
                   <span className="mdb-stack"><span className="mdb-strong">{skyPhase.label}</span><span className="mdb-meta">{skyClock}</span></span>
@@ -7829,7 +7837,6 @@ const buildGroupedBattleLog = (entries) => {
                 <div className="mdb-seg mdb-seg-compass">
                   <span className="mdb-stack"><span className="mdb-strong">🧭 {nearestTownCompass || "—"}</span><span className="mdb-meta">⌖ {nearestPoiCompass || "No active POIs"}</span></span>
                 </div>
-                <div className="mdb-seg mdb-seg-coords"><span className="mdb-icon">📍</span><span className="mdb-strong">{pos.x},{pos.y}</span></div>
                 <div className="mdb-seg mdb-seg-events" title="Latest events">
                   <span className="mdb-events-head">EVENTS</span>
                   <div className="mdb-events-list">
@@ -7837,6 +7844,7 @@ const buildGroupedBattleLog = (entries) => {
                   </div>
                 </div>
               </div>
+              </>
             );
           })()}
           <aside className="map-side-rail">
@@ -7860,8 +7868,21 @@ const buildGroupedBattleLog = (entries) => {
                     () => { var hp = inv.find(function (i) { return i.ef === "heal"; }); if (hp) { var s = effSt(pl); setPl(function (p) { return Object.assign({}, p, { chp: Math.min(s.hp, p.chp + hp.v) }); }); setInv(function (iv) { var ni = iv.slice(); var ii = ni.findIndex(function (x) { return x.id === hp.id; }); if (ii >= 0) { if (ni[ii].qty > 1) ni[ii] = Object.assign({}, ni[ii], { qty: ni[ii].qty - 1 }); else ni.splice(ii, 1); } return ni; }); notify("Healed!"); } else notify("No potions!"); }),
                   railBtn("mp", "mp.png", "💧", "Mana Phial", "restore MP from your satchel", "rail-quick-mp",
                     () => { var mp = inv.find(function(i){return i.ef === "mp";}); if (mp) { var s = effSt(pl); setPl(function(p){return Object.assign({},p,{cmp:Math.min(s.mp,p.cmp+mp.v)});}); setInv(function(iv){var ni=iv.slice();var ii=ni.findIndex(function(x){return x.id===mp.id;});if(ii>=0){if(ni[ii].qty>1)ni[ii]=Object.assign({},ni[ii],{qty:ni[ii].qty-1});else ni.splice(ii,1);}return ni;}); notify("MP restored!"); } else notify("No mana items!"); }),
-                  railBtn("snd", !musicMuted ? "sound_on.png" : "sound_off.png", !musicMuted ? "🔊" : "🔇", !musicMuted ? "Sound · On" : "Sound · Muted", !musicMuted ? "tap to mute world music" : "tap to unmute world music", "rail-quick-snd",
-                    toggleMusicMute)
+                  (() => {
+                    const onOcean = tile && tile.bio === "ocean";
+                    const canFishHere = nearOcean || onOcean;
+                    const fishingCD = fishCD > timerNow;
+                    const cdSec = fishingCD ? Math.ceil((fishCD - timerNow)/1000) : 0;
+                    const fishLabel = !canFishHere ? "Fish" : fishingCD ? ("Fish · " + cdSec + "s") : "Fish";
+                    const fishHint = !canFishHere ? "stand next to or in water to fish" : fishingCD ? ("ready in " + cdSec + "s") : "cast a line";
+                    const fishCls = "rail-quick-fish" + (!canFishHere ? " is-disabled" : "") + (fishingCD ? " is-cd" : "");
+                    return (
+                      <button key="fish" type="button" className={"bt bs map-rail-quick-btn ui-icon-btn ui-icon-btn-rail " + fishCls} data-label={fishLabel} title={fishLabel + " — " + fishHint} aria-label={fishLabel} onClick={() => { if (canFishHere && !fishingCD) runFishing(); else if (!canFishHere) notify("No water nearby."); }}>
+                        <span className="ui-icon-fb" style={{ display: "inline" }}>🎣</span>
+                        <span className="ui-icon-tip">{fishLabel}</span>
+                      </button>
+                    );
+                  })()
                 ];
               })()}
             </div>
@@ -7871,6 +7892,7 @@ const buildGroupedBattleLog = (entries) => {
               ) : (
                 <><div className="map-rail-tile-name map-rail-tile-name-bio">{tile ? tile.bio.charAt(0).toUpperCase() + tile.bio.slice(1) : "..."}</div><div className="map-rail-tile-type map-rail-tile-type-bio">terrain</div></>
               )}
+              <div className="map-rail-tile-coords"><span className="mrtc-ic">📍</span><span className="mrtc-val">{pos.x}, {pos.y}</span></div>
             </div>
             {/* v69 — quick Veilcourt button (opens full chat directly; no inline dock) */}
             <button type="button" className="veil-quick-open-btn" onClick={openVeilcourt} title="Open the Veilcourt">
@@ -7891,7 +7913,18 @@ const buildGroupedBattleLog = (entries) => {
                 <div>{paidRumor}</div>
               </div>}
             </div>
-            <details className="map-legend-details map-rail-legend"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{["🐾 Beast",roamingBossIcon + " Roaming Boss","🏕️ Camp","🎰 Den","💎 Loot","⛺ Outpost","🌀 Rift","🏛️ Ruin","⛩️ Shrine","🏘️ Town"].map(function(lbl){return <span key={lbl} className="legend-pill">{lbl}</span>;})}</div></details>
+            <details className="map-legend-details map-rail-legend"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{[
+              {k:"beast", lbl:"Beast"},
+              {k:"dev", lbl:"Roaming Boss"},
+              {k:"hostile", lbl:"Camp"},
+              {k:"den", lbl:"Den"},
+              {k:"treasure", lbl:"Loot"},
+              {k:"outpost", lbl:"Outpost"},
+              {k:"rift", lbl:"Rift"},
+              {k:"ruin", lbl:"Ruin"},
+              {k:"shrine", lbl:"Shrine"},
+              {k:"town", lbl:"Town"},
+            ].map(function(item){return <span key={item.lbl} className="legend-pill legend-pill-art"><span className="legend-pill-art-img" style={{ backgroundImage: `url('${poiArtUrl(item.k)}')` }} /><span className="legend-pill-art-lbl">{item.lbl}</span></span>;})}</div></details>
             <button className="map-rail-help-btn" type="button" title="Controls" onClick={() => setPopup({ text: "🎮 Controls\n\n• WASD or Arrow Keys — step one tile\n• Click any tile — auto-walk to it\n• Double-click a POI — walk there and enter on arrival\n• Space — Enter/Interact with the POI on your current tile\n• Action button (left rail) — context-aware: Enter, Interact, Fish, or Stop auto-walk\n• Esc — close most popups", choices: [{ label: "Got it", action: () => setPopup(null) }] })}>? Controls</button>
           </aside>
           <div className="map-main-area">
@@ -7906,11 +7939,13 @@ const buildGroupedBattleLog = (entries) => {
               var isDev = devPos && gx === devPos.x && gy === devPos.y;
               var biIc = BIO_IC[t && t.bio] || "";
               var decor = tileDecor(t);
-              var bgC = isMe ? "radial-gradient(circle at 50% 35%, rgba(242,196,92,0.34), transparent 58%), " + worldTileVisual(t) : isTrail ? "radial-gradient(circle at 50% 50%, rgba(242,196,92,0.24), transparent 55%), " + worldTileVisual(t) : worldTileVisual(t);
+              var poiArt = hasPoi ? poiArtUrl(t.poi.type) : (isDev ? poiArtUrl("dev") : null);
+              var poiArtLayer = poiArt ? `url('${poiArt}') center/cover no-repeat, ` : "";
+              var bgC = isMe ? "radial-gradient(circle at 50% 35%, rgba(242,196,92,0.34), transparent 58%), " + poiArtLayer + worldTileVisual(t) : isTrail ? "radial-gradient(circle at 50% 50%, rgba(242,196,92,0.24), transparent 55%), " + poiArtLayer + worldTileVisual(t) : poiArtLayer + worldTileVisual(t);
               var poiBorder = hasPoi ? poiAccent(t.poi.type) : isDev ? "#ff6b6b" : null;
               var isSwimming = isMe && t && t.bio === "ocean";
               var meContent = isMe ? (isSwimming ? <><img src={import.meta.env.BASE_URL + "swim-icon.png"} alt="Swimming" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 2, filter: "drop-shadow(0 0 4px rgba(0,180,255,0.6))" }} />{portraitOverlay(pl?.portrait)}</> : playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)) : null;
-              var cellLabel = isMe ? null : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
+              var cellLabel = isMe ? null : (poiArt ? null : (decor || biIc));
               return <div key={idx} className={isMe ? "world-tile is-player" : "world-tile"} data-cls={isMe ? (pl?.cid || cls?.id || "default") : undefined} title={isDev ? "Roaming Boss — click to walk · double-click to engage" : (hasPoi ? ((t.poi.nm || t.poi.type) + " — click to walk · double-click to enter") : "Click to walk here")} onClick={function() { if (gx === pos.x && gy === pos.y) { if (hasPoi) { autoEnterRef.current = false; enterPoi(); } return; } autoEnterRef.current = false; if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); if (gx >= 0 && gx < MW && gy >= 0 && gy < MH) setAutoMoveTarget({ x: gx, y: gy }); }} onDoubleClick={function(ev){ ev.preventDefault(); if (gx === pos.x && gy === pos.y) { if (hasPoi) enterPoi(); return; } if (gx < 0 || gx >= MW || gy < 0 || gy >= MH) return; autoEnterRef.current = !!hasPoi; setAutoMoveTarget({ x: gx, y: gy }); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 13 : isTrail ? 9 : hasPoi ? 9 : decor ? 8 : 6, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: "pointer", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}{isMe ? <span className="player-aura-ring" aria-hidden="true" /> : null}</div>;
             })}
           </div>
