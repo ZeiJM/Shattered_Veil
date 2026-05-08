@@ -894,3 +894,81 @@ id = "B97Uv_mc0yDqrnCdyyJVX"
 uri = "file://artifacts/shattered-veil/public/biome/jungle.png"
 type = "image"
 title = "biome jungle"
+
+[[generated]]
+id = "uKp3ZYmO6orz-yJOb1xmC"
+uri = "file://artifacts/shattered-veil/public/ui/music_off.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "S4x9MSLTiwasYh4yNizPC"
+uri = "file://artifacts/shattered-veil/public/ui/menu.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "UcFH2nOsIr7Om9-nNOGQj"
+uri = "file://artifacts/shattered-veil/public/ui/hp.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Np3y9OjVUYtc9p9OtCuD3"
+uri = "file://artifacts/shattered-veil/public/ui/mp.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nx-L5XPpHIQ8ZkUNKQ7pf"
+uri = "file://artifacts/shattered-veil/public/ui/sound_on.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "hdSMAVMTzoBHMYABUuZKV"
+uri = "file://artifacts/shattered-veil/public/ui/sound_off.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ZjsrjMfOzmUzSwt9eDsyZ"
+uri = "file://artifacts/shattered-veil/public/ui/stats.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "zh8GeTZ0366BiJKPZZfeu"
+uri = "file://artifacts/shattered-veil/public/ui/items.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Nf79oo5d_MlATaHbAJy2g"
+uri = "file://artifacts/shattered-veil/public/ui/spells.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "wPJ1h3Z8heAhRmdTwpSzf"
+uri = "file://artifacts/shattered-veil/public/ui/story.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "orTqB67QtS_L8ZpoWRvTu"
+uri = "file://artifacts/shattered-veil/public/ui/manual.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dn-cbXxQbqQ9RFxOwejp6"
+uri = "file://artifacts/shattered-veil/public/ui/chat.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "5l4tK8PmHboGM1Gz204So"
+uri = "file://artifacts/shattered-veil/public/ui/music.png"
+type = "image"
+title = "generated_image"

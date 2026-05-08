@@ -6220,27 +6220,41 @@ const buildGroupedBattleLog = (entries) => {
       {pl.efx && pl.efx.length > 0 && <div className="hud-efx-row">{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
       <details className="hud-element-summary"><summary>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
       {/* v63 — quick-nav: grouped (Character | Lore | Social | System) */}
-      {scr !== "battle" && <div className="hud-quick-nav hud-quick-nav-v63">
-        <div className="hud-nav-group" data-group="character">
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "stats" ? null : "stats")} title="Stats">📊</button>
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "items" ? null : "items")} title="Inventory">🎒</button>
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "spells" ? null : "spells")} title="Spells">📖</button>
-        </div>
-        <div className="hud-nav-sep" />
-        <div className="hud-nav-group" data-group="lore">
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "story" ? null : "story")} title="Story">📜</button>
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "manual" ? null : "manual")} title="Manual">📘</button>
-        </div>
-        <div className="hud-nav-sep" />
-        <div className="hud-nav-group" data-group="social">
-          <button className="bt bs hud-nav-btn hud-veilcourt-btn" onClick={openVeilcourt} title="The Veilcourt — global chat">💬{chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>}</button>
-        </div>
-        <div className="hud-nav-sep" />
-        <div className="hud-nav-group" data-group="system">
-          <button className="bt bs hud-nav-btn" onClick={toggleMusicMute} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? "🔇" : "🎵"}</button>
-          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "menu" ? null : "menu")} title="Menu">☰</button>
-        </div>
-      </div>}
+      {scr !== "battle" && (() => {
+        const UI = (import.meta.env.BASE_URL || "/") + "ui/";
+        const navBtn = (key, iconFile, fallbackEmoji, label, hint, onClick, extraCls, badge) => (
+          <button key={key} type="button" className={"bt bs hud-nav-btn ui-icon-btn" + (extraCls ? " " + extraCls : "")} data-label={label} onClick={onClick} title={label + (hint ? " — " + hint : "")} aria-label={label}>
+            <img className="ui-icon" src={UI + iconFile} alt="" draggable={false} onError={e => { try { const t = e.currentTarget; t.style.display = "none"; const fb = t.nextElementSibling; if (fb) fb.style.display = "inline"; } catch (_) {} }} />
+            <span className="ui-icon-fb" style={{ display: "none" }}>{fallbackEmoji}</span>
+            {badge}
+            <span className="ui-icon-tip">{label}</span>
+          </button>
+        );
+        return (
+          <div className="hud-quick-nav hud-quick-nav-v63 hud-quick-nav-v64">
+            <div className="hud-nav-group" data-group="character">
+              {navBtn("stats",  "stats.png",  "📊", "Stats",     "view your sorcerer sheet",     () => setSub(sub === "stats"  ? null : "stats"))}
+              {navBtn("items",  "items.png",  "🎒", "Inventory", "items, gear, consumables",     () => setSub(sub === "items"  ? null : "items"))}
+              {navBtn("spells", "spells.png", "📖", "Spellbook", "skills and innate techniques", () => setSub(sub === "spells" ? null : "spells"))}
+            </div>
+            <div className="hud-nav-sep" />
+            <div className="hud-nav-group" data-group="lore">
+              {navBtn("story",  "story.png",  "📜", "Story",  "active and completed quests", () => setSub(sub === "story"  ? null : "story"))}
+              {navBtn("manual", "manual.png", "📘", "Manual", "rules and codex",             () => setSub(sub === "manual" ? null : "manual"))}
+            </div>
+            <div className="hud-nav-sep" />
+            <div className="hud-nav-group" data-group="social">
+              {navBtn("chat", "chat.png", "💬", "Veilcourt", "global scrying chat", openVeilcourt, "hud-veilcourt-btn",
+                chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>)}
+            </div>
+            <div className="hud-nav-sep" />
+            <div className="hud-nav-group" data-group="system">
+              {navBtn("music", musicMuted ? "music_off.png" : "music.png", musicMuted ? "🔇" : "🎵", musicMuted ? "Music · Muted" : "Music", musicMuted ? "click to unmute" : "click to mute", toggleMusicMute)}
+              {navBtn("menu",  "menu.png", "☰", "Menu", "save, load, settings", () => setSub(sub === "menu" ? null : "menu"))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   ) : null;
 
@@ -7048,9 +7062,24 @@ const buildGroupedBattleLog = (entries) => {
               </button>
             ); })()}
             <div className="map-rail-quick">
-              <button className="bt bs map-rail-quick-btn" style={{ background: T.ok }} title="Use HP potion" onClick={() => { var hp = inv.find(function (i) { return i.ef === "heal"; }); if (hp) { var s = effSt(pl); setPl(function (p) { return Object.assign({}, p, { chp: Math.min(s.hp, p.chp + hp.v) }); }); setInv(function (iv) { var ni = iv.slice(); var ii = ni.findIndex(function (x) { return x.id === hp.id; }); if (ii >= 0) { if (ni[ii].qty > 1) ni[ii] = Object.assign({}, ni[ii], { qty: ni[ii].qty - 1 }); else ni.splice(ii, 1); } return ni; }); notify("Healed!"); } else notify("No potions!"); }}>🧪</button>
-              <button className="bt bs map-rail-quick-btn" style={{ background: T.mp }} title="Use MP item" onClick={() => { var mp = inv.find(function(i){return i.ef === "mp";}); if (mp) { var s = effSt(pl); setPl(function(p){return Object.assign({},p,{cmp:Math.min(s.mp,p.cmp+mp.v)});}); setInv(function(iv){var ni=iv.slice();var ii=ni.findIndex(function(x){return x.id===mp.id;});if(ii>=0){if(ni[ii].qty>1)ni[ii]=Object.assign({},ni[ii],{qty:ni[ii].qty-1});else ni.splice(ii,1);}return ni;}); notify("MP restored!"); } else notify("No mana items!"); }}>💧</button>
-              <button className="bt bs map-rail-quick-btn" style={{ background: musicOn ? T.ac : T.c2 }} title={musicOn ? "Mute music" : "Unmute music"} onClick={() => setMusicOn(m => !m)}>{musicOn ? "🔊" : "🔇"}</button>
+              {(() => {
+                const UI = (import.meta.env.BASE_URL || "/") + "ui/";
+                const railBtn = (key, file, fb, label, hint, cls, onClick) => (
+                  <button key={key} type="button" className={"bt bs map-rail-quick-btn ui-icon-btn ui-icon-btn-rail " + cls} data-label={label} title={label + " — " + hint} aria-label={label} onClick={onClick}>
+                    <img className="ui-icon" src={UI + file} alt="" draggable={false} onError={e => { try { const t = e.currentTarget; t.style.display = "none"; const s = t.nextElementSibling; if (s) s.style.display = "inline"; } catch (_) {} }} />
+                    <span className="ui-icon-fb" style={{ display: "none" }}>{fb}</span>
+                    <span className="ui-icon-tip">{label}</span>
+                  </button>
+                );
+                return [
+                  railBtn("hp", "hp.png", "🧪", "Healing Potion", "restore HP from your satchel", "rail-quick-hp",
+                    () => { var hp = inv.find(function (i) { return i.ef === "heal"; }); if (hp) { var s = effSt(pl); setPl(function (p) { return Object.assign({}, p, { chp: Math.min(s.hp, p.chp + hp.v) }); }); setInv(function (iv) { var ni = iv.slice(); var ii = ni.findIndex(function (x) { return x.id === hp.id; }); if (ii >= 0) { if (ni[ii].qty > 1) ni[ii] = Object.assign({}, ni[ii], { qty: ni[ii].qty - 1 }); else ni.splice(ii, 1); } return ni; }); notify("Healed!"); } else notify("No potions!"); }),
+                  railBtn("mp", "mp.png", "💧", "Mana Phial", "restore MP from your satchel", "rail-quick-mp",
+                    () => { var mp = inv.find(function(i){return i.ef === "mp";}); if (mp) { var s = effSt(pl); setPl(function(p){return Object.assign({},p,{cmp:Math.min(s.mp,p.cmp+mp.v)});}); setInv(function(iv){var ni=iv.slice();var ii=ni.findIndex(function(x){return x.id===mp.id;});if(ii>=0){if(ni[ii].qty>1)ni[ii]=Object.assign({},ni[ii],{qty:ni[ii].qty-1});else ni.splice(ii,1);}return ni;}); notify("MP restored!"); } else notify("No mana items!"); }),
+                  railBtn("snd", !musicMuted ? "sound_on.png" : "sound_off.png", !musicMuted ? "🔊" : "🔇", !musicMuted ? "Sound · On" : "Sound · Muted", !musicMuted ? "tap to mute world music" : "tap to unmute world music", "rail-quick-snd",
+                    toggleMusicMute)
+                ];
+              })()}
             </div>
             <div className="map-rail-tile">
               {tile && tile.poi ? (
