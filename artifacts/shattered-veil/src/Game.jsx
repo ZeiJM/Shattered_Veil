@@ -3193,6 +3193,39 @@ function mkMap() {
 // ═══════════════════════════════════
 import { createMusicPlayer, trackForScreen } from "./music.js";
 
+// v68 — Rotating preview of a class's signature interactions (cycles with fade)
+function RotatingInteractionShowcase({ cls, intervalMs = 2600, fadeMs = 600 }) {
+  const list = (cls && cls.inter) ? cls.inter : [];
+  const [idx, setIdx] = useState(0);
+  const [vis, setVis] = useState(true);
+  useEffect(() => { setIdx(0); setVis(true); }, [cls && cls.id]);
+  useEffect(() => {
+    if (list.length < 2) return;
+    let alive = true;
+    const cycle = setInterval(() => {
+      if (!alive) return;
+      setVis(false);
+      setTimeout(() => { if (!alive) return; setIdx(i => (i + 1) % list.length); setVis(true); }, fadeMs);
+    }, intervalMs);
+    return () => { alive = false; clearInterval(cycle); };
+  }, [list.length, intervalMs, fadeMs]);
+  if (!cls || list.length === 0) return null;
+  const cur = list[idx % list.length];
+  const accent = cls.cl || "#ffd77a";
+  return <div className="rot-inter" style={{ marginTop: 6, padding: "8px 10px", borderRadius: 7, background: "linear-gradient(155deg, " + accent + "16 0%, rgba(6,12,28,0.92) 100%)", border: "1px solid " + accent + "55", minHeight: 78, position: "relative", overflow: "hidden" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+      <span style={{ fontSize: 8, fontFamily: "'Cinzel',serif", letterSpacing: "0.08em", color: accent, fontWeight: 800 }}>POSSIBLE INTERACTIONS</span>
+      <span style={{ display: "flex", gap: 3 }}>
+        {list.map((_, i) => <span key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: i === (idx % list.length) ? accent : "rgba(255,255,255,0.18)", transition: "background 0.3s" }} />)}
+      </span>
+    </div>
+    <div style={{ opacity: vis ? 1 : 0, transition: "opacity " + fadeMs + "ms ease" }}>
+      <div style={{ fontSize: 11, fontFamily: "'Cinzel',serif", fontWeight: 700, color: accent, lineHeight: 1.2, marginBottom: 3 }}>{cur.nm}</div>
+      <div style={{ fontSize: 10, color: "#dde4f5", lineHeight: 1.4, fontStyle: "italic" }}>{cur.ds}</div>
+    </div>
+  </div>;
+}
+
 function Game() {
   const [scr, setScr] = useState("title");
   // ── v41 background music ──────────────────────────────────────────
@@ -6516,16 +6549,17 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 0: CLASS */}
       {cStep === 0 && <div>
         <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
-          {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 6, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <CrossfadePortrait cid={c.id} sex={previewSex} alt={c.nm} wrapStyle={{ width: 40, height: 40, borderRadius: 6, border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)" }} />
+          {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 7, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+              <CrossfadePortrait cid={c.id} sex={previewSex} alt={c.nm} wrapStyle={{ width: 44, height: 44, borderRadius: 6, border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)" }} />
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif", lineHeight: 1.1 }}>{c.nm}</div>
-                <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 7 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 7 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 7 }}>4 Random</span>}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: c.cl, fontFamily: "'Cinzel',serif", lineHeight: 1.1 }}>{c.nm}</div>
+                <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 9 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 9 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 9 }}>4 Random</span>}</div>
               </div>
             </div>
-            <div style={{ fontSize: 7, color: "#bcc6e6", lineHeight: 1.25, marginBottom: 2 }}>{c.ds}</div>
-            <div style={{ fontSize: 7, color: "#9aa6c8" }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.skR)}</span></div>
+            <div style={{ fontSize: 9, color: "#cfd6ee", lineHeight: 1.4, marginBottom: 4 }}>{c.ds}</div>
+            <div style={{ fontSize: 9, color: "#9aa6c8" }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.skR)}</span></div>
+            {selCls === c.id && <RotatingInteractionShowcase cls={c} />}
           </div>)}
         </div>
         <div style={{ textAlign: "center", marginTop: 10 }}><button className="bt" style={{ background: T.gd, opacity: selCls ? 1 : 0.4 }} disabled={!selCls} onClick={() => setCStep(1)}>Next: Bloodmark →</button></div>
@@ -6551,20 +6585,20 @@ const buildGroupedBattleLog = (entries) => {
               <span className="bm-ic-glyph">{bm.ic}</span>
             </span>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 10, fontWeight: 700, color: bm.cl, lineHeight: 1.15 }}>{bm.nm}</div>
-              <div style={{ fontSize: 8, color: "#bcc6e6", marginTop: 2 }}>
-                {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 4, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
+              <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, fontWeight: 700, color: bm.cl, lineHeight: 1.15 }}>{bm.nm}</div>
+              <div style={{ fontSize: 10, color: "#bcc6e6", marginTop: 3 }}>
+                {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 5, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
               </div>
             </div>
           </div>
-          <div style={{ fontSize: 8, color: "#cfd6ee", lineHeight: 1.3, marginBottom: 4 }}>{bm.ds}</div>
-          <div style={{ fontSize: 8, padding: "3px 6px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+          <div style={{ fontSize: 10, color: "#cfd6ee", lineHeight: 1.4, marginBottom: 5 }}>{bm.ds}</div>
+          <div style={{ fontSize: 10, padding: "4px 7px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.4 }}>⚡ {bm.passiveDesc}</div>
         </div>;
         return <div className="bm-step" style={{ position: "relative" }}>
           <div className="bm-step-bg" aria-hidden><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
           <div style={{ textAlign: "center", marginBottom: 10, position: "relative", zIndex: 1 }}>
-            <div style={{ fontSize: 11, color: "#cfe0ff" }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
-            <div style={{ fontSize: 9, color: T.dm, marginTop: 3 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
+            <div style={{ fontSize: 13, color: "#cfe0ff", lineHeight: 1.4 }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
+            <div style={{ fontSize: 11, color: T.dm, marginTop: 4 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
           </div>
           <div style={{ position: "relative", zIndex: 1, maxHeight: "56vh", overflowY: "auto", paddingRight: 4 }}>
             {pickedClass && <div className="bm-section">
@@ -6597,13 +6631,14 @@ const buildGroupedBattleLog = (entries) => {
             <div className="identity-left">
               {selCls && <CrossfadePortrait cid={selCls} sex={cSex} alt={pickedClass?.nm} wrapStyle={{ width: 108, height: 108, borderRadius: 10, border: "2px solid " + (pickedClass?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)", display: "block", margin: "0 auto" }} />}
               <div style={{ fontFamily: "'Cinzel',serif", color: pickedClass?.cl, fontSize: 14, fontWeight: 700, marginTop: 6, textAlign: "center", lineHeight: 1.15 }}>{pickedClass?.ic} {pickedClass?.nm}</div>
-              {bm && <div style={{ marginTop: 3, fontSize: 9, color: bm.cl, textAlign: "center" }}>{bm.ic} {bm.nm}</div>}
-              {pickedClass && <div className="identity-inter-card" style={{ marginTop: 10, padding: "8px 9px", borderRadius: 7, background: "linear-gradient(155deg, rgba(14,22,46,0.95) 0%, rgba(6,12,28,0.95) 100%)", border: "1px solid " + pickedClass.cl + "55", boxShadow: "0 0 14px " + pickedClass.cl + "1f, inset 0 1px 0 rgba(255,235,180,0.08)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              {bm && <div style={{ marginTop: 4, fontSize: 11, color: bm.cl, textAlign: "center" }}>{bm.ic} {bm.nm}</div>}
+              {pickedClass && <div className="identity-inter-card" style={{ marginTop: 10, padding: "9px 10px", borderRadius: 7, background: "linear-gradient(155deg, rgba(14,22,46,0.95) 0%, rgba(6,12,28,0.95) 100%)", border: "1px solid " + pickedClass.cl + "55", boxShadow: "0 0 14px " + pickedClass.cl + "1f, inset 0 1px 0 rgba(255,235,180,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: pickedClass.cl, boxShadow: "0 0 6px " + pickedClass.cl }} />
-                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, fontWeight: 800, color: pickedClass.cl, letterSpacing: "0.06em" }}>UNIQUE CLASS INTERACTIONS</div>
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 800, color: pickedClass.cl, letterSpacing: "0.06em" }}>UNIQUE CLASS INTERACTIONS</div>
                 </div>
-                <div style={{ fontSize: 8, color: "#bcc6e6", lineHeight: 1.45, fontStyle: "italic" }}>Two interactions are rolled randomly each run from this class's signature pool. They complement the {pickedClass.nm}'s playstyle — different runs, different combos.</div>
+                <div style={{ fontSize: 10, color: "#bcc6e6", lineHeight: 1.5, fontStyle: "italic" }}>Two interactions are rolled randomly each run from this class's signature pool. They complement the {pickedClass.nm}'s playstyle — different runs, different combos.</div>
+                <RotatingInteractionShowcase cls={pickedClass} />
               </div>}
             </div>
             {/* RIGHT — form fields */}
