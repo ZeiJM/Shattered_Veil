@@ -6329,49 +6329,52 @@ const buildGroupedBattleLog = (entries) => {
       })()}
 
       {/* STEP 2: IDENTITY */}
-      {cStep === 2 && <div className="cd" style={{ maxWidth: 340, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 12 }}>
-          {selCls && <CrossfadePortrait cid={selCls} sex={cSex} alt={CLS.find(c => c.id === selCls)?.nm} wrapStyle={{ width: 96, height: 96, borderRadius: 10, border: "2px solid " + (CLS.find(c => c.id === selCls)?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)", display: "inline-block" }} />}
-          <div style={{ fontFamily: "'Cinzel',serif", color: CLS.find(c => c.id === selCls)?.cl, fontSize: 15, fontWeight: 700, marginTop: 6 }}>{CLS.find(c => c.id === selCls)?.ic} {CLS.find(c => c.id === selCls)?.nm}</div>
-          {selBloodmark && (() => { const bm = getBM(selBloodmark); return bm ? <div style={{ marginTop: 4, fontSize: 10, color: bm.cl }}>{bm.ic} {bm.nm}</div> : null; })()}
-        </div>
-        {(() => {
-          const pickedClass = CLS.find(c => c.id === selCls);
-          const previewInteractions = pickAssignedInteractions((pickedClass && pickedClass.inter) || [], 2, pickedClass?.id, Math.floor((timerNow || Date.now()) / 6000));
-          return pickedClass ? <div className="sb-line-card" style={{ marginBottom: 10, background: "rgba(255,255,255,0.02)" }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: pickedClass.cl, marginBottom: 4 }}>Starting Interaction Preview</div>
-            <div style={{ fontSize: 7, color: T.dm, marginBottom: 6 }}>New runs still roll 2 assigned interactions, but this preview shows the kind of trigger/effect structure the class is built around.</div>
-            <div style={{ display: "grid", gap: 5 }}>
-              {previewInteractions.map((it, idx) => {
-                const parts = splitInteractionDescription(it.ds || "");
-                return <button key={idx} type="button" className="bt bs" style={{ background: "linear-gradient(155deg, rgba(14,22,46,0.95) 0%, rgba(6,12,28,0.95) 100%)", color: "#e8eeff", border: "1px solid " + pickedClass.cl + "55", textAlign: "left", padding: "6px 8px", lineHeight: 1.4 }} onClick={() => setPopup({ text: interactionPopupText(it) })}>
-                  <div style={{ color: pickedClass.cl, fontWeight: 800, fontSize: 8, marginBottom: 2 }}>{it.nm || interactionDisplayName(it.k, it.ds)}</div>
-                  <div style={{ fontSize: 7, color: "#9fd6ff" }}>Trigger: {parts.trigger}</div>
-                  <div style={{ fontSize: 7, color: "#ffd77a", marginTop: 1 }}>Effect: {parts.effect}</div>
-                </button>;
-              })}
+      {cStep === 2 && (() => {
+        const pickedClass = CLS.find(c => c.id === selCls);
+        const bm = selBloodmark ? getBM(selBloodmark) : null;
+        return <div className="cd identity-step" style={{ maxWidth: 640, margin: "0 auto", padding: 12 }}>
+          <div className="identity-grid">
+            {/* LEFT — portrait, class title, bloodmark, Unique Class Interactions */}
+            <div className="identity-left">
+              {selCls && <CrossfadePortrait cid={selCls} sex={cSex} alt={pickedClass?.nm} wrapStyle={{ width: 108, height: 108, borderRadius: 10, border: "2px solid " + (pickedClass?.cl || T.gd) + "88", boxShadow: "0 6px 18px rgba(0,0,0,0.5)", display: "block", margin: "0 auto" }} />}
+              <div style={{ fontFamily: "'Cinzel',serif", color: pickedClass?.cl, fontSize: 14, fontWeight: 700, marginTop: 6, textAlign: "center", lineHeight: 1.15 }}>{pickedClass?.ic} {pickedClass?.nm}</div>
+              {bm && <div style={{ marginTop: 3, fontSize: 9, color: bm.cl, textAlign: "center" }}>{bm.ic} {bm.nm}</div>}
+              {pickedClass && <div className="identity-inter-card" style={{ marginTop: 10, padding: "8px 9px", borderRadius: 7, background: "linear-gradient(155deg, rgba(14,22,46,0.95) 0%, rgba(6,12,28,0.95) 100%)", border: "1px solid " + pickedClass.cl + "55", boxShadow: "0 0 14px " + pickedClass.cl + "1f, inset 0 1px 0 rgba(255,235,180,0.08)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: pickedClass.cl, boxShadow: "0 0 6px " + pickedClass.cl }} />
+                  <div style={{ fontFamily: "'Cinzel',serif", fontSize: 9, fontWeight: 800, color: pickedClass.cl, letterSpacing: "0.06em" }}>UNIQUE CLASS INTERACTIONS</div>
+                </div>
+                <div style={{ fontSize: 8, color: "#bcc6e6", lineHeight: 1.45, fontStyle: "italic" }}>Two interactions are rolled randomly each run from this class's signature pool. They complement the {pickedClass.nm}'s playstyle — different runs, different combos.</div>
+              </div>}
             </div>
-          </div> : null;
-        })()}
-        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Hero Name <span style={{ color: "#ff8a80" }}>*</span></label>
-        <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Enter name..." maxLength={16} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (cName.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "center", marginBottom: 10 }} />
-        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Personal Quote <span style={{ color: "#ff8a80" }}>*</span></label>
-        <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Speak your motto..." maxLength={60} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (quote.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "9px 12px", color: "#fff7e0", fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 10 }} />
-        <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 3 }}>Custom Portrait URL <span style={{ fontSize: 8, color: "#9fb0d8", fontWeight: 400 }}>(optional · PNG/JPG/GIF/WebP · animated GIF supported)</span></label>
-        <div style={{ display: "flex", gap: 6, alignItems: "stretch", marginBottom: 6 }}>
-          <div style={{ position: "relative", width: 56, height: 56, borderRadius: 8, background: "rgba(6,12,28,0.85)", border: "1px solid " + (cPortrait.trim() ? (isValidPortraitURL(cPortrait) ? "rgba(123,232,143,0.55)" : "rgba(255,138,128,0.55)") : "rgba(212,173,64,0.35)"), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {selCls ? <CrossfadePortrait cid={selCls} sex={cSex} wrapStyle={{ position: "absolute", inset: 0, opacity: 0.55 }} /> : <span style={{ fontSize: 20 }}>👤</span>}
-            {portraitOverlay(cPortrait)}
+            {/* RIGHT — form fields */}
+            <div className="identity-right">
+              <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 2 }}>Hero Name <span style={{ color: "#ff8a80" }}>*</span></label>
+              <input value={cName} onChange={e => setCName(e.target.value)} placeholder="Enter name..." maxLength={16} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (cName.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "7px 10px", color: "#fff7e0", fontSize: 12, fontFamily: "inherit", outline: "none", textAlign: "center", marginBottom: 8, boxSizing: "border-box" }} />
+              <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 2 }}>Personal Quote <span style={{ color: "#ff8a80" }}>*</span></label>
+              <input value={quote} onChange={e => setQuote(e.target.value)} placeholder="Speak your motto..." maxLength={60} style={{ width: "100%", background: "rgba(6,12,28,0.85)", border: "1px solid " + (quote.trim() ? "rgba(123,232,143,0.55)" : "rgba(212,173,64,0.45)"), borderRadius: 7, padding: "7px 10px", color: "#fff7e0", fontSize: 11, fontFamily: "inherit", outline: "none", textAlign: "center", fontStyle: "italic", marginBottom: 4, boxSizing: "border-box" }} />
+              <div style={{ marginBottom: 8, fontSize: 8, color: "#ffb074", textAlign: "center", fontStyle: "italic", lineHeight: 1.35 }}>A sorcerer is shaped by what they would die saying. Choose your words.</div>
+              <label style={{ fontSize: 10, color: "#cfd6ee", display: "block", marginBottom: 2 }}>Custom Portrait <span style={{ fontSize: 8, color: "#9fb0d8", fontWeight: 400 }}>(optional URL)</span></label>
+              <div style={{ display: "flex", gap: 5, alignItems: "stretch", marginBottom: 4 }}>
+                <div style={{ position: "relative", width: 42, height: 42, borderRadius: 7, background: "rgba(6,12,28,0.85)", border: "1px solid " + (cPortrait.trim() ? (isValidPortraitURL(cPortrait) ? "rgba(123,232,143,0.55)" : "rgba(255,138,128,0.55)") : "rgba(212,173,64,0.35)"), overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {selCls ? <CrossfadePortrait cid={selCls} sex={cSex} wrapStyle={{ position: "absolute", inset: 0, opacity: 0.55 }} /> : <span style={{ fontSize: 16 }}>👤</span>}
+                  {portraitOverlay(cPortrait)}
+                </div>
+                <input value={cPortrait} onChange={e => setCPortrait(e.target.value)} placeholder="https://..." maxLength={800} style={{ flex: 1, background: "rgba(6,12,28,0.85)", border: "1px solid rgba(212,173,64,0.35)", borderRadius: 7, padding: "6px 9px", color: "#fff7e0", fontSize: 10, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />
+              </div>
+              {cPortrait.trim() && !isValidPortraitURL(cPortrait) && <div style={{ fontSize: 8, color: "#ff8a80", marginBottom: 6, textAlign: "center", fontStyle: "italic" }}>Use http(s):// or data: image URL.</div>}
+              <div style={{ display: "flex", gap: 5, justifyContent: "center", marginBottom: 8 }}>
+                <button className="bt bs" style={{ background: cSex === "male" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "male" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)", padding: "5px 14px", fontSize: 11 }} onClick={() => setCSex("male")}>Male</button>
+                <button className="bt bs" style={{ background: cSex === "female" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "female" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)", padding: "5px 14px", fontSize: 11 }} onClick={() => setCSex("female")}>Female</button>
+              </div>
+              <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                <button className="bt" style={{ background: "rgba(14,22,46,0.85)", color: "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)", padding: "6px 12px" }} onClick={() => setCStep(1)}>←</button>
+                <button className="bt" style={{ background: T.gd, color: "#1a1206", opacity: (cName.trim() && quote.trim()) ? 1 : 0.4, padding: "6px 16px" }} disabled={!cName.trim() || !quote.trim()} onClick={() => createChar()}>Begin ⚔️</button>
+              </div>
+            </div>
           </div>
-          <input value={cPortrait} onChange={e => setCPortrait(e.target.value)} placeholder="https://example.com/your-hero.gif" maxLength={800} style={{ flex: 1, background: "rgba(6,12,28,0.85)", border: "1px solid rgba(212,173,64,0.35)", borderRadius: 7, padding: "8px 10px", color: "#fff7e0", fontSize: 11, fontFamily: "inherit", outline: "none" }} />
-        </div>
-        <div style={{ fontSize: 8, color: cPortrait.trim() && !isValidPortraitURL(cPortrait) ? "#ff8a80" : "#97a7d5", marginBottom: 10, lineHeight: 1.4, textAlign: "center", fontStyle: "italic" }}>
-          {cPortrait.trim() && !isValidPortraitURL(cPortrait) ? "URL must start with http:// or https:// (or be a data: image)." : "Leave blank to use your class portrait. You can change this later in the Stats panel."}
-        </div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 10 }}><button className="bt bs" style={{ background: cSex === "male" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "male" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("male")}>Male</button><button className="bt bs" style={{ background: cSex === "female" ? T.ac : "rgba(14,22,46,0.85)", color: cSex === "female" ? "#fff" : "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCSex("female")}>Female</button></div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center" }}><button className="bt" style={{ background: "rgba(14,22,46,0.85)", color: "#cfd6ee", border: "1px solid rgba(212,173,64,0.35)" }} onClick={() => setCStep(1)}>←</button><button className="bt" style={{ background: T.gd, color: "#1a1206", opacity: (cName.trim() && quote.trim()) ? 1 : 0.4 }} disabled={!cName.trim() || !quote.trim()} onClick={() => createChar()}>Begin ⚔️</button></div>
-        {!quote.trim() && <div style={{ marginTop: 8, fontSize: 9, color: "#ffb074", textAlign: "center", fontStyle: "italic" }}>A sorcerer is shaped by what they would die saying. Choose your words.</div>}
-      </div>}
+        </div>;
+      })()}
     </div></div>
   );
 

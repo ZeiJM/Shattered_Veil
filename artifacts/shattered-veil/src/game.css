@@ -3721,3 +3721,33 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .bm-step-bg span, .bm-innate .bm-ic-frame::after { animation: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v61 — IDENTITY STEP COMPACT 2-COL LAYOUT
+   • Two-column grid: left = portrait + class title + bloodmark + Unique Class
+     Interactions blurb. Right = name/quote/portrait/sex/buttons.
+   • Quote-prompt line lives directly under the Personal Quote input now (not
+     conditionally at the bottom of the page).
+   • Sized so the whole step fits in one viewport without scroll on a normal
+     desktop (~720h preview).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.identity-step .identity-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 14px;
+  align-items: start;
+}
+.identity-step .identity-left,
+.identity-step .identity-right { min-width: 0; }
+
+.identity-step .identity-inter-card {
+  position: relative;
+}
+
+@media (max-width: 560px) {
+  .identity-step .identity-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
