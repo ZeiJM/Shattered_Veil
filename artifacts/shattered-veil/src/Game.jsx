@@ -6365,7 +6365,7 @@ const buildGroupedBattleLog = (entries) => {
             { id: "bloodmark", ic: "✦", sg: "❈", nm: "8 Bloodmarks",            ds: "Innate techniques carved into your bloodline" },
             { id: "domain",    ic: "🌀", sg: "❂", nm: "Unfolded Territories",   ds: "Walk into a domain. Survive its rules" },
             { id: "covenant",  ic: "🏛", sg: "✜", nm: "5 Rival Covenants",      ds: "Pledge a faction. Inherit its enemies" },
-            { id: "continent", ic: "🗺", sg: "✦", nm: "Continent of the Veil",  ds: "300² tiles of ruined towns, drifting rifts, roaming bosses" },
+            { id: "continent", ic: "🗺", sg: "✦", nm: "Continent of the Veil",  ds: "A vast broken continent of ruined towns, drifting rifts and roaming bosses" },
             { id: "heir",      ic: "👑", sg: "♛", nm: "Bloodline Succession",   ds: "Die. Pass the mark to an heir. Begin stronger" },
           ].map((p, i) => <div key={p.id} className="title-pillar" data-pillar={p.id} style={{ animationDelay: (0.18 + i * 0.07) + "s" }}>
             <span className="title-pillar-sigil" aria-hidden>{p.sg}</span>
