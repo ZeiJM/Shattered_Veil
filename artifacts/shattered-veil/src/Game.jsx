@@ -3224,6 +3224,7 @@ function Game() {
   const subSwipeRef = useRef(null);
   const successionRef = useRef(false);
   const moveThrottleRef = useRef(0);
+  const [autoMoveTarget, setAutoMoveTarget] = useState(null);
   const subMoveThrottleRef = useRef(0);
 
   const notify = useCallback((m) => { setNoti(m); setTimeout(() => setNoti(null), 2200); }, []);
@@ -3667,10 +3668,10 @@ function Game() {
     if (scr !== "map" || !pl || !mData) return;
     const handler = (e) => {
       const k = e.key.toLowerCase();
-      if (k === "w" || k === "arrowup") { e.preventDefault(); move(0, -1); }
-      else if (k === "s" || k === "arrowdown") { e.preventDefault(); move(0, 1); }
-      else if (k === "a" || k === "arrowleft") { e.preventDefault(); move(-1, 0); }
-      else if (k === "d" || k === "arrowright") { e.preventDefault(); move(1, 0); }
+      if (k === "w" || k === "arrowup") { e.preventDefault(); setAutoMoveTarget(null); move(0, -1); }
+      else if (k === "s" || k === "arrowdown") { e.preventDefault(); setAutoMoveTarget(null); move(0, 1); }
+      else if (k === "a" || k === "arrowleft") { e.preventDefault(); setAutoMoveTarget(null); move(-1, 0); }
+      else if (k === "d" || k === "arrowright") { e.preventDefault(); setAutoMoveTarget(null); move(1, 0); }
       else if (k === " " || k === "enter") {
         e.preventDefault();
         const t = mData[pos.y * MW + pos.x];
@@ -3991,6 +3992,21 @@ function Game() {
       startBattle([boss], "boss");
     }
   }, [pos, mData, pl, ally, devPos, disc, guildMission, repelSteps]);
+
+  // Auto-trail: step toward autoMoveTarget once per ~160ms while on map
+  useEffect(() => {
+    if (scr !== "map") { if (autoMoveTarget) setAutoMoveTarget(null); return; }
+    if (!autoMoveTarget || !pl || !mData) return;
+    if (pos.x === autoMoveTarget.x && pos.y === autoMoveTarget.y) { setAutoMoveTarget(null); return; }
+    const id = setTimeout(() => {
+      const dx = autoMoveTarget.x - pos.x;
+      const dy = autoMoveTarget.y - pos.y;
+      if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) move(Math.sign(dx), 0);
+      else if (dy !== 0) move(0, Math.sign(dy));
+      else if (dx !== 0) move(Math.sign(dx), 0);
+    }, 160);
+    return () => clearTimeout(id);
+  }, [scr, autoMoveTarget, pos, pl, mData, move]);
 
   useEffect(() => {
     if (scr !== "map" || !mData || !pl) return;
@@ -6919,17 +6935,14 @@ const buildGroupedBattleLog = (entries) => {
               var isSwimming = isMe && t && t.bio === "ocean";
               var meContent = isMe ? (isSwimming ? <><img src={import.meta.env.BASE_URL + "swim-icon.png"} alt="Swimming" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 2, filter: "drop-shadow(0 0 4px rgba(0,180,255,0.6))" }} />{portraitOverlay(pl?.portrait)}</> : playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)) : null;
               var cellLabel = isMe ? null : isDev ? roamingBossIcon : hasPoi ? t.poi.ic : decor || biIc;
-              return <div key={idx} className={isMe ? "world-tile is-player" : "world-tile"} title={isDev ? "Roaming Boss" : (hasPoi ? (t.poi.nm || t.poi.type) : (t ? t.bio : ""))} onClick={function() { if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: (hasPoi || isDev) ? "pointer" : "default", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}{isMe ? <span className="player-aura-ring" aria-hidden="true" /> : null}</div>;
+              return <div key={idx} className={isMe ? "world-tile is-player" : "world-tile"} data-cls={isMe ? (pl?.cid || cls?.id || "default") : undefined} title={isDev ? "Roaming Boss — click to walk here" : (hasPoi ? ((t.poi.nm || t.poi.type) + " — click to walk here") : "Click to walk here")} onClick={function() { if (gx === pos.x && gy === pos.y) return; if (isDev) setTip(roamingBossIcon + " Roaming Boss at (" + gx + "," + gy + ")"); else if (hasPoi) setTip(t.poi.ic + " " + (t.poi.nm || t.poi.type) + " (" + t.poi.type + ") at (" + gx + "," + gy + ")"); if (gx >= 0 && gx < MW && gy >= 0 && gy < MH) setAutoMoveTarget({ x: gx, y: gy }); }} style={{ position: isMe ? "relative" : undefined, overflow: isMe ? "hidden" : undefined, aspectRatio: "1", background: bgC, color: isTrail ? "#f2c45c" : isDev ? "#ffd0d0" : hasPoi ? (poiBorder || "#fff") : (t && t.bio === "ocean" ? "#bfe6ff" : "#edf4ff"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMe ? 15 : isTrail ? 10 : hasPoi ? 10 : decor ? 9 : 7, borderRadius: 2, border: isMe ? "1.5px solid " + T.gd : poiBorder ? "1.5px solid " + poiBorder : "1px solid rgba(255,255,255,0.05)", boxShadow: isMe ? ((t && t.bio === "ocean") ? "0 0 16px rgba(0,180,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)" : "0 0 14px rgba(242,196,92,0.45), inset 0 0 0 1px rgba(255,255,255,0.12)") : poiBorder ? poiRing(hasPoi ? t.poi.type : "dev") : "inset 0 0 0 1px rgba(255,255,255,0.04)", opacity: t && t.bio === "ocean" ? 0.95 : 1, cursor: "pointer", transition: "background .15s, border .15s, box-shadow .15s", textShadow: isTrail || hasPoi || isDev ? "0 0 8px rgba(0,0,0,0.45)" : "none" }}>{cellLabel}{meContent}{isMe ? <span className="player-aura-ring" aria-hidden="true" /> : null}</div>;
             })}
           </div>
-          {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const centerLabel = hasPoi ? "Enter" : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "·"); const centerCls = "dpad-center" + (hasPoi ? " is-poi" : canFish ? " is-fish" : " is-idle"); return (
+          {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const centerLabel = isMoving ? "Stop" : hasPoi ? "Enter" : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "·"); const centerCls = "dpad-center" + (isMoving ? " is-moving" : hasPoi ? " is-poi" : canFish ? " is-fish" : " is-idle"); return (
           <div className="map-dpad-wrap">
-            <div className="map-dpad">
-              <div />{canN ? <button className="bt bs dpad-btn dpad-n" onClick={function(){move(0,-1)}}>↑</button> : <div />}<div />
-              {canW ? <button className="bt bs dpad-btn dpad-w" onClick={function(){move(-1,0)}}>←</button> : <div />}
-              <button className={"bt bs dpad-btn " + centerCls} type="button" onClick={() => { if (!tile || !tile.poi) { if (canFish && !fishingCD) { runFishing(); } return; } const tp = tile.poi.type; if (tp === "hostile" || tp === "outpost") enterHostilePoi(); else if (tp === "rift") enterRiftPoi(); else enterPoi(); }}>{centerLabel}</button>
-              {canE ? <button className="bt bs dpad-btn dpad-e" onClick={function(){move(1,0)}}>→</button> : <div />}
-              <div />{canS ? <button className="bt bs dpad-btn dpad-s" onClick={function(){move(0,1)}}>↓</button> : <div />}<div />
+            <div className="map-dpad map-dpad-solo">
+              <button className={"bt bs dpad-btn " + centerCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter location" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (!tile || !tile.poi) { if (canFish && !fishingCD) { runFishing(); } return; } const tp = tile.poi.type; if (tp === "hostile" || tp === "outpost") enterHostilePoi(); else if (tp === "rift") enterRiftPoi(); else enterPoi(); }}>{centerLabel}</button>
+              <div className="map-dpad-hint">Click map · WASD</div>
             </div>
           </div>
           ); })()}

@@ -275,3 +275,23 @@ User ask: "generate proper images for enemies and implement, as well as new icon
 - **CSS** (`v50 — PAINTED ENEMY PORTRAITS + ELEMENT ICONS` block at end of `game.css`) — `.ent-portrait-img` `object-fit: cover` with subtle saturate/contrast lift; `.is-boss-portrait` adds a warm orange `drop-shadow`; foe portraits get a faint crimson tint border and amplified glow when targeted.
 - **bossKey contract** — already set by `mkOutpostBoss`/`mkRiftBoss` (line 2464+). Wild beasts (`BEASTS` array, 40 entries) intentionally untouched — they fall back to the element PNG which still gives a painted look without per-creature art. Future polish round can add per-beast portraits if desired.
 - **PvP-ready** — `bossKey` and `portraitSrc` are plain strings on the foe snapshot; serializable for live PvP opponent payloads.
+
+### v51 — Click-to-move world map + per-class auras
+
+User feedback: "remove the arrow buttons but leave the WSAD input. Now wherever you click, your character automatically trails and moves. Also make each class have a different starting aura effect that is fitting with the class theme."
+
+- **Arrow d-pad removed.** The 3×3 grid (N/S/E/W + center) collapsed to a single 64px circular floating action button. Same `.map-dpad-wrap` shell so the layout/positioning logic from v47 still applies, but the inner grid is now `map-dpad-solo` (flex column). Small "Click map · WASD" hint underneath.
+- **Click-to-walk auto-trail.** New `autoMoveTarget` state (~line 3230). Tile `onClick` (~line 6942) sets the target to the clicked coords. A new effect (~line 3960) runs a `setTimeout(160ms)` greedy-step: each tick picks the larger of `|dx|`/`|dy|` and calls `move(±1, 0)` or `move(0, ±1)` toward the target. Stops when reached, when `scr` leaves `"map"`, or when WASD is pressed.
+  - WASD handler updated to `setAutoMoveTarget(null)` before each manual step so player input always wins.
+  - Re-uses the existing `move()` 130ms throttle, ocean HP-loss, encounter rolls, fieldboss triggers, and Dream Devourer trigger — no behavioral changes to single-tile movement.
+  - POI tiles still don't auto-enter on arrival; the action button changes to "Enter" and waits for confirmation. Smart fallback for edge cases (POI is gated behind ocean, etc).
+- **Action button modes**: `is-moving` (red pulsing "Stop") cancels auto-walk; `is-poi` (gold "Enter"); `is-fish` (cyan "Fish" or countdown); `is-idle` (·).
+- **Per-class aura tints (21 classes).** Player tile gets `data-cls={pl?.cid || cls?.id}`. CSS variables `--aura-c1` (ring color), `--aura-c2` (inner pulse color), `--aura-spd` (rotation speed) overridden per class. Themes:
+  - paladin: warm gold radiance · assassin: blood-red shadow (fast 4s) · sorcerer: violet arcane · priest: white halo (tight ring) · ranger: forest green
+  - koen: silver moonlight · shouei: deep blue · phoenix: orange flame (3.5s, blurred) · chrono: cyan ticking conic dial (slow 9s) · dream: lavender shimmer
+  - voidmage: black void conic-gradient · rune: teal glyph · bard: pink sparkle · gravity: slate vortex (slow 8.5s, conic) · sound: aqua wave
+  - puppet: magenta · tide: ocean blue · monk: amber qi · primal: earthen brown · hexblade: crimson curse (4.5s, blurred) · gambler: gold-and-red mix
+  - Special overlays: phoenix/hexblade get blurred saturated bloom; voidmage/gravity get conic-gradient sectors instead of soft radial; chrono gets a 6-spoke conic dial; priest/paladin get a tighter brighter ring.
+- **Hover hint** on traversable tiles — gold outline + brightness lift to telegraph "click to walk".
+- All CSS in a single appended `v51 — CLICK-TO-MOVE WORLD MAP + PER-CLASS AURAS` block at end of `game.css`. JSX touched in 4 spots: state declaration, autoMove effect, WASD handler, tile onClick + `data-cls`, d-pad markup.
+- **PvP-ready**: `autoMoveTarget` is local to the client; opponents see only the resulting `pos` updates already broadcast by the existing movement system.
