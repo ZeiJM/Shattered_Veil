@@ -7861,30 +7861,13 @@ const buildGroupedBattleLog = (entries) => {
         <div className="map-sky-veil" />
         <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
-          {(() => {
-            const last2 = [...log].slice(-2).reverse();
-            const fmtEntry = (l) => { const isEv = String(l).startsWith("EVENT|"); return { isEv, txt: isEv ? String(l).replace(/^EVENT\|/, "") : l }; };
-            return (
-              <>
-              <div className="map-locale-label">World</div>
-              <div className="map-top-head map-dashboard-bar">
-                <div className="mdb-seg mdb-seg-phase" title={"Local time " + skyClock + " — sky reflects your real time of day"}>
-                  <span className="mdb-icon">{skyPhase.icon}</span>
-                  <span className="mdb-stack"><span className="mdb-strong">{skyPhase.label}</span><span className="mdb-meta">{skyClock}</span></span>
-                </div>
-                <div className="mdb-seg mdb-seg-compass">
-                  <span className="mdb-stack"><span className="mdb-strong">🧭 {nearestTownCompass || "—"}</span><span className="mdb-meta">⌖ {nearestPoiCompass || "No active POIs"}</span></span>
-                </div>
-                <div className="mdb-seg mdb-seg-events" title="Latest events">
-                  <span className="mdb-events-head">EVENTS</span>
-                  <div className="mdb-events-list">
-                    {last2.length === 0 ? <span className="mdb-events-empty">— quiet —</span> : last2.map((l, i) => { const e = fmtEntry(l); return <span key={i} className={"mdb-event-pill" + (e.isEv ? " is-event" : "") + (i === 0 ? " is-latest" : "")}>{e.txt}</span>; })}
-                  </div>
-                </div>
-              </div>
-              </>
-            );
-          })()}
+          <div className="map-locale-label map-locale-row">
+            <span className="map-locale-title">World</span>
+            <span className="map-locale-phase" title={"Local time " + skyClock + " — sky reflects your real time of day"}>
+              <span className="mlp-icon">{skyPhase.icon}</span>
+              <span className="mlp-stack"><span className="mlp-strong">{skyPhase.label}</span><span className="mlp-meta">{skyClock}</span></span>
+            </span>
+          </div>
           <aside className="map-side-rail">
             {(() => { const onOcean = tile && tile.bio === "ocean"; const canFish = nearOcean || onOcean; const fishingCD = fishCD > timerNow; const hasPoi = tile && tile.poi; const isMoving = !!autoMoveTarget; const enterTypes = { town:1, outpost:1, rift:1, hostile:1 }; const poiVerb = hasPoi ? (enterTypes[tile.poi.type] ? "Enter" : "Interact") : null; const actLabel = isMoving ? "Stop" : hasPoi ? poiVerb : (canFish ? (fishingCD ? (Math.ceil((fishCD - timerNow)/1000) + "s") : "Fish") : "Idle"); const actCls = "rail-action-btn " + (isMoving ? "is-moving" : hasPoi ? "is-poi" : canFish ? "is-fish" : "is-idle"); return (
               <button className={actCls} type="button" title={isMoving ? "Stop auto-walk" : hasPoi ? "Enter (Space)" : (canFish ? (fishingCD ? "Fishing on cooldown" : "Cast a line") : "Click any tile to walk · WASD to step · Space to enter")} onClick={() => { if (isMoving) { setAutoMoveTarget(null); return; } if (hasPoi) { enterPoi(); return; } if (canFish && !fishingCD) { runFishing(); } }}>
@@ -7932,6 +7915,10 @@ const buildGroupedBattleLog = (entries) => {
               )}
               <div className="map-rail-tile-coords"><span className="mrtc-ic">📍</span><span className="mrtc-val">{pos.x}, {pos.y}</span></div>
             </div>
+            <div className="map-rail-compass" title="Nearest landmarks from your position">
+              <div className="mrc-row"><span className="mrc-ic">🧭</span><span className="mrc-val">{nearestTownCompass || "—"}</span></div>
+              <div className="mrc-row mrc-row-sub"><span className="mrc-ic">⌖</span><span className="mrc-val">{nearestPoiCompass || "No active POIs"}</span></div>
+            </div>
             {/* v69 — quick Veilcourt button (opens full chat directly; no inline dock) */}
             <button type="button" className="veil-quick-open-btn" onClick={openVeilcourt} title="Open the Veilcourt">
               <span className="veil-quick-open-ic">💬</span>
@@ -7939,6 +7926,18 @@ const buildGroupedBattleLog = (entries) => {
               <span className="veil-quick-open-online">{chatOnline}</span>
               {(chatUnread > 0 || chatMentions > 0 || dmTotalUnread > 0) && <span className={"veil-quick-open-badge" + ((chatMentions > 0 || dmTotalUnread > 0) ? " is-mention" : "")}>{chatMentions > 0 || dmTotalUnread > 0 ? "!" : (chatUnread > 99 ? "99+" : chatUnread)}</span>}
             </button>
+            {(() => {
+              const last2 = [...log].slice(-2).reverse();
+              const fmtEntry = (l) => { const isEv = String(l).startsWith("EVENT|"); return { isEv, txt: isEv ? String(l).replace(/^EVENT\|/, "") : l }; };
+              return (
+                <div className="map-rail-events" title="Latest events">
+                  <div className="mre-head">EVENTS</div>
+                  <div className="mre-list">
+                    {last2.length === 0 ? <div className="mre-empty">— quiet —</div> : last2.map((l, i) => { const e = fmtEntry(l); return <div key={i} className={"mre-pill" + (e.isEv ? " is-event" : "") + (i === 0 ? " is-latest" : "")}>{e.txt}</div>; })}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="map-rail-meta">
               {repelSteps > 0 && <div style={{ color: T.ok, fontSize: 9 }}>🧴 Repel: {repelSteps} steps</div>}
               {guildMission && <div style={{ fontSize: 9, color: guildMission.progress >= guildMission.goal ? T.ok : T.ac, lineHeight: 1.35 }}>
