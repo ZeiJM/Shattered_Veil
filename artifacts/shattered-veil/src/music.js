@@ -326,7 +326,32 @@ function sfxCast(ctx, dest, t0, gain) {
   osc.start(t0); osc.stop(t0 + 0.25);
 }
 
-const SFX_BANK = { hit: sfxHit, heal: sfxHeal, levelup: sfxLevelUp, victory: sfxVictory, defeat: sfxDefeat, menu: sfxMenu, cast: sfxCast, crit: sfxCrit };
+// v55: low-HP heartbeat — slow sub-bass thud + mid-range "lub-dub" pair
+function sfxHeartbeat(ctx, dest, t0, gain) {
+  // First thump (lub) — deeper, slightly louder
+  const o1 = ctx.createOscillator(); o1.type = "sine";
+  o1.frequency.setValueAtTime(90, t0);
+  o1.frequency.exponentialRampToValueAtTime(48, t0 + 0.18);
+  const g1 = ctx.createGain();
+  g1.gain.setValueAtTime(0, t0);
+  g1.gain.linearRampToValueAtTime(gain * 0.85, t0 + 0.015);
+  g1.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+  o1.connect(g1).connect(dest);
+  o1.start(t0); o1.stop(t0 + 0.24);
+  // Second thump (dub) — slightly higher, softer, ~0.18s after the first
+  const t1 = t0 + 0.20;
+  const o2 = ctx.createOscillator(); o2.type = "sine";
+  o2.frequency.setValueAtTime(110, t1);
+  o2.frequency.exponentialRampToValueAtTime(60, t1 + 0.16);
+  const g2 = ctx.createGain();
+  g2.gain.setValueAtTime(0, t1);
+  g2.gain.linearRampToValueAtTime(gain * 0.55, t1 + 0.015);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t1 + 0.20);
+  o2.connect(g2).connect(dest);
+  o2.start(t1); o2.stop(t1 + 0.22);
+}
+
+const SFX_BANK = { hit: sfxHit, heal: sfxHeal, levelup: sfxLevelUp, victory: sfxVictory, defeat: sfxDefeat, menu: sfxMenu, cast: sfxCast, crit: sfxCrit, heartbeat: sfxHeartbeat };
 
 export function createMusicPlayer() {
   let ctx = null;

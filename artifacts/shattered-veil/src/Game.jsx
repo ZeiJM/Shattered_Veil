@@ -1756,6 +1756,7 @@ function describeSingleWeaponEffect(fx, w) {
     piercing: "Piercing: cuts through a large share of target defense.",
     heal_on_kill: "Heal on kill: restores a share of max HP after a kill.",
     crit_boost: "Crit boost: improves the chance of a harder weapon strike.",
+    crit_damage: "Crit damage: critical hits land harder (+15% per piece).",
     exp_boost: "EXP boost: increases experience gains while equipped.",
     gold_boost: "Gold boost: increases gold gains while equipped.",
     thorns_on_hit: "Thorns: reflects part of incoming damage to attackers.",
@@ -1944,7 +1945,7 @@ function enhanceFoundGear(gear, source) {
   if (!gear || Math.random() > (source === 'rift' ? 0.7 : 0.4)) return gear;
   const g = { ...gear };
   if (g.slot) {
-    const pool = ['hp_regen','mp_regen','def_boost','spd_boost','lck_boost','crit_boost'].filter(fx => fx !== g.fx);
+    const pool = ['hp_regen','mp_regen','def_boost','spd_boost','lck_boost','crit_boost','crit_damage'].filter(fx => fx !== g.fx);
     if (pool.length) g.fx2 = P(pool);
     if (source === 'rift') { g.def += 1; g.hp = (g.hp || 0) + 6; }
     g.rareMix = true;
@@ -3052,6 +3053,19 @@ function Game() {
     const t = trackForScreen(scr, { battleType: btl?.type });
     if (t) musicRef.current.play(t);
   }, [scr, btl?.type]);
+  // v55: low-HP heartbeat intensity layer — when in battle and HP under 30%, a
+  // slow lub-dub sub-bass plays every 1.4s on top of the existing battle track.
+  useEffect(() => {
+    if (!btl || btl.type === "train") return;
+    const id = setInterval(() => {
+      const cur = pl?.chp || 0;
+      const max = pl?.mhp || pl?.hp || 1;
+      if (max > 0 && cur > 0 && (cur / max) < 0.30) {
+        try { musicRef.current.playSfx("heartbeat"); } catch {}
+      }
+    }, 1400);
+    return () => clearInterval(id);
+  }, [btl, pl?.chp, pl?.mhp]);
   const toggleMusicMute = useCallback(() => {
     const next = !musicRef.current.isMuted();
     musicRef.current.setMuted(next);
@@ -4532,6 +4546,8 @@ function Game() {
     }
     const wornArmor = [eq.helm, eq.body, eq.glv, eq.boot].filter(Boolean);
     const armorCritChance = wornArmor.reduce((sum, a) => sum + (gearHas(a, 'crit_boost') ? 0.08 : 0), 0);
+    // v55: per-piece crit damage bonus from gear with the crit_damage fx (+15% to crit multiplier per piece)
+    const armorCritDmgBoost = wornArmor.reduce((sum, a) => sum + (gearHas(a, 'crit_damage') ? 0.15 : 0), 0);
     const armorLuckDodge = wornArmor.reduce((sum, a) => sum + (gearHas(a, 'lck_boost') ? 0.05 : 0), 0);
     let lg = [], ch = [...btl.chain];
     const eqSk = np.skills.filter(s => s.equipped && s.unlocked);
@@ -4644,7 +4660,7 @@ function Game() {
       // v44: luck-based critical hit (stacks with armor crit)
       const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
       const isLuckCrit = !isShieldWeapon && Math.random() < luckCritChance;
-      if (isLuckCrit) { d = Math.floor(d * 1.5); logInfo("💥 Critical hit! ×1.5"); try { musicRef.current.playSfx("crit"); } catch {} }
+      if (isLuckCrit) { const critMult = 1.5 + armorCritDmgBoost; d = Math.floor(d * critMult); logInfo("💥 Critical hit! ×" + critMult.toFixed(2)); try { musicRef.current.playSfx("crit"); } catch {} }
       const kagamiCanAttune = !!(w && pl.cid === "shouei" && /kagami/i.test(w.name||"") && tgt.el && !(np.kagamiAttunedEnemyIds||[]).includes(tgt.id));
       let totalDamage = 0;
       for (let hi = 0; hi < hits; hi++) {
@@ -4836,7 +4852,7 @@ function Game() {
         // v44: luck-based critical hit on damage skills (one roll per cast, applies to all AoE targets)
         const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
         const skillIsCrit = Math.random() < luckCritChance;
-        if (skillIsCrit) { base *= 1.5; logInfo("💥 Critical hit! ×1.5"); try { musicRef.current.playSfx("crit"); } catch {} }
+        if (skillIsCrit) { const critMult = 1.5 + armorCritDmgBoost; base *= critMult; logInfo("💥 Critical hit! ×" + critMult.toFixed(2)); try { musicRef.current.playSfx("crit"); } catch {} }
         const targets = sk.aoe ? en.filter(e => e.hp > 0) : [tgt];
         const levelScale = skillLevelScale(sk);
         const statusChance = skillEffectChance(sk);
@@ -5339,13 +5355,46 @@ function Game() {
         const isSupportSkill = sk?.kind === 'support';
         const isRangedSkill = !!(sk && sk.el && sk.el !== "Null");
         const enemyPosCur = enemy.pos ?? (enemyIndex < 2 ? 3 : 4);
-        const playerLane = btl.plPos ?? 1;
+        let playerLane = btl.plPos ?? 1;
         let enemyDist = Math.abs(enemyPosCur - playerLane);
         let enemyNewPos = enemyPosCur;
-        if (!isSupportSkill) {
+        // v55: tick boss charge cooldown
+        if ((enemy.chargeCD || 0) > 0) enemy.chargeCD = enemy.chargeCD - 1;
+        // v55: boss charge attack — telegraph one turn, devastating advance the next.
+        let bossChargeBonus = 1;
+        let bossIsTelegraphing = false;
+        if (enemy.boss && !isSupportSkill) {
+          if (enemy.charging) {
+            // Execute the charge: advance straight to the player's lane and deal +60% damage
+            enemyNewPos = playerLane;
+            bossChargeBonus = 1.6;
+            enemy.charging = false;
+            enemy.chargeCD = 3;
+            el2.push("💢 " + enemy.name + " CHARGES across the field!");
+          } else if (enemyDist >= 3 && (enemy.chargeCD || 0) <= 0 && Math.random() < 0.32) {
+            // Telegraph: this turn does no damage, next turn the boss charges
+            enemy.charging = true;
+            bossIsTelegraphing = true;
+            el2.push("🐉 " + enemy.name + " coils for a devastating charge…");
+          }
+        }
+        if (!enemy.charging && !bossIsTelegraphing && !isSupportSkill && bossChargeBonus === 1) {
           if (!isRangedSkill && enemyDist > 2 && enemyPosCur > 3) {
-            enemyNewPos = enemyPosCur - 1;
-            el2.push("👣 " + enemy.name + " advances to the front line.");
+            // v55: player back-step interrupt — if player hasn't moved this turn and
+            // is faster than the advancing enemy, retreat one lane (cap at lane 2).
+            const playerSpd = (s2.spd || 0);
+            const enemySpd = (enemy.spd || enemy.lvl || 0);
+            const canBackstep = !btl.moved && playerSpd > enemySpd && playerLane < 2;
+            if (canBackstep) {
+              const newPlPos = Math.min(2, playerLane + 1);
+              setBtl(prev => prev ? { ...prev, plPos: newPlPos, moved: true } : prev);
+              btl.plPos = newPlPos; btl.moved = true; playerLane = newPlPos;
+              el2.push("🦶 You back-step the advance — " + enemy.name + " stalls!");
+              enemyNewPos = enemyPosCur; // enemy keeps lane, ate the bait
+            } else {
+              enemyNewPos = enemyPosCur - 1;
+              el2.push("👣 " + enemy.name + " advances to the front line.");
+            }
           } else if (isRangedSkill && enemyDist < 2 && enemyPosCur < 4) {
             enemyNewPos = enemyPosCur + 1;
             el2.push("👣 " + enemy.name + " falls back to keep distance.");
@@ -5354,12 +5403,14 @@ function Game() {
         enemy.pos = enemyNewPos;
         ue[enemyIndex] = enemy;
         enemyDist = Math.abs(enemyNewPos - playerLane);
+        // v55: a telegraphing boss spends this turn winding up — no damage this turn
+        if (bossIsTelegraphing) { ue[enemyIndex] = enemy; return; }
         let enemyDistMult = 1;
         if (!isSupportSkill) {
           if (!isRangedSkill && enemyDist <= 1) enemyDistMult = 1.10;       // point-blank
           else if (isRangedSkill && enemyDist >= 3) enemyDistMult = 1.12;   // long-shot
         }
-        const enemyDamageMult = enemy.damageMult || encounterProfile.enemyDamage || 1;
+        const enemyDamageMult = (enemy.damageMult || encounterProfile.enemyDamage || 1) * bossChargeBonus;
         const enemyLowHpBonus = enemy.lowHpDamage || 1;
         let ed = sk && sk.pow
           ? Math.max(0, Math.floor((sk.pow * 0.62 + enemy.atk * 0.52 + enemy.mag * 0.26 - s2.def * 0.24) * enemyDamageMult * enemyDistMult * eMult(sk.el || enemy.el, up) * (enemy.hp < Math.floor(enemy.mhp * 0.4) ? enemyLowHpBonus : 1) + R(-3, 4)))

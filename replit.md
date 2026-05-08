@@ -270,3 +270,19 @@ Companion polish to v53. The 24-hour sky cycle was shipping unnoticed because no
 - **Tile tokens stay above** via `.map-bg .battle-world-grid > * { z-index: 2 }` so player aura, POI ribbons, and click targets read normally.
 - All CSS in a single appended `v54 — TIME-OF-DAY PHASE INDICATOR + WORLD-TILE TINT HARMONY` block. JSX touched in 3 places (skyPhase/skyClock memos, map-bg className, head row).
 - **PvP-ready**: cosmetic only, no state shape change. Each player's local tint reflects their local hour.
+
+### v55 — Combat depth pass (boss charge, back-step interrupt, crit-damage gear, low-HP heartbeat)
+
+Four queued combat hooks shipped together. All additive — no state-shape break, no PvP regressions.
+
+- **Boss charge attack** (telegraph + execute). When a boss is at distance ≥ 3 with no `chargeCD`, 32% chance per turn to telegraph: this turn it deals **0 damage** and the log reads `🐉 <boss> coils for a devastating charge…`. Next turn, it advances straight to the player's lane and deals **×1.6 damage** with `💢 <boss> CHARGES across the field!`. Then `chargeCD = 3` so it can't spam. New per-enemy fields: `enemy.charging` (boolean) and `enemy.chargeCD` (counter). Bosses identified by the existing `enemy.boss` flag, so all 40 outpost/rift bosses get this for free.
+
+- **Player back-step interrupt** (counter to the boss charge). When a melee enemy advances on you AND `!btl.moved` AND `s2.spd > enemy.spd` AND `plPos < 2`, the player automatically retreats one lane (capped at lane 2): `🦶 You back-step the advance — <enemy> stalls!`. Consumes the player's free move for the turn (`btl.moved = true`) so it can't double-dip with a manual move. The advancing enemy holds its lane (ate the bait), losing the point-blank distance bonus next turn. Speed actually matters now.
+
+- **Crit damage from gear** (`crit_damage` fx). New armor effect added to the `enhanceFoundGear` random pool. Each piece worn adds **+15%** to the player crit multiplier (`1.5 → 1.65 → 1.80 → 1.95 → 2.10` at 4 pieces). Derived as `armorCritDmgBoost` next to the existing `armorCritChance` (`Game.jsx ~4540`). Wired into both crit paths: `attackWithWeapon` (line 4653) and skill damage (line 4845). Crit log now prints the actual multiplier (`💥 Critical hit! ×1.95`). FX_DESC entry added so equipment tooltips read `Crit damage: critical hits land harder (+15% per piece)`.
+
+- **Low-HP heartbeat intensity layer**. New `sfxHeartbeat` cue in `music.js` — slow lub-dub sub-bass pair (90Hz → 48Hz, then 110Hz → 60Hz). Triggered by a `setInterval(1400ms)` `useEffect` in `Game.jsx` (~line 3061) that fires only when `btl` is active, `btl.type !== "train"`, and `pl.chp / pl.mhp < 0.30`. Plays through the existing `sfxGain` bus so it respects SFX mute + volume settings. Layers under the active battle/boss music, giving a tangible audio cue when you're about to die.
+
+- **PvP-ready**: `chargeCD`, `charging`, `crit_damage` fx are all plain serializable fields. Back-step is fully client-side reactive — when PvP comes online, both clients evaluate the same condition independently from the same shared `btl` state.
+
+Files touched: `Game.jsx` (8 small edits, all behind `// v55` comments), `music.js` (1 added function + SFX_BANK entry).
