@@ -178,6 +178,15 @@ Compact appendix. All five rounds layered on the same battle loop without state-
 - **Battle compaction**: lane tile min-height 38→36 on short screens, tokens 30→26→22px, action buttons min-height 38→32px, range readout font 9→8px, combat title 14→11px. Layered onto the v40 viewport-fit block.
 - All rules in a single appended `v46 — WORLD + BATTLE LAYOUT COMPACTION PASS` block at end of `game.css`. JSX touched only at the swim icon line (~6915) and the action button (~6921, wrapped in IIFE for the new `canFish` derived value).
 
+### v47 — Battle unification + world ergonomic pass
+- **Battle button parchment leak fixed.** All `.battle-action-btn` were inline-styled with parchment-ish colors (`T.c2` cream, `T.ok+"15"` pale green, `ELC[el]+"12"` element tints) which clashed with the dark battle backdrop. v47 forces every action button to one dark navy gradient + gold border via `!important` overrides — element identity now lives in the colored *text* inside the button (which the JSX already renders via `ELC[sk.el]`), not the button background. Veil Expansion (ult) keeps the gold treatment as a deliberate exception (it's the climax button) — selector `.battle-action-btn[style*="pulse"]` matches the inline `animation: pulse 1s infinite` on the ult.
+- **Battle section frames** wrapped in subtle dark cards (`rgba(8,14,30,0.45)` bg + thin gold border), section titles in Cinzel uppercase with gold underline. Action grid `auto-fit minmax(160px, 1fr)` for clean wrapping. Help-chip `?` repositioned as a small gold circle in top-right.
+- **World HUD compacted** on map screen specifically (`.map-bg .hud-shell`): smaller name/sub fonts, thinner HP/MP/XP bars, tighter quick-nav buttons. Saved ~50px vertical.
+- **Map grid expanded** from `min(46dvh, 360px)` → `min(62dvh, 540px)` (down to 54dvh on short screens). Now actually fills the parchment area instead of being a tiny square in the middle.
+- **Floating ergonomic d-pad** (`.map-dpad-wrap`) — repositioned to bottom-right of the page-panel as an absolute-positioned floating control panel. 42px tiles in a navy-glass card with gold border + drop shadow. Center action button is colored by state: gold pulsing for `is-poi` (Enter), cyan for `is-fish` (Fish/cooldown), muted purple for `is-idle` (·). JSX touched only for the d-pad block (~6920) — wrapped in IIFE that derives `centerCls` from `hasPoi`/`canFish`.
+- **Legend pills hidden by default**, expand on hover of the page-panel. Map log shrunk to 80px (60 short).
+- All in one appended `v47 — BATTLE UNIFICATION + WORLD ERGONOMIC PASS` block at end of `game.css` (~line 1955+).
+
 ### Future combat hooks (queued, not built)
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
 - Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).
