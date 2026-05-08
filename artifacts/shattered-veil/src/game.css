@@ -5574,3 +5574,172 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   font-size: 16px;
   filter: drop-shadow(0 0 4px rgba(120, 196, 236, 0.55));
 }
+
+/* ====================================================================
+   v73 — TITLE TYPOGRAPHY + HUD REDESIGN + READABLE BUTTONS
+   ====================================================================
+   - Title h1 / tagline / pillars / CTA: bigger, bolder, more readable.
+   - HUD char-info: bars relocated alongside text rows (2-col grid),
+     bubble is shorter and feels balanced.
+   - HUD resource tiles: painted PNG sigils replace flat emoji.
+   - Fish moved into the primary row beside SHD; clicking opens a popup
+     ledger instead of an inline dropdown.
+   - All char-box pieces (name, class, gen, day, rank, bm, covenant) and
+     resource tiles (gold/frag/shd/fish/bank/loan) are clickable with
+     info popups.
+   - Battle aux dropdown panels: dark navy bg + light text (was
+     parchment, white-on-white text was invisible).
+   - Char-creation back buttons unified: dark navy + cream text.
+   - Tags (rank/bloodmark/covenant) standardised: Cinzel uppercase pill.
+   ==================================================================== */
+
+/* Title typography bumps — slightly bigger, easier to read */
+.title-bg-art .title-hero h1 {
+  font-size: 56px !important;
+  letter-spacing: 0.06em !important;
+  line-height: 0.94 !important;
+}
+.title-eyebrow { font-size: 12px !important; letter-spacing: 0.6em !important; }
+.title-tagline { font-size: 17px !important; line-height: 1.55 !important; max-width: 540px !important; }
+.title-pillar-nm { font-size: 13px !important; line-height: 1.25 !important; }
+.title-pillar-ds { font-size: 12px !important; line-height: 1.45 !important; }
+.title-pillar-ic { font-size: 22px !important; }
+.title-cta { font-size: 19px !important; padding: 18px 28px !important; letter-spacing: 0.20em !important; }
+@media (max-width: 520px) {
+  .title-bg-art .title-hero h1 { font-size: 42px !important; }
+  .title-tagline { font-size: 15px !important; }
+  .title-cta { font-size: 16px !important; padding: 14px 20px !important; }
+}
+
+/* Battle aux dropdown panels — readable dark navy + light text */
+.battle-aux-dropdown {
+  background: linear-gradient(180deg, rgba(10,16,38,0.96) 0%, rgba(6,10,24,0.98) 100%) !important;
+  border: 1px solid rgba(212,173,64,0.32) !important;
+  color: #e6ecff !important;
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.08), 0 6px 18px rgba(0,0,0,0.45);
+}
+.battle-aux-dropdown > div { color: #e6ecff !important; }
+.battle-aux-dropdown > div[style*="cursor"] {
+  background: linear-gradient(180deg, rgba(20,28,56,0.85), rgba(12,18,40,0.92)) !important;
+  border: 1px solid rgba(212,173,64,0.22) !important;
+  color: #e6ecff !important;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.battle-aux-dropdown > div[style*="cursor"]:hover {
+  border-color: rgba(242,196,92,0.55) !important;
+  box-shadow: 0 0 10px rgba(212,173,64,0.30);
+  transform: translateY(-1px);
+}
+.battle-aux-dropdown > div[style*="cursor"] > div { color: #e6ecff !important; }
+.battle-aux-dropdown > div[style*="cursor"] span { color: inherit; }
+
+/* HUD v73 — char-info 2-column layout (text left, mini-bars right) */
+.hud-shell-v73 .hud-char-info-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  gap: 10px;
+  align-items: start;
+}
+@media (max-width: 540px) {
+  .hud-shell-v73 .hud-char-info-cols { grid-template-columns: 1fr; gap: 5px; }
+}
+.hud-shell-v73 .hud-char-info-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hud-shell-v73 .hud-char-bars {
+  margin-top: 0 !important;
+  background: linear-gradient(180deg, rgba(8,12,28,0.70) 0%, rgba(4,8,18,0.88) 100%);
+  border: 1px solid rgba(212,173,64,0.22);
+  border-radius: 7px;
+  padding: 5px 6px;
+  gap: 3px !important;
+}
+.hud-shell-v73 .hud-char-bar { grid-template-columns: 18px 1fr 44px !important; gap: 4px !important; }
+.hud-shell-v73 .hud-char-bar > div { height: 7px !important; }
+.hud-shell-v73 .hud-char-bar-num { font-size: 8.5px !important; }
+
+/* HUD v73 — clickable affordances */
+.hud-shell-v73 .hud-clickable { cursor: pointer; transition: filter 120ms ease, text-shadow 120ms ease, transform 120ms ease; }
+.hud-shell-v73 .hud-clickable:hover { filter: brightness(1.18); text-shadow: 0 0 8px currentColor; }
+.hud-shell-v73 .hud-tag.hud-clickable:hover { box-shadow: 0 0 10px currentColor; transform: translateY(-1px); }
+.hud-shell-v73 .hud-sub-sep { color: rgba(241,231,200,0.35) !important; }
+.hud-shell-v73 .hud-char-portrait.hud-clickable:hover { transform: scale(1.04); }
+
+/* HUD v73 — standardised tag pills (rank, bloodmark, covenant) */
+.hud-shell-v73 .hud-tag {
+  font-size: 9px !important;
+  padding: 2px 8px !important;
+  font-family: 'Cinzel', serif !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+  font-weight: 700 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 999px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.2;
+}
+
+/* HUD v73 — painted resource icons */
+.hud-shell-v73 .hud-res-tile {
+  padding: 4px 9px 4px 5px;
+  gap: 6px;
+  min-height: 30px;
+  border-radius: 7px;
+}
+.hud-shell-v73 .hud-res-row { gap: 5px; }
+.hud-shell-v73 .hud-res-ic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px;
+  position: relative;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+  flex: 0 0 auto;
+}
+.hud-shell-v73 .hud-res-ic-img {
+  width: 24px; height: 24px;
+  object-fit: contain;
+  display: inline-block;
+}
+.hud-shell-v73 .hud-res-ic-fb { font-size: 16px; line-height: 1; }
+.hud-shell-v73 button.hud-res-tile {
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+.hud-shell-v73 button.hud-res-tile:hover {
+  border-color: rgba(242,196,92,0.55);
+  box-shadow: 0 0 12px rgba(212,173,64,0.35);
+  transform: translateY(-1px);
+}
+.hud-shell-v73 .hud-res-tile.is-empty { opacity: 0.55; }
+.hud-shell-v73 .hud-res-tile.hud-res-gold  { background: linear-gradient(180deg, rgba(74,52,18,0.85), rgba(38,26,8,0.92)) !important; border-color: rgba(242,196,92,0.50) !important; }
+.hud-shell-v73 .hud-res-tile.hud-res-frag  { background: linear-gradient(180deg, rgba(50,30,72,0.85), rgba(28,16,46,0.92)) !important; border-color: rgba(206,147,216,0.45) !important; }
+.hud-shell-v73 .hud-res-tile.hud-res-shard { background: linear-gradient(180deg, rgba(60,28,58,0.85), rgba(34,14,32,0.92)) !important; border-color: rgba(245,184,224,0.45) !important; }
+.hud-shell-v73 .hud-res-tile.hud-res-fish  { background: linear-gradient(180deg, rgba(14,42,68,0.85), rgba(6,22,42,0.92)) !important; border-color: rgba(127,209,255,0.45) !important; }
+.hud-shell-v73 .hud-res-tile.hud-res-bank  { background: linear-gradient(180deg, rgba(18,34,58,0.85), rgba(8,18,36,0.92)) !important; border-color: rgba(184,230,255,0.45) !important; }
+.hud-shell-v73 .hud-res-tile.hud-res-loan  { background: linear-gradient(180deg, rgba(60,18,18,0.88), rgba(34,8,8,0.94)) !important; border-color: rgba(229,57,53,0.55) !important; }
+
+/* HUD v73 — bubble polish: a subtle inner gold rule under top edge */
+.hud-shell-v73 .hud-char-box,
+.hud-shell-v73 .hud-resource-box {
+  box-shadow: inset 0 1px 0 rgba(255,224,160,0.18), inset 0 0 0 1px rgba(255,255,255,0.02), 0 6px 16px rgba(0,0,0,0.45);
+}
+
+/* Fish ledger — popup styling */
+.popup-modal .hud-fish-ledger-popup {
+  display: grid;
+  gap: 4px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.popup-modal .hud-fish-ledger-popup .hud-fish-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 12px;
+  background: linear-gradient(180deg, rgba(14,22,46,0.88), rgba(8,14,30,0.95));
+  border: 1px solid rgba(212,173,64,0.25);
+  border-radius: 7px;
+  font-size: 12px;
+}
+.popup-modal .hud-fish-ledger-popup .hud-fish-nm { color: #cfd6ee; font-family: 'Crimson Text', serif; }
+.popup-modal .hud-fish-ledger-popup .hud-fish-qty { color: #ffd97a; font-family: 'Cinzel', serif; font-weight: 800; letter-spacing: 0.04em; }

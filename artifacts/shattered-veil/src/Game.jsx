@@ -6960,55 +6960,88 @@ const buildGroupedBattleLog = (entries) => {
 
   // ── HUD ──
   const fishCount = Array.isArray(fish) ? fish.reduce((s, f) => s + (f.qty || 1), 0) : 0;
-  const hud = pl && !["title","create"].includes(scr) ? (
-    <div className="cd hud-shell hud-shell-v63" style={{ padding: 8 }}>
-      {/* v63 — top row: character box + resource box */}
+  const hud = pl && !["title","create"].includes(scr) ? (() => {
+    const RES_BASE = (import.meta.env.BASE_URL || "/") + "res/";
+    const resIc = (name, emoji) => <span className="hud-res-ic">
+      <img className="hud-res-ic-img" src={RES_BASE + name + ".png"} alt="" draggable={false}
+        onError={(e) => { try { const t = e.currentTarget; t.style.display = "none"; const fb = t.nextElementSibling; if (fb) fb.style.display = "inline-block"; } catch(_){} }} />
+      <span className="hud-res-ic-fb" style={{ display: "none" }}>{emoji}</span>
+    </span>;
+    const rk = getRank(pl.level);
+    const nextRk = getNextRankLevel(pl.level);
+    const bmLive = pl.bloodmark ? getBM(pl.bloodmark) : null;
+    const cvLive = pl.covenant ? getCV(pl.covenant) : null;
+    const elDisplay = cls ? (cls.multiEl ? "4 random elements" : (cls.el2 ? cls.el + " / " + cls.el2 : cls.el)) : "—";
+    const heroSummary = "⚔ " + pl.name + "\n\nA " + (cls?.nm || "sorcerer") + " of generation " + (pl.generation || 1) + ", currently " + ageInfo.nm.toLowerCase() + " on day " + ageDay + " of their span.";
+    const openFishPopup = () => setPopup({
+      title: "🐟 Fish Caught — " + fishCount,
+      node: fishLedger.length > 0 ? <div className="hud-fish-ledger-popup">{fishLedger.map(f => <div key={f.nm} className="hud-fish-row"><span className="hud-fish-nm">{f.nm}</span><span className="hud-fish-qty">×{f.qty}</span></div>)}</div> : <div style={{ fontSize: 12, color: "#bcc6e6", textAlign: "center", padding: 14, lineHeight: 1.5 }}>No fish caught yet — visit a coast or stand in water and tap the Fish quick-button on the map.</div>,
+      fullscreen: true,
+    });
+    return (
+    <div className="cd hud-shell hud-shell-v63 hud-shell-v73" style={{ padding: 8 }}>
+      {/* v73 — top row: character box + resource box */}
       <div className="hud-top-row">
         {/* CHARACTER BOX */}
         <div className="hud-char-box">
-          <div className="hud-char-portrait" style={{ background: cls?.cl, border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 12px " + (cls?.cl || T.gd) + "66" }}>
+          <div className="hud-char-portrait hud-clickable" title="Hero — click for details" onClick={() => setPopup({ text: heroSummary })} style={{ background: cls?.cl, border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 12px " + (cls?.cl || T.gd) + "66" }}>
             {playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)}
           </div>
           <div className="hud-char-info">
-            <div className="hud-char-name-row">
-              <span className="hud-char-name" style={{ color: cls?.cl }}>{pl.name}</span>
-              {entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={9} />)}
-            </div>
-            <div className="hud-char-sub">{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
-            <div className="hud-char-tags">
-              {(() => { const rk = getRank(pl.level); return <span className="hud-tag" style={{ background: rk.cl + "22", borderColor: rk.cl + "55", color: rk.cl, fontWeight: 700 }}>{rk.ic} {rk.nm}</span>; })()}
-              {pl.bloodmark && (() => { const bm = getBM(pl.bloodmark); return bm ? <span className="hud-tag" style={{ background: bm.cl + "22", borderColor: bm.cl + "44", color: bm.cl }}>{bm.ic} {bm.nm}</span> : null; })()}
-              {pl.covenant && (() => { const cv = getCV(pl.covenant); return cv ? <span className="hud-tag" style={{ background: cv.cl + "22", borderColor: cv.cl + "44", color: cv.cl }}>{cv.ic} {cv.nm}</span> : null; })()}
-            </div>
-            {/* v71 — compact stacked HP/MP/XP bars inside the character box */}
-            <div className="hud-char-bars">
-              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.hp }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span className="hud-char-bar-num">{pl.chp}/{st.hp}</span></div>
-              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.mp }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span className="hud-char-bar-num">{pl.cmp}/{st.mp}</span></div>
-              <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.xp }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span className="hud-char-bar-num">{pl.xp}/{xpFor(pl.level)}</span></div>
+            <div className="hud-char-info-cols">
+              <div className="hud-char-info-text">
+                <div className="hud-char-name-row">
+                  <span className="hud-char-name hud-clickable" style={{ color: cls?.cl }} title="Hero — click for details" onClick={() => setPopup({ text: heroSummary })}>{pl.name}</span>
+                  {entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={9} />)}
+                </div>
+                <div className="hud-char-sub">
+                  {cls && <span className="hud-clickable" title="Class — click for details" onClick={() => setPopup({ text: cls.nm + "\n\n" + cls.ds + "\n\nElement: " + elDisplay + "\nStat tier: ATK " + cls.stR + "/5  ·  SK " + cls.skR + "/5" })}>{cls.nm}</span>}
+                  <span className="hud-sub-sep"> · </span>
+                  <span className="hud-clickable" title="Generation — click for details" onClick={() => setPopup({ text: "🩸 Generation " + (pl.generation || 1) + "\n\nEach time your hero dies, the bloodline continues through their heir — inheriting your bloodmark (with a rare chance of mutation), legacy traits, and a starting boon.\n\nA single hero matters. A bloodline matters more." })}>Gen.{pl.generation || 1}</span>
+                  <span className="hud-sub-sep"> · </span>
+                  <span className="hud-clickable" title="Stage of life · day — click for details" onClick={() => setPopup({ text: "🌱 " + ageInfo.nm + " — Day " + ageDay + " of 31\n\nA hero's lifespan is short but meaningful. Age shapes your effective stats: youth boosts speed, prime boosts power, elders trade physicality for wisdom.\n\nWhen your days run out, the mark passes to your heir." })}>{ageSummary}</span>
+                </div>
+                <div className="hud-char-tags">
+                  <span className="hud-tag hud-clickable" style={{ background: rk.cl + "22", borderColor: rk.cl + "55", color: rk.cl }} title="Rank — click for details" onClick={() => setPopup({ text: rk.ic + " " + rk.nm + "\n\n" + rk.ds + (Object.keys(rk.bonus || {}).length > 0 ? "\n\nRank bonus: " + Object.entries(rk.bonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ") : "") + "\n\nLevel " + pl.level + (nextRk ? "  ·  Next grade at Lv." + nextRk : "  ·  Max grade") })}>{rk.ic} {rk.nm}</span>
+                  {bmLive && <span className="hud-tag hud-clickable" style={{ background: bmLive.cl + "22", borderColor: bmLive.cl + "55", color: bmLive.cl }} title="Bloodmark — click for details" onClick={() => setPopup({ text: bmLive.ic + " " + bmLive.nm + "\n\n" + bmLive.ds + (bmLive.passiveDesc ? "\n\n⚡ " + bmLive.passiveDesc : "") + (Object.keys(bmLive.stat || {}).length > 0 ? "\n\nStat traits: " + Object.entries(bmLive.stat).map(([k,v]) => (v > 0 ? "+" : "") + v + " " + k.toUpperCase()).join(" · ") : "") })}>{bmLive.ic} {bmLive.nm}</span>}
+                  {cvLive && <span className="hud-tag hud-clickable" style={{ background: cvLive.cl + "22", borderColor: cvLive.cl + "55", color: cvLive.cl }} title="Covenant — click for details" onClick={() => setPopup({ text: cvLive.ic + " " + cvLive.nm + "\n\n" + cvLive.ds })}>{cvLive.ic} {cvLive.nm}</span>}
+                </div>
+              </div>
+              {/* v73 — HP/MP/XP bars sit alongside the text rows (right column) */}
+              <div className="hud-char-bars">
+                <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.hp }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span className="hud-char-bar-num">{pl.chp}/{st.hp}</span></div>
+                <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.mp }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span className="hud-char-bar-num">{pl.cmp}/{st.mp}</span></div>
+                <div className="hud-char-bar"><span className="hud-char-bar-tag" style={{ color: T.xp }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span className="hud-char-bar-num">{pl.xp}/{xpFor(pl.level)}</span></div>
+              </div>
             </div>
           </div>
         </div>
-        {/* RESOURCE BOX */}
+        {/* RESOURCE BOX — v73 painted icons, fish moved next to SHD, all tiles clickable */}
         <div className="hud-resource-box">
           <div className="hud-res-row hud-res-primary">
-            <div className="hud-res-tile hud-res-gold" title="Gold"><span className="hud-res-ic">💰</span><span className="hud-res-val">{gold}</span></div>
-            <div className="hud-res-tile hud-res-frag" title="Veil Fragments"><span className="hud-res-ic">🔮</span><span className="hud-res-val">{fragments}</span><span className="hud-res-lbl">frag</span></div>
-            <div className="hud-res-tile hud-res-shard" title="Relic Shards"><span className="hud-res-ic">✦</span><span className="hud-res-val">{shards}</span><span className="hud-res-lbl">shd</span></div>
+            <button type="button" className="hud-res-tile hud-res-gold is-clickable" title="Gold — click for details" onClick={() => setPopup({ text: "💰 Gold — Standard tender across the fractured world.\n\nEarned from battles, fishing, town services, and treasure caches. Spent on inn rest, gear, services, and covenant rites.\n\nCarried: " + gold + " g" })}>
+              {resIc("gold","💰")}<span className="hud-res-val">{gold}</span>
+            </button>
+            <button type="button" className="hud-res-tile hud-res-frag is-clickable" title="Veil Fragments — click for details" onClick={() => setPopup({ text: "🔮 Veil Fragments — Crystallised residue left behind when Veil-touched foes break apart.\n\nUsed by the Relic Crafter to forge consumable relics: tonics, talismans, and void shards.\n\nCarried: " + fragments + " frag" })}>
+              {resIc("frag","🔮")}<span className="hud-res-val">{fragments}</span><span className="hud-res-lbl">frag</span>
+            </button>
+            <button type="button" className="hud-res-tile hud-res-shard is-clickable" title="Relic Shards — click for details" onClick={() => setPopup({ text: "✦ Relic Shards — Splinters of broken legendary relics, dropped by bosses and rifts.\n\nA crafting reagent for higher-tier relics; sometimes accepted by shrines as offering.\n\nCarried: " + shards + " shd" })}>
+              {resIc("shard","✦")}<span className="hud-res-val">{shards}</span><span className="hud-res-lbl">shd</span>
+            </button>
+            <button type="button" className={"hud-res-tile hud-res-fish is-clickable" + (fishCount === 0 ? " is-empty" : "")} title="Fish caught — click for ledger" onClick={openFishPopup}>
+              {resIc("fish","🐟")}<span className="hud-res-val">{fishCount}</span>
+            </button>
           </div>
           <div className="hud-res-row hud-res-secondary">
-            <div className={"hud-res-tile hud-res-fish" + (fishCount > 0 ? " is-clickable" : "")} title="Fish caught" onClick={() => fishCount > 0 && setShowFishLedger(v => !v)}>
-              <span className="hud-res-ic">🐟</span><span className="hud-res-val">{fishCount}</span>{fishCount > 0 && <span className="hud-res-caret">{showFishLedger ? "▲" : "▼"}</span>}
-            </div>
-            {bank > 0 && <div className="hud-res-tile hud-res-bank" title="Bank balance"><span className="hud-res-ic">🏦</span><span className="hud-res-val">{bank}</span></div>}
-            {loan > 0 && <div className="hud-res-tile hud-res-loan" title="Outstanding loan"><span className="hud-res-ic">💸</span><span className="hud-res-val">{loan}</span></div>}
-            {pet && <div className="hud-res-tile hud-res-pet" title={"Pet — " + pet.nm}><span className="hud-res-ic">{pet.ic}</span><span className="hud-res-val hud-res-name">{pet.nm}</span></div>}
-            {ally && <div className="hud-res-tile hud-res-ally" title={"Ally — " + ally.nm}><span className="hud-res-ic">🤝</span><span className="hud-res-val hud-res-name">{ally.nm}</span></div>}
-            {spouse && <button type="button" className="hud-res-tile hud-res-spouse is-clickable" title={"Spouse — " + spouse.nm} onClick={() => setPopup({ text: spouseDetailText(spouse) })}><span className="hud-res-ic">💍</span><span className="hud-res-val hud-res-name">{spouse.nm}</span></button>}
+            {bank > 0 && <button type="button" className="hud-res-tile hud-res-bank is-clickable" title="Bank balance — click for details" onClick={() => setPopup({ text: "🏦 Bank Balance — Gold safely stored at the bank.\n\nDeposit at any town to protect funds from death; withdraw when needed.\n\nBalance: " + bank + " g" })}>{resIc("bank","🏦")}<span className="hud-res-val">{bank}</span></button>}
+            {loan > 0 && <button type="button" className="hud-res-tile hud-res-loan is-clickable" title="Outstanding loan — click for details" onClick={() => setPopup({ text: "💸 Outstanding Loan — Gold borrowed from the bank.\n\nMust be repaid before death or interest may compound. Default risks ledger consequences.\n\nOwed: " + loan + " g" })}>{resIc("loan","💸")}<span className="hud-res-val">{loan}</span></button>}
+            {pet && <div className="hud-res-tile hud-res-pet" title={"Pet — " + pet.nm}><span className="hud-res-ic"><span className="hud-res-ic-fb" style={{ display: "inline-block" }}>{pet.ic}</span></span><span className="hud-res-val hud-res-name">{pet.nm}</span></div>}
+            {ally && <div className="hud-res-tile hud-res-ally" title={"Ally — " + ally.nm}><span className="hud-res-ic"><span className="hud-res-ic-fb" style={{ display: "inline-block" }}>🤝</span></span><span className="hud-res-val hud-res-name">{ally.nm}</span></div>}
+            {spouse && <button type="button" className="hud-res-tile hud-res-spouse is-clickable" title={"Spouse — " + spouse.nm} onClick={() => setPopup({ text: spouseDetailText(spouse) })}><span className="hud-res-ic"><span className="hud-res-ic-fb" style={{ display: "inline-block" }}>💍</span></span><span className="hud-res-val hud-res-name">{spouse.nm}</span></button>}
           </div>
-          {showFishLedger && fishLedger.length > 0 && <div className="hud-fish-ledger">{fishLedger.map(f => <div key={f.nm} className="hud-fish-row"><span>{f.nm}</span><span className="hud-fish-qty">×{f.qty}</span></div>)}</div>}
         </div>
       </div>
-      {/* v71 — bars relocated into hud-char-info above */}
+      {/* v73 — fish ledger now opens via popup */}
       {(() => { const tileNow = mData && pos ? mData[pos.y * MW + pos.x] : null; return tileNow && tileNow.bio === "ocean" ? <div className="hud-drown-warn">🌊 Drowning — swim to land. Ocean travel drains 1 HP and 1 MP every 2 seconds.</div> : null; })()}
       {pl.efx && pl.efx.length > 0 && <div className="hud-efx-row">{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
       <details className="hud-element-summary"><summary>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
@@ -7049,7 +7082,8 @@ const buildGroupedBattleLog = (entries) => {
         );
       })()}
     </div>
-  ) : null;
+    );
+  })() : null;
 
   // ═══════════════ SCREENS ═══════════════
 
@@ -7173,8 +7207,8 @@ const buildGroupedBattleLog = (entries) => {
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 10, position: "relative", zIndex: 1 }}>
-            <button className="bt" style={{ background: T.c2 }} onClick={() => setCStep(0)}>← Back</button>
-            <button className="bt" style={{ background: T.gd }} onClick={() => setCStep(2)}>Next: Identity →</button>
+            <button className="bt" style={{ background: "rgba(14,22,46,0.85)", color: "#cfd6ee", border: "1px solid rgba(212,173,64,0.45)", padding: "6px 14px" }} onClick={() => setCStep(0)}>← Back</button>
+            <button className="bt" style={{ background: T.gd, color: "#1a1206", padding: "6px 16px" }} onClick={() => setCStep(2)}>Next: Identity →</button>
           </div>
         </div>;
       })()}
@@ -8307,21 +8341,21 @@ const buildGroupedBattleLog = (entries) => {
                   {ults.length > 1 && <button className="bt bs" style={{ background: btlPanel === "ults" ? "#d8a83b" : "#6b5320", color: "#fff7de" }} onClick={() => setBtlPanel(btlPanel === "ults" ? null : "ults")}>📖 Spellbook</button>}
                   <button className="bt bs" style={{ background: "#b84c68", color: "#fff3f6" }} disabled={!isPT} onClick={() => bAct("flee")}>🏃 Flee</button>
                 </div>
-                {btlPanel === "items" && isPT && <div style={{ marginTop: 4, padding: 4, background: T.c1, borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
+                {btlPanel === "items" && isPT && <div className="battle-aux-dropdown" style={{ marginTop: 4, padding: 4, background: "rgba(10,16,38,0.95)", color: "#e6ecff", borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
                   <div style={{ fontSize: 9, color: T.dm, marginBottom: 2 }}>Equip item to empty slot (ends turn)</div>
                   {inv.filter(i => i.nm || i.ef).length === 0 && <div style={{ fontSize: 9, color: T.dm }}>No items available.</div>}
                   {inv.filter(i => i.nm || i.ef).map(i => <div key={i.id} style={{ padding: 3, fontSize: 9, cursor: "pointer", borderRadius: 3, background: T.c2, marginBottom: 1 }} onClick={() => bAct("btl_equip_item", i.id)}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{i.nm||i.name} ×{i.qty||1}</span><span style={{ color: T.ok, fontSize: 8 }}>Equip →</span></div><div style={{ fontSize: 9, color: T.dm, marginTop: 1 }}>Effect: {itemEffectDetail(i)}</div></div>)}
                 </div>}
-                {btlPanel === "weapons" && isPT && <div style={{ marginTop: 4, padding: 4, background: T.c1, borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
+                {btlPanel === "weapons" && isPT && <div className="battle-aux-dropdown" style={{ marginTop: 4, padding: 4, background: "rgba(10,16,38,0.95)", color: "#e6ecff", borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
                   <div style={{ fontSize: 9, color: T.dm, marginBottom: 2 }}>Draw/swap weapon from inventory (ends turn)</div>
                   {inv.filter(i => i.atk !== undefined).length === 0 && <div style={{ fontSize: 9, color: T.dm }}>No weapons in inventory.</div>}
                   {inv.filter(i => i.atk !== undefined).map(i => <div key={i.id} style={{ padding: 3, fontSize: 9, cursor: "pointer", borderRadius: 3, background: T.c2, marginBottom: 1 }} onClick={() => bAct("btl_equip_weapon", i.id)}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span>{i.name} [{i.el}] ATK:{i.atk}</span><span style={{ color: T.ok, fontSize: 8 }}>{(eq.w1 && eq.w1.id === i.id) || (eq.w2 && eq.w2.id === i.id) ? "Equipped" : "Draw →"}</span></div><div style={{ fontSize: 9, color: T.dm, marginTop: 1 }}>Effect: {weaponEffectDetail(i)}</div><div style={{ fontSize: 9, color: T.dm, marginTop: 1 }}>{(() => { const lines = attackSummaryLines(i.el, 3); return <span><span style={{ color: "#ffd77a", fontWeight: 700 }}>Deals Extra Damage To:</span> {renderMatchupItems(lines.dealMore, "deal")}</span>; })()}</div></div>)}
                 </div>}
-                {btlPanel === "skills" && isPT && <div style={{ marginTop: 4, padding: 4, background: T.c1, borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
+                {btlPanel === "skills" && isPT && <div className="battle-aux-dropdown" style={{ marginTop: 4, padding: 4, background: "rgba(10,16,38,0.95)", color: "#e6ecff", borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
                   <div style={{ fontSize: 9, color: T.dm, marginBottom: 2 }}>Swap an equipped skill (ends turn)</div>
                   {pl.skills.filter(s => s.unlocked && !s.equipped).map(sk => <div key={sk.id} style={{ padding: 2, fontSize: 9, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderRadius: 3, background: T.c2, marginBottom: 1 }} onClick={() => bAct("btl_equip_skill", sk.id)}><span>{sk.n} [{sk.el}] P:{sk.pow} MP:{sk.mp}</span><span style={{ color: T.ok, fontSize: 8 }}>Equip →</span></div>)}
                 </div>}
-                {btlPanel === "ults" && isPT && <div style={{ marginTop: 4, padding: 4, background: T.c1, borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
+                {btlPanel === "ults" && isPT && <div className="battle-aux-dropdown" style={{ marginTop: 4, padding: 4, background: "rgba(10,16,38,0.95)", color: "#e6ecff", borderRadius: 5, maxHeight: 220, overflowY: "auto" }}>
                   <div style={{ fontSize: 9, color: T.dm, marginBottom: 2 }}>Set forbidden magic from spellbook (ends turn, resets chain)</div>
                   {(ults.length ? ults : [pl.ult]).map((u, i) => <div key={i} style={{ padding: 2, fontSize: 9, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderRadius: 3, background: pl.ult.name === u.name ? T.gd + "22" : T.c2, marginBottom: 1 }} onClick={() => { if (pl.ult.name !== u.name) bAct("btl_set_ult", i); }}><span>{u.name} P:{u.pow} {u.fx||""}</span><span style={{ color: pl.ult.name === u.name ? T.ok : T.ac, fontSize: 8 }}>{pl.ult.name === u.name ? "Active" : "Set →"}</span></div>)}
                 </div>}

@@ -223,3 +223,24 @@ CSS: single `v71 — MAP/HUD POLISH PASS` block appended at the end of `game.css
 - **Card UI auto-adapts.** `renderCard` and the Stats-page bloodmark card now branch on `bm.passiveDesc`: shows the passive box if present, otherwise a dashed "Ancestral lineage — stat traits only" plate. Stat row branches on `Object.keys(bm.stat).length` and falls back to "No stat bonus — passive only" for class-innate cards.
 - **Skill interactions: 1 per run.** `createChar` now calls `pickAssignedInteractions(shuffled, 1, c.id)` (was 2). Identity-step copy reads "Only one interaction is rolled randomly each run…". Battle logic (`evaluateInteractions`, `getReadyInteractions`) iterates `pl.inter` so the smaller list is handled automatically — no battle changes needed.
 - **Bloodmark step text fixed.** Header now reads "It shapes your passive abilities." (dropped "and starting statistics"). The "You may skip this step" line moved from `T.dm` (which vanished into the dark step bg) to a warm `#ffd98a` italic pill with a subtle navy chip and gold border, so it reads cleanly over the painted backdrop.
+
+## v73 — HUD redesign + clickable info popups + readable buttons
+
+Multi-part HUD/UX polish round. Deliberate, additive, no state-shape changes.
+
+- **Painted resource icons**: 6 hand-generated PNG sigils replace flat emoji on the HUD resource tiles. Files in `public/res/{gold,frag,shard,fish,bank,loan}.png`. New `resIc(name, emoji)` inline helper renders an `<img>` with an emoji `onError` fallback. The `hud-shell-v73` class scopes new sizing (24×24 icon slot, drop-shadow), tile gradients, and per-resource border tint.
+- **Char-info 2-column layout**: HP/MP/XP bars moved out from below the text rows into a right-side column (`.hud-char-info-cols { grid-template-columns: minmax(0,1fr) 128px }`). Bubble is shorter and visually balanced; bars get their own dark-navy boxed strip. Mobile (<540px) falls back to a single column.
+- **Fish moved to primary row**: now sits beside SHD on the same row (gold / frag / shard / fish), no longer in the secondary row. Click opens a fullscreen popup with the species ledger (`hud-fish-ledger-popup`) instead of an inline `<details>`-style dropdown. The legacy `setShowFishLedger` toggle is no longer mounted by the HUD JSX.
+- **Everything is clickable for an info popup**:
+  - Portrait + hero name → "A {class} of generation N, currently {stage} on day {n} of their span."
+  - Class · Gen · Stage/Day → 3 separate clickable spans, each with its own popup.
+  - Rank / Bloodmark / Covenant tags → full description + bonus / passive trait listing.
+  - Gold / Frag / Shard / Fish / Bank / Loan tiles → lore + carried amount.
+  - Spouse tile (already in v60s) keeps its existing detail popup.
+  - All clickable elements get a `.hud-clickable` class with hover brightness + text-shadow.
+- **Standardised tag pills** (rank, bloodmark, covenant): `.hud-shell-v73 .hud-tag` is now a unified Cinzel uppercase 9px pill, 999px radius, color/border-color driven by the live entity's `cl`. Hover gives a glow ring matching the tag color.
+- **Title text bumps**: `h1` 44→56px (mobile fallback 42px), tagline 14→17px, eyebrow 10→12px, pillar headers 11→13px, pillar descriptions 10→12px, CTA 16→19px. Letter-spacing widened on h1 + CTA. Text-shadow already present from v56 keeps it readable over the painted hero artwork.
+- **Char-creation back buttons**: both back buttons (cstep1 → cstep0 line ~7176, cstep2 → cstep0 line ~7213) given explicit `background: rgba(14,22,46,0.85); color: #cfd6ee; border: 1px solid rgba(212,173,64,0.45)`. Was previously `background: T.c2` (parchment) which made the white inherited button text invisible against the bright background.
+- **Battle Auxiliary Actions dropdowns**: each of the 4 dropdown panels (Equip Item / Draw Weapon / Swap Skill / Spellbook) tagged with `className="battle-aux-dropdown"` and inline bg replaced from `T.c1` (parchment) → `rgba(10,16,38,0.95)` + `color: #e6ecff`. CSS overrides `.battle-aux-dropdown > div[style*="cursor"]` so each row gets a navy gradient + gold border + hover glow, with all child text forced light. Fixes the "white text on white parchment" invisibility.
+
+CSS lives in a single `v73 — TITLE TYPOGRAPHY + HUD REDESIGN + READABLE BUTTONS` block at the end of `game.css`. JSX changes are scoped to the HUD block (~line 6964–7088), the two char-creation back buttons, and a `sed` pass that added the `battle-aux-dropdown` class to the 4 dropdown wrappers. No state shape changed, no save migration needed.
