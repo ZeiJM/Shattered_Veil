@@ -2232,12 +2232,12 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
    atlas inset for that "old-world map" feel.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Wider 19:11 map grid — overrides v47's square cap */
+/* v62 — Bigger painted-tile 15:9 map grid */
 .map-bg .battle-world-grid {
-  max-width: min(88dvw, 760px) !important;
-  max-height: min(50dvh, 460px) !important;
+  max-width: min(88dvw, 820px) !important;
+  max-height: min(58dvh, 540px) !important;
   width: 100% !important;
-  aspect-ratio: 19 / 11 !important;
+  aspect-ratio: 15 / 9 !important;
   margin: 4px auto !important;
   border: 2px solid rgba(212,173,64,0.55) !important;
   border-radius: 10px;
@@ -2264,29 +2264,65 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   mix-blend-mode: overlay;
 }
 
-/* Player tile — animated aura ring + golden inner pulse */
+/* v62 — Player tile aura: INNER BORDER aura that hugs the rounded tile shape
+   (replaces the v48 circular ring). Three layers stack:
+   1. ::before — soft inset glow that bleeds in from all four edges
+   2. .player-aura-ring — animated conic-gradient sweeping around the inner border
+   3. ::after — pulsing 1px inner highlight that breathes
+   The character portrait sits centered, larger and clearer. */
 .map-bg .world-tile.is-player {
   z-index: 2;
 }
 .map-bg .player-aura-ring {
   position: absolute;
-  inset: -3px;
-  border-radius: 50%;
+  inset: 0;
+  border-radius: 4px;
   pointer-events: none;
-  background:
-    radial-gradient(circle, transparent 38%, rgba(242,196,92,0.55) 50%, transparent 62%);
-  animation: playerAuraRotate 6s linear infinite, playerAuraPulse 2.4s ease-in-out infinite;
+  padding: 2px;
+  background: conic-gradient(from 0deg,
+    var(--aura-c1) 0deg, transparent 90deg,
+    var(--aura-c1) 180deg, transparent 270deg,
+    var(--aura-c1) 360deg);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  animation: playerAuraRotate var(--aura-spd, 6s) linear infinite,
+             playerAuraPulse 2.4s ease-in-out infinite;
   z-index: 3;
+  filter: drop-shadow(0 0 4px var(--aura-c1));
 }
 .map-bg .world-tile.is-player::before {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 3px;
-  background: radial-gradient(circle at 50% 50%, rgba(242,196,92,0.32), transparent 70%);
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--aura-c2), transparent 35%, transparent 65%, var(--aura-c2)),
+              linear-gradient(90deg, var(--aura-c2), transparent 35%, transparent 65%, var(--aura-c2));
+  mix-blend-mode: screen;
+  opacity: 0.6;
   animation: playerInnerPulse 1.6s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
+}
+.map-bg .world-tile.is-player::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 3px;
+  border: 1px solid var(--aura-c1);
+  pointer-events: none;
+  opacity: 0.85;
+  animation: playerInnerBorderBreath 1.8s ease-in-out infinite;
+  z-index: 4;
+}
+@keyframes playerInnerBorderBreath {
+  0%, 100% { opacity: 0.55; box-shadow: inset 0 0 4px var(--aura-c1); }
+  50%      { opacity: 1;    box-shadow: inset 0 0 10px var(--aura-c1); }
 }
 @keyframes playerAuraRotate {
   from { transform: rotate(0deg); }
@@ -2559,13 +2595,8 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   --aura-c2: rgba(242,196,92,0.32);
   --aura-spd: 6s;
 }
-.map-bg .player-aura-ring {
-  background: radial-gradient(circle, transparent 38%, var(--aura-c1) 50%, transparent 62%) !important;
-  animation: playerAuraRotate var(--aura-spd, 6s) linear infinite, playerAuraPulse 2.4s ease-in-out infinite !important;
-}
-.map-bg .world-tile.is-player::before {
-  background: radial-gradient(circle at 50% 50%, var(--aura-c2), transparent 70%) !important;
-}
+/* v62 — legacy v51 ring background override removed; the v62 inner-border
+   conic+mask aura defined earlier is now the single source of truth. */
 
 /* Per-class aura tints — fitting the class theme */
 .map-bg .world-tile.is-player[data-cls="paladin"]   { --aura-c1: rgba(255,225,130,0.75); --aura-c2: rgba(255,235,180,0.48); --aura-spd: 6s; }
@@ -2591,20 +2622,22 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 .map-bg .world-tile.is-player[data-cls="gambler"]   { --aura-c1: rgba(255,200,80,0.75);  --aura-c2: rgba(220,50,80,0.5); --aura-spd: 5.5s; }
 
 /* Special-flavor extras — a few classes get a second overlay for character */
-.map-bg .world-tile.is-player[data-cls="phoenix"] .player-aura-ring,
-.map-bg .world-tile.is-player[data-cls="hexblade"] .player-aura-ring {
+/* v62 — class-specific overrides removed: the new inner-border aura already
+   carries the per-class --aura-c1 / --aura-c2 colors. Kept the conic ring as
+   the universal motif so all 21 classes feel consistent in shape. */
+.map-bg .world-tile.is-player[data-cls="__legacy_phoenix__"] .player-aura-ring,
+.map-bg .world-tile.is-player[data-cls="__legacy_hexblade__"] .player-aura-ring {
   filter: blur(1.2px) saturate(1.3);
 }
-.map-bg .world-tile.is-player[data-cls="voidmage"] .player-aura-ring,
-.map-bg .world-tile.is-player[data-cls="gravity"] .player-aura-ring {
-  background: conic-gradient(from 0deg, transparent 0deg, var(--aura-c1) 90deg, transparent 180deg, var(--aura-c1) 270deg, transparent 360deg) !important;
-}
-.map-bg .world-tile.is-player[data-cls="priest"] .player-aura-ring,
-.map-bg .world-tile.is-player[data-cls="paladin"] .player-aura-ring {
-  background: radial-gradient(circle, transparent 32%, var(--aura-c1) 48%, transparent 60%) !important;
-}
-.map-bg .world-tile.is-player[data-cls="chrono"] .player-aura-ring {
-  background: conic-gradient(from 90deg, var(--aura-c1) 0deg, transparent 60deg, var(--aura-c1) 120deg, transparent 180deg, var(--aura-c1) 240deg, transparent 300deg, var(--aura-c1) 360deg) !important;
+/* v62 — class-specific .player-aura-ring background overrides retired.
+   The new universal inner-border conic ring keeps shape consistent across
+   all 21 classes; per-class character still expressed via --aura-c1 / --aura-c2. */
+.map-bg .world-tile.is-player[data-cls="__legacy_voidmage__"] .player-aura-ring,
+.map-bg .world-tile.is-player[data-cls="__legacy_gravity__"] .player-aura-ring,
+.map-bg .world-tile.is-player[data-cls="__legacy_priest__"] .player-aura-ring,
+.map-bg .world-tile.is-player[data-cls="__legacy_paladin__"] .player-aura-ring,
+.map-bg .world-tile.is-player[data-cls="__legacy_chrono__"] .player-aura-ring {
+  /* disabled */
 }
 
 /* Hover hint on traversable tiles to communicate "click to walk" */
@@ -2654,12 +2687,13 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   min-height: 0;
 }
 
-/* The wide world map — 27 cols × 13 rows */
+/* v62 — overrides v52's 27:13 — map is now 15:9 with bigger tiles for
+   character visibility. Cap raised to 820×540 to compensate for fewer tiles. */
 .map-bg .battle-world-grid {
-  aspect-ratio: 27 / 13 !important;
+  aspect-ratio: 15 / 9 !important;
   width: 100% !important;
   max-width: min(100%, 92dvw) !important;
-  max-height: min(72dvh, 660px) !important;
+  max-height: min(72dvh, 540px) !important;
   margin: 0 !important;
   border: 2px solid rgba(212,173,64,0.50) !important;
   border-radius: 10px !important;
@@ -3750,4 +3784,58 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
     grid-template-columns: 1fr;
     gap: 10px;
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v62 — WORLD MAP REDESIGN: PAINTED BIOME TEXTURES + INNER-BORDER AURA
+   • 10 painted biome PNGs (public/biome/<bio>.png) layered under the existing
+     glow + ridge tints inside worldTileVisual(). Ocean keeps its handcrafted
+     gradient. Each tile now reads as a tiny painted vignette instead of flat
+     color blocks.
+   • Map dimensions VW/VH 21×11 → 15×9 (~96 tiles → ~135 tiles, but each tile
+     is ~40% larger by area). Aspect ratio 19:9 → 15:9. Grid cap raised to
+     820×540 from 760×460. Player portrait + biome art are now legible.
+   • Player aura switched from circular ring to INNER-BORDER aura that hugs
+     the rounded square tile: conic-gradient sweep on the inner edge using a
+     mask trick + per-class color. Adds a breathing inset border highlight
+     and a soft top-bottom + left-right corner glow that bleeds into the tile.
+   • Each tile gets a subtle paper-grain overlay so the painted textures don't
+     read as photo squares — keeps the "atlas page" feel.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Subtle paper-grain over every tile so painted PNGs read as atlas art */
+.map-bg .battle-world-grid .world-tile {
+  position: relative;
+}
+.map-bg .battle-world-grid .world-tile:not(.is-player)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,235,180,0.03) 0 1px, transparent 1px 5px),
+    radial-gradient(ellipse at 50% 50%, transparent 70%, rgba(0,0,0,0.16) 100%);
+  border-radius: 2px;
+  mix-blend-mode: overlay;
+  opacity: 0.45;
+  z-index: 0;
+}
+/* Make sure POI / decor glyphs render above the grain */
+.map-bg .battle-world-grid .world-tile { isolation: isolate; }
+
+/* Bigger player tile content — portrait fills the tile properly */
+.map-bg .world-tile.is-player img,
+.map-bg .world-tile.is-player .pa-pic {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 3px;
+  filter: drop-shadow(0 0 3px rgba(0,0,0,0.6));
+}
+.map-bg .world-tile.is-player {
+  font-size: 18px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-bg .world-tile.is-player::after { animation: none !important; opacity: 0.7; box-shadow: inset 0 0 5px var(--aura-c1) !important; }
 }

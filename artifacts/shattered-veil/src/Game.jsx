@@ -2760,6 +2760,10 @@ function poiRing(type) {
   return "0 0 0 1px " + c + "55, 0 0 10px " + c + "22, inset 0 0 0 1px rgba(255,255,255,0.08)";
 }
 function mapTrailGlyph(dir) { return dir === "↑" ? "⬆" : dir === "↓" ? "⬇" : dir === "←" ? "⬅" : "➡"; }
+// v62 — painted biome textures layered under tints. Resolved via BASE_URL so
+// the URL works under any artifact path prefix.
+const BIOME_TX_PATH = (bio) => `${import.meta.env.BASE_URL}biome/${bio}.png`;
+const BIOME_TX_BIOMES = new Set(["plains","forest","mountain","desert","snow","swamp","coast","volcanic","void","jungle"]);
 function worldTileVisual(t) {
   if (!t) return "#0d1220";
   const base = tileShade(t);
@@ -2767,7 +2771,9 @@ function worldTileVisual(t) {
   const glowMap = { forest:"rgba(88,179,92,0.12)", jungle:"rgba(48,181,86,0.14)", swamp:"rgba(111,160,95,0.10)", plains:"rgba(180,214,120,0.08)", mountain:"rgba(194,178,164,0.10)", desert:"rgba(244,199,92,0.10)", snow:"rgba(215,235,255,0.14)", coast:"rgba(120,196,236,0.12)", volcanic:"rgba(255,132,76,0.12)", void:"rgba(180,116,255,0.14)" };
   const glow = glowMap[t.bio] || "rgba(255,255,255,0.08)";
   const ridge = (t.bio === "mountain" || t.bio === "volcanic") ? "linear-gradient(135deg, rgba(255,255,255,0.08), transparent 45%)" : "linear-gradient(135deg, rgba(255,255,255,0.04), transparent 42%)";
-  return "radial-gradient(circle at 35% 30%, " + glow + ", transparent 48%), " + ridge + ", " + base;
+  // Per-tile painted texture (when available) sits under glow + ridge + tinted base
+  const tx = BIOME_TX_BIOMES.has(t.bio) ? `url('${BIOME_TX_PATH(t.bio)}') center/cover, ` : "";
+  return "radial-gradient(circle at 35% 30%, " + glow + ", transparent 48%), " + ridge + ", " + tx + base;
 }
 function syncTimedLootPois(map, cycle) {
   if (!Array.isArray(map)) return map;
@@ -6929,7 +6935,7 @@ const buildGroupedBattleLog = (entries) => {
 
   // MAP
   if (scr === "map" && mData) {
-    const VW = 21, VH = 11, hfX = 10, hfY = 5, tile = mData[pos.y * MW + pos.x];
+    const VW = 15, VH = 9, hfX = 7, hfY = 4, tile = mData[pos.y * MW + pos.x];
     const canN = pos.y > 0, canS = pos.y < MH-1, canW = pos.x > 0, canE = pos.x < MW-1;
     const trailDir = prevPos ? (prevPos.x < pos.x ? "→" : prevPos.x > pos.x ? "←" : prevPos.y < pos.y ? "↓" : "↑") : null;
     const nearOcean = [{x:pos.x-1,y:pos.y},{x:pos.x+1,y:pos.y},{x:pos.x,y:pos.y-1},{x:pos.x,y:pos.y+1}].some(function(p){ if(p.x<0||p.x>=MW||p.y<0||p.y>=MH) return false; return mData[p.y*MW+p.x] && mData[p.y*MW+p.x].bio === "ocean"; });
