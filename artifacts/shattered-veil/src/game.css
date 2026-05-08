@@ -5326,3 +5326,131 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 }
 .veil-profile-dm-btn:hover { box-shadow: 0 0 18px rgba(212,173,64,0.75) !important; transform: translateY(-1px); }
 .veil-profile-mention-btn { padding: 7px 12px !important; font-weight: 700 !important; }
+
+/* ─── v70 — THREADED + GROUP DMs ─────────────────────────────────── */
+.veilcourt-thread-row { display: flex; align-items: stretch; gap: 4px; padding: 0 4px; }
+.veilcourt-thread-row .veilcourt-thread { flex: 1 1 auto; }
+.veilcourt-thread-leave {
+  flex: 0 0 auto !important;
+  padding: 0 10px !important;
+  font-size: 14px !important;
+  background: linear-gradient(180deg, #2a1010 0%, #1a0808 100%) !important;
+  border: 1px solid rgba(220, 80, 80, 0.45) !important;
+  color: #ffb3b3 !important;
+  border-radius: 8px !important;
+  transition: all 0.15s ease;
+}
+.veilcourt-thread-leave:hover {
+  background: linear-gradient(180deg, #3a1414 0%, #260c0c 100%) !important;
+  box-shadow: 0 0 10px rgba(220, 80, 80, 0.5) !important;
+  color: #fff !important;
+}
+
+.veilcourt-thread-portrait { position: relative; }
+.veilcourt-thread-group-badge {
+  position: absolute; bottom: -4px; right: -4px;
+  min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #d4ad40, #8a6810);
+  color: #1a1408; font-weight: 800; font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid #1a0e02; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  font-family: 'Cinzel', serif;
+}
+
+.veilcourt-thread-name { display: inline-flex; align-items: center; gap: 6px; }
+.veilcourt-group-pill {
+  display: inline-block;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 2px 6px; border-radius: 6px;
+  background: rgba(212,173,64,0.18);
+  border: 1px solid rgba(212,173,64,0.5);
+  color: #ffd77a;
+  font-family: 'Cinzel', serif;
+}
+
+.veilcourt-dm-leave {
+  margin-left: auto !important;
+  padding: 5px 10px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(180deg, #2a1010 0%, #1a0808 100%) !important;
+  border: 1px solid rgba(220, 80, 80, 0.55) !important;
+  color: #ffb3b3 !important;
+}
+.veilcourt-dm-leave:hover {
+  background: linear-gradient(180deg, #3a1414 0%, #260c0c 100%) !important;
+  box-shadow: 0 0 10px rgba(220, 80, 80, 0.55) !important;
+  color: #fff !important;
+}
+
+.veilcourt-dm-participants {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 12px;
+  background: rgba(8, 12, 28, 0.55);
+  border-bottom: 1px solid rgba(212,173,64,0.22);
+}
+.veilcourt-participant-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 999px;
+  background: rgba(20, 28, 56, 0.65);
+  border: 1px solid rgba(122,137,194,0.45);
+  color: #e8eeff;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.veilcourt-participant-chip:hover { background: rgba(30, 42, 80, 0.85); transform: translateY(-1px); }
+.veilcourt-participant-chip.is-me { cursor: default; opacity: 0.85; border-color: rgba(212,173,64,0.55) !important; background: rgba(40, 30, 8, 0.65); }
+.veilcourt-participant-chip.is-me:hover { transform: none; }
+.veilcourt-participant-portrait {
+  width: 22px; height: 22px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0;
+  border: 1.5px solid #7a89c2;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(8, 12, 28, 0.7);
+  font-size: 11px;
+}
+.veilcourt-participant-portrait img { width: 100%; height: 100%; object-fit: cover; }
+
+.veilcourt-leave-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 1401;
+  width: 92%; max-width: 380px;
+  background: linear-gradient(180deg, #1a0e1e 0%, #100614 100%);
+  border: 1.5px solid rgba(220, 80, 80, 0.55);
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 28px rgba(220,60,60,0.2);
+  color: #f0e8d8;
+  font-family: 'Crimson Text', serif;
+}
+.veilcourt-leave-title {
+  font-family: 'Cinzel', serif;
+  font-size: 18px; font-weight: 800;
+  color: #ffb3b3;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.veilcourt-leave-body {
+  font-size: 14px; line-height: 1.5;
+  color: #d8d4cc;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.veilcourt-leave-actions {
+  display: flex; gap: 10px; justify-content: center;
+}
+.veilcourt-leave-confirm {
+  background: linear-gradient(180deg, #5a1a1a 0%, #3a0e0e 100%) !important;
+  border: 1px solid rgba(220, 80, 80, 0.7) !important;
+  color: #ffe0e0 !important;
+  font-weight: 800 !important;
+  padding: 8px 16px !important;
+  box-shadow: 0 0 14px rgba(220, 60, 60, 0.4) !important;
+}
+.veilcourt-leave-confirm:hover {
+  background: linear-gradient(180deg, #7a2020 0%, #4a1010 100%) !important;
+  box-shadow: 0 0 22px rgba(220, 60, 60, 0.65) !important;
+}

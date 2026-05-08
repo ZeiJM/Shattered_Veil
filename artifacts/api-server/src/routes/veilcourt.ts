@@ -1,10 +1,13 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 
 const router: IRouter = Router();
 
 const MAX_MESSAGES = 200;
-const MAX_DMS = 1500;
+const MAX_THREAD_MESSAGES = 200;
+const MAX_THREADS = 800;
+const MAX_PARTICIPANTS = 8;
 const MAX_NAME = 24;
 const MAX_TEXT = 600;
 const RATE_MS = 1500;
@@ -28,8 +31,17 @@ interface VeilMessage {
   mentions?: string[];
 }
 
-interface VeilDM extends VeilMessage {
-  to: string;
+interface VeilThreadMessage extends VeilMessage {
+  threadId: string;
+}
+
+interface VeilThread {
+  id: string;
+  participants: string[]; // playerIds
+  createdAt: number;
+  createdBy: string;
+  messages: VeilThreadMessage[];
+  nextMsgId: number;
 }
 
 interface VeilIdentity {
@@ -47,9 +59,8 @@ interface VeilIdentity {
 }
 
 const messages: VeilMessage[] = [];
-const dms: VeilDM[] = [];
+const threads = new Map<string, VeilThread>();
 let nextId = 1;
-let nextDmId = 1;
 const lastSendByPlayer = new Map<string, number>();
 const lastSeenByPlayer = new Map<string, number>();
 const playersById = new Map<string, VeilIdentity>();
@@ -59,13 +70,6 @@ function pushMessage(m: Omit<VeilMessage, "id" | "ts">): VeilMessage {
   const full: VeilMessage = { ...m, id: nextId++, ts: Date.now() };
   messages.push(full);
   if (messages.length > MAX_MESSAGES) messages.splice(0, messages.length - MAX_MESSAGES);
-  return full;
-}
-
-function pushDM(m: Omit<VeilDM, "id" | "ts">): VeilDM {
-  const full: VeilDM = { ...m, id: nextDmId++, ts: Date.now() };
-  dms.push(full);
-  if (dms.length > MAX_DMS) dms.splice(0, dms.length - MAX_DMS);
   return full;
 }
 
@@ -84,7 +88,12 @@ const IdentityShape = {
 
 const PostBody = z.object({ ...IdentityShape, text: z.string().min(1).max(MAX_TEXT) });
 const PresenceBody = z.object(IdentityShape);
-const DmBody = z.object({ ...IdentityShape, text: z.string().min(1).max(MAX_TEXT), to: z.string().min(4).max(64) });
+const ThreadCreateBody = z.object({
+  ...IdentityShape,
+  participantIds: z.array(z.string().min(4).max(64)).min(1).max(MAX_PARTICIPANTS),
+});
+const ThreadPostBody = z.object({ ...IdentityShape, text: z.string().min(1).max(MAX_TEXT) });
+const ThreadLeaveBody = z.object({ playerId: z.string().min(4).max(64) });
 
 function sanitize(s: string): string {
   return s.replace(/[\u0000-\u001f\u007f]/g, "").trim();
@@ -139,7 +148,6 @@ function extractMentions(text: string): string[] {
   while ((m = re.exec(text)) !== null) {
     const raw = m[1];
     if (!raw) continue;
-    // Try progressively shorter substrings to handle "@Aria" vs "@Aria the Bold"
     const words = raw.trim().split(/\s+/);
     for (let i = words.length; i >= 1; i--) {
       const guess = words.slice(0, i).join(" ").toLowerCase();
@@ -148,6 +156,47 @@ function extractMentions(text: string): string[] {
     }
   }
   return Array.from(out);
+}
+
+function participantsKey(ids: string[]): string {
+  return Array.from(new Set(ids)).sort().join("|");
+}
+
+function findExistingThread(participantIds: string[]): VeilThread | null {
+  const key = participantsKey(participantIds);
+  for (const t of threads.values()) {
+    if (participantsKey(t.participants) === key) return t;
+  }
+  return null;
+}
+
+function pruneOldestThreadIfNeeded() {
+  if (threads.size <= MAX_THREADS) return;
+  let oldest: VeilThread | null = null;
+  for (const t of threads.values()) {
+    const lastTs = t.messages.length > 0 ? t.messages[t.messages.length - 1]!.ts : t.createdAt;
+    if (!oldest) { oldest = t; continue; }
+    const oLast = oldest.messages.length > 0 ? oldest.messages[oldest.messages.length - 1]!.ts : oldest.createdAt;
+    if (lastTs < oLast) oldest = t;
+  }
+  if (oldest) threads.delete(oldest.id);
+}
+
+function buildThreadView(t: VeilThread) {
+  const participantIdentities: (VeilIdentity | { playerId: string; name: string; missing: true })[] =
+    t.participants.map((pid) => {
+      const ident = playersById.get(pid);
+      if (ident) return ident;
+      return { playerId: pid, name: "Unknown sorcerer", missing: true as const };
+    });
+  return {
+    id: t.id,
+    participants: participantIdentities,
+    participantIds: t.participants,
+    createdAt: t.createdAt,
+    createdBy: t.createdBy,
+    messages: t.messages,
+  };
 }
 
 router.get("/veilcourt/messages", (req, res) => {
@@ -178,10 +227,7 @@ router.post("/veilcourt/messages", (req, res) => {
   }
   const body = parsed.data;
   const text = sanitize(body.text);
-  if (!text) {
-    res.status(400).json({ error: "Empty message" });
-    return;
-  }
+  if (!text) { res.status(400).json({ error: "Empty message" }); return; }
   const now = Date.now();
   const last = lastSendByPlayer.get(body.playerId) || 0;
   if (now - last < RATE_MS) {
@@ -214,19 +260,14 @@ router.post("/veilcourt/messages", (req, res) => {
   res.json({ message: msg });
 });
 
-// Presence heartbeat — refreshes identity + last-seen without producing a message
 router.post("/veilcourt/presence", (req, res) => {
   const parsed = PresenceBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid presence body" });
-    return;
-  }
+  if (!parsed.success) { res.status(400).json({ error: "Invalid presence body" }); return; }
   const now = Date.now();
   rememberIdentity(parsed.data, now);
   res.json({ ok: true, online: activeCount(now) });
 });
 
-// Roster — currently online sorcerers with full identity
 router.get("/veilcourt/roster", (_req, res) => {
   const now = Date.now();
   const out: VeilIdentity[] = [];
@@ -238,45 +279,80 @@ router.get("/veilcourt/roster", (_req, res) => {
   res.json({ players: out, online: out.length });
 });
 
-// Direct messages — fetch all DMs to/from a player
+// ─── Threaded DMs (1-on-1 OR groups) ──────────────────────────────────
+// GET all threads I'm a participant in (with their full message logs)
 router.get("/veilcourt/dm", (req, res) => {
   const pid = req.query["pid"];
   if (typeof pid !== "string" || pid.length < 4 || pid.length > 64) {
     res.status(400).json({ error: "Missing pid" });
     return;
   }
-  const sinceRaw = req.query["since"];
-  const since = typeof sinceRaw === "string" ? Number(sinceRaw) : 0;
-  const cutoff = Number.isFinite(since) && since > 0 ? since : 0;
   const now = Date.now();
   lastSeenByPlayer.set(pid, now);
   const known = playersById.get(pid);
   if (known) known.lastSeen = now;
-  const out = dms.filter((m) => m.id > cutoff && (m.playerId === pid || m.to === pid)).slice(-200);
+  const out: ReturnType<typeof buildThreadView>[] = [];
+  for (const t of threads.values()) {
+    if (t.participants.includes(pid)) out.push(buildThreadView(t));
+  }
+  out.sort((a, b) => {
+    const aLast = a.messages.length ? a.messages[a.messages.length - 1]!.ts : a.createdAt;
+    const bLast = b.messages.length ? b.messages[b.messages.length - 1]!.ts : b.createdAt;
+    return bLast - aLast;
+  });
   res.set("Cache-Control", "no-store");
-  res.json({ messages: out, latestId: dms.length > 0 ? dms[dms.length - 1]!.id : 0 });
+  res.json({ threads: out });
 });
 
-router.post("/veilcourt/dm", (req, res) => {
-  const parsed = DmBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Invalid DM body" });
-    return;
-  }
+// Create (or reuse) a thread with a given participant set
+router.post("/veilcourt/dm/thread", (req, res) => {
+  const parsed = ThreadCreateBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid thread body" }); return; }
   const body = parsed.data;
+  const now = Date.now();
+  rememberIdentity(body, now);
+  const ids = Array.from(new Set([body.playerId, ...body.participantIds]));
+  if (ids.length < 2) { res.status(400).json({ error: "A chat needs at least one other sorcerer." }); return; }
+  if (ids.length > MAX_PARTICIPANTS) { res.status(400).json({ error: `Up to ${MAX_PARTICIPANTS} participants per chat.` }); return; }
+  for (const pid of ids) {
+    if (pid === body.playerId) continue;
+    if (!playersById.has(pid)) {
+      const ident = playersById.get(pid);
+      const name = ident ? ident.name : pid;
+      res.status(404).json({ error: `${name} is not in the Veilcourt right now.` });
+      return;
+    }
+  }
+  const existing = findExistingThread(ids);
+  if (existing) { res.json({ thread: buildThreadView(existing), reused: true }); return; }
+  const t: VeilThread = {
+    id: randomUUID(),
+    participants: ids,
+    createdAt: now,
+    createdBy: body.playerId,
+    messages: [],
+    nextMsgId: 1,
+  };
+  threads.set(t.id, t);
+  pruneOldestThreadIfNeeded();
+  res.json({ thread: buildThreadView(t), reused: false });
+});
+
+// Post a message into an existing thread
+router.post("/veilcourt/dm/thread/:id/message", (req, res) => {
+  const tid = req.params["id"];
+  if (!tid) { res.status(400).json({ error: "Missing thread id" }); return; }
+  const t = threads.get(tid);
+  if (!t) { res.status(404).json({ error: "Chat no longer exists." }); return; }
+  const parsed = ThreadPostBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid message body" }); return; }
+  const body = parsed.data;
+  if (!t.participants.includes(body.playerId)) {
+    res.status(403).json({ error: "You are not in this chat." });
+    return;
+  }
   const text = sanitize(body.text);
-  if (!text) {
-    res.status(400).json({ error: "Empty message" });
-    return;
-  }
-  if (body.to === body.playerId) {
-    res.status(400).json({ error: "You cannot DM yourself." });
-    return;
-  }
-  if (!playersById.has(body.to)) {
-    res.status(404).json({ error: "That sorcerer is not in the Veilcourt right now." });
-    return;
-  }
+  if (!text) { res.status(400).json({ error: "Empty message" }); return; }
   const now = Date.now();
   const last = lastSendByPlayer.get(body.playerId) || 0;
   if (now - last < RATE_MS) {
@@ -285,9 +361,11 @@ router.post("/veilcourt/dm", (req, res) => {
   }
   lastSendByPlayer.set(body.playerId, now);
   rememberIdentity(body, now);
-  const dm = pushDM({
+  const msg: VeilThreadMessage = {
+    id: t.nextMsgId++,
+    ts: now,
+    threadId: t.id,
     playerId: body.playerId,
-    to: body.to,
     name: sanitize(body.name).slice(0, MAX_NAME) || "Unnamed",
     classId: body.classId ?? null,
     className: body.className ?? null,
@@ -299,27 +377,38 @@ router.post("/veilcourt/dm", (req, res) => {
     covenant: body.covenant ?? null,
     text: text.slice(0, MAX_TEXT),
     channel: "global",
-  });
-  res.json({ message: dm });
+  };
+  t.messages.push(msg);
+  if (t.messages.length > MAX_THREAD_MESSAGES) {
+    t.messages.splice(0, t.messages.length - MAX_THREAD_MESSAGES);
+  }
+  res.json({ message: msg });
 });
 
-// Lookup a player by name (for "start a DM by typing their name")
+// Leave a thread → deletes the entire log for everyone
+router.post("/veilcourt/dm/thread/:id/leave", (req, res) => {
+  const tid = req.params["id"];
+  if (!tid) { res.status(400).json({ error: "Missing thread id" }); return; }
+  const t = threads.get(tid);
+  if (!t) { res.json({ ok: true, alreadyGone: true }); return; }
+  const parsed = ThreadLeaveBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Invalid leave body" }); return; }
+  if (!t.participants.includes(parsed.data.playerId)) {
+    res.status(403).json({ error: "You are not in this chat." });
+    return;
+  }
+  threads.delete(tid);
+  res.json({ ok: true, dissolved: true });
+});
+
+// Lookup a player by name (used by the typeahead when starting a new chat)
 router.get("/veilcourt/lookup", (req, res) => {
   const nameRaw = req.query["name"];
-  if (typeof nameRaw !== "string") {
-    res.status(400).json({ error: "Missing name" });
-    return;
-  }
+  if (typeof nameRaw !== "string") { res.status(400).json({ error: "Missing name" }); return; }
   const pid = playerIdByName.get(nameRaw.trim().toLowerCase());
-  if (!pid) {
-    res.status(404).json({ error: "No sorcerer by that name in the Veilcourt." });
-    return;
-  }
+  if (!pid) { res.status(404).json({ error: "No sorcerer by that name in the Veilcourt." }); return; }
   const id = playersById.get(pid);
-  if (!id) {
-    res.status(404).json({ error: "Identity expired." });
-    return;
-  }
+  if (!id) { res.status(404).json({ error: "Identity expired." }); return; }
   res.json({ player: id });
 });
 

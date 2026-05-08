@@ -6156,31 +6156,31 @@ const buildGroupedBattleLog = (entries) => {
   const [chatUnread, setChatUnread] = useState(0);
   const [chatProfile, setChatProfile] = useState(null);   // clicked-portrait dossier
   const [chatEmojiOpen, setChatEmojiOpen] = useState(false);
-  // v69 — tabs + roster + DMs
+  // v69/v70 — tabs + roster + threaded DMs (1-on-1 + groups)
   const [chatTab, setChatTab] = useState("public");        // "public" | "private"
   const [chatRoster, setChatRoster] = useState([]);        // [{playerId, name, classId, ...}]
   const [chatRosterOpen, setChatRosterOpen] = useState(false);
-  const [chatDms, setChatDms] = useState([]);              // all DMs (to/from me)
-  const [chatDmThread, setChatDmThread] = useState(null);  // playerId of active DM counterpart
+  const [chatThreads, setChatThreads] = useState([]);      // [{id, participants, participantIds, messages, ...}]
+  const [chatDmThreadId, setChatDmThreadId] = useState(null); // active thread UUID
   const [chatDmDraft, setChatDmDraft] = useState("");
   const [chatDmStartName, setChatDmStartName] = useState("");
   const [chatDmStartError, setChatDmStartError] = useState("");
   const [chatDmReadUpTo, setChatDmReadUpTo] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("sv_chat_dm_read") || "{}"); } catch (_) { return {}; }
+    try { return JSON.parse(localStorage.getItem("sv_chat_thread_read") || "{}"); } catch (_) { return {}; }
   });
+  const [chatLeaveConfirm, setChatLeaveConfirm] = useState(null); // threadId being confirmed
   const [chatMentions, setChatMentions] = useState(0);     // unread @mentions on public
   const chatLogRef = useRef(null);
   const chatDmLogRef = useRef(null);
   const chatPollRef = useRef(null);
   const chatLastIdRef = useRef(0);
-  const chatDmLastIdRef = useRef(0);
   const chatOpenRef = useRef(false);
   const chatTabRef = useRef("public");
-  const chatDmThreadRef = useRef(null);
+  const chatDmThreadIdRef = useRef(null);
   useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
   useEffect(() => { chatTabRef.current = chatTab; }, [chatTab]);
-  useEffect(() => { chatDmThreadRef.current = chatDmThread; }, [chatDmThread]);
-  useEffect(() => { try { localStorage.setItem("sv_chat_dm_read", JSON.stringify(chatDmReadUpTo)); } catch (_) {} }, [chatDmReadUpTo]);
+  useEffect(() => { chatDmThreadIdRef.current = chatDmThreadId; }, [chatDmThreadId]);
+  useEffect(() => { try { localStorage.setItem("sv_chat_thread_read", JSON.stringify(chatDmReadUpTo)); } catch (_) {} }, [chatDmReadUpTo]);
 
   const veilcourtId = useMemo(() => {
     try {
@@ -6248,35 +6248,34 @@ const buildGroupedBattleLog = (entries) => {
     } catch (_) { /* offline; silent */ }
   }, [veilcourtId]);
 
-  // DM polling — also runs on the same heartbeat
+  // DM polling — fetches all threads I'm a participant in.
+  // Sequence guard: out-of-order responses must not overwrite newer state.
+  const veilcourtDmSeqRef = useRef(0);
+  const veilcourtDmLastAppliedRef = useRef(0);
   const veilcourtDmFetch = useCallback(async () => {
+    const seq = ++veilcourtDmSeqRef.current;
     try {
-      const r = await fetch("/api/veilcourt/dm?pid=" + encodeURIComponent(veilcourtId) + "&since=" + chatDmLastIdRef.current, { headers: { "Cache-Control": "no-cache" } });
+      const r = await fetch("/api/veilcourt/dm?pid=" + encodeURIComponent(veilcourtId), { headers: { "Cache-Control": "no-cache" } });
       if (!r.ok) return;
       const data = await r.json().catch(() => null);
-      if (!data || !Array.isArray(data.messages)) return;
-      if (data.messages.length === 0) return;
-      const incomingMaxId = data.messages.reduce((mx, m) => m.id > mx ? m.id : mx, 0);
-      if (incomingMaxId > chatDmLastIdRef.current) chatDmLastIdRef.current = incomingMaxId;
-      setChatDms(prev => {
-        if (prev.length === 0) return data.messages.slice(-300);
-        const lastSeen = prev[prev.length - 1].id;
-        const fresh = data.messages.filter(m => m.id > lastSeen);
-        if (fresh.length === 0) return prev;
-        return [...prev, ...fresh].slice(-300);
-      });
-      // Auto-mark-read when the matching thread is open
-      const activeThread = chatDmThreadRef.current;
+      if (!data || !Array.isArray(data.threads)) return;
+      // Drop stale responses
+      if (seq <= veilcourtDmLastAppliedRef.current) return;
+      veilcourtDmLastAppliedRef.current = seq;
+      setChatThreads(data.threads);
+      // If the active thread was dissolved by another participant, drop back to the list
+      const activeId = chatDmThreadIdRef.current;
+      if (activeId && !data.threads.some(t => t.id === activeId)) {
+        setChatDmThreadId(null);
+      }
+      // Auto-mark-read for the thread that's currently open
       const tabIsDm = chatOpenRef.current && chatTabRef.current === "private";
-      if (tabIsDm && activeThread) {
-        setChatDmReadUpTo(prev => {
-          const next = { ...prev };
-          for (const m of data.messages) {
-            const counterpart = m.playerId === veilcourtId ? m.to : m.playerId;
-            if (counterpart === activeThread && (next[counterpart] || 0) < m.id) next[counterpart] = m.id;
-          }
-          return next;
-        });
+      if (tabIsDm && activeId) {
+        const t = data.threads.find(x => x.id === activeId);
+        if (t && t.messages.length > 0) {
+          const maxId = t.messages[t.messages.length - 1].id;
+          setChatDmReadUpTo(prev => (prev[activeId] || 0) >= maxId ? prev : { ...prev, [activeId]: maxId });
+        }
       }
     } catch (_) {}
   }, [veilcourtId]);
@@ -6330,10 +6329,10 @@ const buildGroupedBattleLog = (entries) => {
   }, [chatOpen, chatTab, chatMsgs]);
 
   useEffect(() => {
-    if (chatOpen && chatTab === "private" && chatDmThread && chatDmLogRef.current) {
+    if (chatOpen && chatTab === "private" && chatDmThreadId && chatDmLogRef.current) {
       chatDmLogRef.current.scrollTop = chatDmLogRef.current.scrollHeight;
     }
-  }, [chatOpen, chatTab, chatDmThread, chatDms]);
+  }, [chatOpen, chatTab, chatDmThreadId, chatThreads]);
 
   const sendVeilcourtMessage = useCallback(async (overrideText) => {
     const text = (overrideText !== undefined ? overrideText : chatDraft).trim();
@@ -6389,24 +6388,31 @@ const buildGroupedBattleLog = (entries) => {
     else setChatDraft(d => (d + e).slice(0, 580));
   }, []);
 
-  // Send a DM
+  // Send a DM into the active thread
   const sendDm = useCallback(async (overrideText) => {
-    if (!pl || !chatDmThread) return;
+    if (!pl || !chatDmThreadId) return;
     const text = (overrideText !== undefined ? overrideText : chatDmDraft).trim();
     if (!text) return;
     const ident = myIdentityPayload();
     if (!ident) return;
     setChatStatus("Sending…");
     try {
-      const r = await fetch("/api/veilcourt/dm", {
+      const r = await fetch("/api/veilcourt/dm/thread/" + encodeURIComponent(chatDmThreadId) + "/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...ident, text, to: chatDmThread }),
+        body: JSON.stringify({ ...ident, text }),
       });
       if (r.status === 429) {
         const data = await r.json().catch(() => ({}));
         setChatStatus(data.error || "Slow down…");
         setTimeout(() => setChatStatus(""), 1500);
+        return;
+      }
+      if (r.status === 404) {
+        const data = await r.json().catch(() => ({}));
+        setChatStatus(data.error || "This chat was dissolved.");
+        setTimeout(() => setChatStatus(""), 1800);
+        setChatDmThreadId(null);
         return;
       }
       if (!r.ok) {
@@ -6423,55 +6429,137 @@ const buildGroupedBattleLog = (entries) => {
       setChatStatus("Veil unreachable.");
       setTimeout(() => setChatStatus(""), 1800);
     }
-  }, [pl, chatDmThread, chatDmDraft, myIdentityPayload, veilcourtDmFetch]);
+  }, [pl, chatDmThreadId, chatDmDraft, myIdentityPayload, veilcourtDmFetch]);
 
-  // Open a DM thread with a specific playerId — also marks it read up to current
-  const openDmThread = useCallback((targetPlayerId) => {
-    if (!targetPlayerId || targetPlayerId === veilcourtId) return;
+  // Open an existing DM thread by id — also marks it read up to current
+  const openDmThreadById = useCallback((tid) => {
+    if (!tid) return;
     setChatOpen(true);
     setChatTab("private");
-    setChatDmThread(targetPlayerId);
+    setChatDmThreadId(tid);
     setChatProfile(null);
     setChatRosterOpen(false);
     setChatUnread(0); setChatMentions(0);
-    // Mark all current DMs from this counterpart as read
     setChatDmReadUpTo(prev => {
-      const maxId = chatDms.reduce((mx, m) => {
-        const cp = m.playerId === veilcourtId ? m.to : m.playerId;
-        return (cp === targetPlayerId && m.id > mx) ? m.id : mx;
-      }, prev[targetPlayerId] || 0);
-      if (maxId === (prev[targetPlayerId] || 0)) return prev;
-      return { ...prev, [targetPlayerId]: maxId };
+      const t = chatThreads.find(x => x.id === tid);
+      const maxId = t && t.messages.length > 0 ? t.messages[t.messages.length - 1].id : 0;
+      if (!maxId || (prev[tid] || 0) >= maxId) return prev;
+      return { ...prev, [tid]: maxId };
     });
-  }, [veilcourtId, chatDms]);
+  }, [chatThreads]);
 
-  // Try to start a new DM by typing a sorcerer's name
-  const startDmByName = useCallback(async () => {
-    const name = chatDmStartName.trim();
-    if (!name) return;
-    if (name.toLowerCase() === myChatNameLower) {
-      setChatDmStartError("That's you.");
-      return;
-    }
-    setChatDmStartError("");
+  // Find or create a thread containing exactly me + targetPlayerId (1-on-1)
+  const openOrCreateDmWith = useCallback(async (targetPlayerId) => {
+    if (!targetPlayerId || targetPlayerId === veilcourtId) return;
+    const existing = chatThreads.find(t => t.participantIds.length === 2 && t.participantIds.includes(targetPlayerId) && t.participantIds.includes(veilcourtId));
+    if (existing) { openDmThreadById(existing.id); return; }
+    const ident = myIdentityPayload();
+    if (!ident) return;
     try {
-      const r = await fetch("/api/veilcourt/lookup?name=" + encodeURIComponent(name));
+      const r = await fetch("/api/veilcourt/dm/thread", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...ident, participantIds: [targetPlayerId] }),
+      });
       if (!r.ok) {
         const data = await r.json().catch(() => ({}));
-        setChatDmStartError(data.error || "No sorcerer by that name in the Veilcourt.");
+        setChatStatus(data.error || "Could not open chat.");
+        setTimeout(() => setChatStatus(""), 1800);
         return;
       }
       const data = await r.json().catch(() => null);
-      if (!data || !data.player) {
-        setChatDmStartError("Lookup failed.");
+      if (!data || !data.thread) return;
+      setChatThreads(prev => prev.some(t => t.id === data.thread.id) ? prev : [data.thread, ...prev]);
+      openDmThreadById(data.thread.id);
+    } catch (_) {
+      setChatStatus("Veil unreachable.");
+      setTimeout(() => setChatStatus(""), 1800);
+    }
+  }, [veilcourtId, chatThreads, myIdentityPayload, openDmThreadById]);
+
+  // Start a new chat by typing one or more comma-separated names (group if >1)
+  const startDmByNames = useCallback(async () => {
+    const raw = chatDmStartName.trim();
+    if (!raw) return;
+    setChatDmStartError("");
+    const names = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    if (names.length === 0) { setChatDmStartError("Type a sorcerer's name."); return; }
+    const seen = new Set();
+    const dedupNames = [];
+    for (const n of names) {
+      const key = n.toLowerCase();
+      if (key === myChatNameLower) { setChatDmStartError("Skip yourself — you're already in the chat."); return; }
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dedupNames.push(n);
+    }
+    if (dedupNames.length > 7) { setChatDmStartError("Up to 7 other sorcerers per chat."); return; }
+    try {
+      const lookups = await Promise.all(dedupNames.map(async (n) => {
+        const r = await fetch("/api/veilcourt/lookup?name=" + encodeURIComponent(n));
+        if (!r.ok) return { name: n, error: true };
+        const d = await r.json().catch(() => null);
+        if (!d || !d.player) return { name: n, error: true };
+        return { name: n, player: d.player };
+      }));
+      const missing = lookups.filter(l => l.error).map(l => l.name);
+      if (missing.length > 0) {
+        setChatDmStartError("Not in the Veilcourt: " + missing.join(", "));
         return;
       }
+      const participantIds = lookups.map(l => l.player.playerId);
+      // 1-on-1 short path
+      if (participantIds.length === 1) {
+        setChatDmStartName("");
+        await openOrCreateDmWith(participantIds[0]);
+        return;
+      }
+      const ident = myIdentityPayload();
+      if (!ident) return;
+      const r = await fetch("/api/veilcourt/dm/thread", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...ident, participantIds }),
+      });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        setChatDmStartError(data.error || "Could not start chat.");
+        return;
+      }
+      const data = await r.json().catch(() => null);
+      if (!data || !data.thread) { setChatDmStartError("Failed."); return; }
+      setChatThreads(prev => prev.some(t => t.id === data.thread.id) ? prev : [data.thread, ...prev]);
       setChatDmStartName("");
-      openDmThread(data.player.playerId);
+      openDmThreadById(data.thread.id);
     } catch (_) {
       setChatDmStartError("Veil unreachable.");
     }
-  }, [chatDmStartName, myChatNameLower, openDmThread]);
+  }, [chatDmStartName, myChatNameLower, myIdentityPayload, openDmThreadById, openOrCreateDmWith]);
+
+  // Leave (and dissolve) a thread for everyone — only commit local state on success
+  const leaveDmThread = useCallback(async (tid) => {
+    if (!tid) return;
+    let ok = false;
+    try {
+      const r = await fetch("/api/veilcourt/dm/thread/" + encodeURIComponent(tid) + "/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: veilcourtId }),
+      });
+      ok = r.ok || r.status === 404; // 404 means already gone — same outcome
+    } catch (_) { ok = false; }
+    if (!ok) {
+      setChatStatus("Couldn't leave (offline?). Try again.");
+      setTimeout(() => setChatStatus(""), 2400);
+      return;
+    }
+    // Bump applied seq so any in-flight stale poll can't resurrect this thread
+    veilcourtDmLastAppliedRef.current = ++veilcourtDmSeqRef.current;
+    setChatThreads(prev => prev.filter(t => t.id !== tid));
+    setChatDmReadUpTo(prev => { const next = { ...prev }; delete next[tid]; return next; });
+    setChatLeaveConfirm(null);
+    setChatDmThreadId(curr => curr === tid ? null : curr);
+  }, [veilcourtId]);
 
   // Insert "@Name " into the current composer
   const insertMention = useCallback((name) => {
@@ -6480,41 +6568,29 @@ const buildGroupedBattleLog = (entries) => {
     setChatDraft(d => (d + (d.endsWith(" ") || d.length === 0 ? "" : " ") + "@" + name + " ").slice(0, 580));
   }, []);
 
-  // Derived: DM threads (counterpart playerId → {last DM, unread count, identity guess})
+  // Derived: DM threads with last-msg + per-thread unread + display label (others' names)
   const dmThreads = useMemo(() => {
-    const map = new Map();
-    for (const m of chatDms) {
-      const cp = m.playerId === veilcourtId ? m.to : m.playerId;
-      if (!cp || cp === veilcourtId) continue;
-      const cur = map.get(cp) || { counterpart: cp, last: null, unread: 0, identity: null };
-      if (!cur.last || m.id > cur.last.id) cur.last = m;
-      // Identity guess from the most recent message authored by them
-      if (m.playerId === cp) cur.identity = { name: m.name, classId: m.classId, className: m.className, classColor: m.classColor, sex: m.sex, portrait: m.portrait, rank: m.rank, bloodmark: m.bloodmark, covenant: m.covenant };
-      map.set(cp, cur);
-    }
-    // Compute unread per thread
-    for (const t of map.values()) {
-      const readUpTo = chatDmReadUpTo[t.counterpart] || 0;
+    return chatThreads.map(t => {
+      const others = (t.participants || []).filter(p => p.playerId !== veilcourtId);
+      const last = t.messages.length > 0 ? t.messages[t.messages.length - 1] : null;
+      const readUpTo = chatDmReadUpTo[t.id] || 0;
       let unread = 0;
-      for (const m of chatDms) {
-        const cp = m.playerId === veilcourtId ? m.to : m.playerId;
-        if (cp === t.counterpart && m.playerId !== veilcourtId && m.id > readUpTo) unread++;
-      }
-      t.unread = unread;
-    }
-    return Array.from(map.values()).sort((a, b) => (b.last?.id || 0) - (a.last?.id || 0));
-  }, [chatDms, chatDmReadUpTo, veilcourtId]);
+      for (const m of t.messages) if (m.playerId !== veilcourtId && m.id > readUpTo) unread++;
+      const isGroup = t.participantIds.length > 2;
+      const label = others.length === 0 ? "Empty chat" : others.map(o => o.name).join(", ");
+      return { ...t, others, last, unread, isGroup, label };
+    }).sort((a, b) => {
+      const at = a.last ? a.last.ts : a.createdAt;
+      const bt = b.last ? b.last.ts : b.createdAt;
+      return bt - at;
+    });
+  }, [chatThreads, chatDmReadUpTo, veilcourtId]);
 
   const dmTotalUnread = useMemo(() => dmThreads.reduce((s, t) => s + t.unread, 0), [dmThreads]);
 
-  // DMs filtered to the active thread
-  const activeThreadDms = useMemo(() => {
-    if (!chatDmThread) return [];
-    return chatDms.filter(m => {
-      const cp = m.playerId === veilcourtId ? m.to : m.playerId;
-      return cp === chatDmThread;
-    });
-  }, [chatDms, chatDmThread, veilcourtId]);
+  // Active thread (full object) and its messages
+  const activeThread = useMemo(() => dmThreads.find(t => t.id === chatDmThreadId) || null, [dmThreads, chatDmThreadId]);
+  const activeThreadDms = useMemo(() => activeThread ? activeThread.messages : [], [activeThread]);
 
   // Roster filtered to exclude self
   const rosterOthers = useMemo(() => chatRoster.filter(p => p.playerId !== veilcourtId), [chatRoster, veilcourtId]);
@@ -6545,7 +6621,7 @@ const buildGroupedBattleLog = (entries) => {
               const r = await fetch("/api/veilcourt/lookup?name=" + encodeURIComponent(name));
               if (!r.ok) return;
               const data = await r.json().catch(() => null);
-              if (data && data.player) openDmThread(data.player.playerId);
+              if (data && data.player) openOrCreateDmWith(data.player.playerId);
             } catch (_) {}
           })();
         }} title={isMe ? "You were called by name" : "Open DM with @" + name}>@{name}</button>;
@@ -6593,7 +6669,7 @@ const buildGroupedBattleLog = (entries) => {
             {m.covenant && <span className="veilcourt-tag" style={{ color: "#ffd77a", borderColor: "rgba(212,173,64,0.45)" }}>🏛 {m.covenant}</span>}
             {m.bloodmark && <span className="veilcourt-tag" style={{ color: "#c2a8ff", borderColor: "rgba(160,120,220,0.45)" }}>✦ {m.bloodmark}</span>}
             {!mine && !isSystem && <button type="button" className="veil-msg-action" title={"Mention @" + m.name} onClick={() => insertMention(m.name)}>@</button>}
-            {!mine && !isSystem && <button type="button" className="veil-msg-action" title={"DM " + m.name} onClick={() => openDmThread(m.playerId)}>✉</button>}
+            {!mine && !isSystem && <button type="button" className="veil-msg-action" title={"DM " + m.name} onClick={() => openOrCreateDmWith(m.playerId)}>✉</button>}
           </div>
           <div className="veilcourt-text">{renderRich(m.text)}</div>
         </div>
@@ -6601,16 +6677,16 @@ const buildGroupedBattleLog = (entries) => {
     );
   };
 
-  // Find a roster identity for an arbitrary playerId (falls back to last DM author)
+  // Find a roster identity for an arbitrary playerId
   const lookupIdentity = (playerId) => {
     const fromRoster = chatRoster.find(p => p.playerId === playerId);
     if (fromRoster) return fromRoster;
-    const fromDm = dmThreads.find(t => t.counterpart === playerId);
-    if (fromDm && fromDm.identity) return { ...fromDm.identity, playerId };
+    for (const t of chatThreads) {
+      const p = (t.participants || []).find(x => x.playerId === playerId);
+      if (p) return p;
+    }
     return { playerId, name: "Sorcerer", classColor: "#7a89c2", classId: null, sex: null, portrait: null };
   };
-
-  const activeThreadIdent = chatDmThread ? lookupIdentity(chatDmThread) : null;
 
   const chatEl = chatOpen && pl ? (
     <div>
@@ -6666,49 +6742,78 @@ const buildGroupedBattleLog = (entries) => {
           </div>
         </>}
 
-        {chatTab === "private" && !chatDmThread && <>
+        {chatTab === "private" && !activeThread && <>
           <div className="veilcourt-dm-start">
             <div className="veilcourt-dm-start-row">
               <input
                 type="text"
                 className="veilcourt-input"
-                maxLength={24}
-                placeholder="Type a sorcerer's name to start a chat…"
+                maxLength={200}
+                placeholder="Type a name… (or several, separated by commas, for a group chat)"
                 value={chatDmStartName}
                 onChange={e => { setChatDmStartName(e.target.value); setChatDmStartError(""); }}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); startDmByName(); } }}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); startDmByNames(); } }}
               />
-              <button className="bt veilcourt-send" disabled={!chatDmStartName.trim()} onClick={startDmByName}>Open</button>
+              <button className="bt veilcourt-send" disabled={!chatDmStartName.trim()} onClick={startDmByNames}>Open</button>
             </div>
+            <div className="veilcourt-status-line" style={{ opacity: 0.7 }}>Solo names start a 1-on-1; comma lists open a group circle (up to 7 others).</div>
             {chatDmStartError && <div className="veilcourt-status-line is-err">{chatDmStartError}</div>}
           </div>
           <div className="veilcourt-thread-list">
             {dmThreads.length === 0 && <div className="veilcourt-empty">No private chats yet. Type a name above, click @ in public chat, or open a sorcerer's dossier and tap "Send DM".</div>}
             {dmThreads.map(t => {
-              const ident = t.identity || lookupIdentity(t.counterpart);
-              const portraitSrc = ident.portrait && /^(https?:|data:image\/)/i.test(ident.portrait) ? ident.portrait : (ident.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + ident.classId + (ident.sex === "female" ? "_f" : "") + ".png") : null);
+              const headIdent = t.others[0] || { name: "Sorcerer", classColor: "#7a89c2" };
+              const portraitSrc = headIdent.portrait && /^(https?:|data:image\/)/i.test(headIdent.portrait) ? headIdent.portrait : (headIdent.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + headIdent.classId + (headIdent.sex === "female" ? "_f" : "") + ".png") : null);
               const last = t.last;
               const lastFromMe = last && last.playerId === veilcourtId;
-              return <button key={t.counterpart} type="button" className={"veilcourt-thread" + (t.unread > 0 ? " has-unread" : "")} onClick={() => openDmThread(t.counterpart)}>
-                <span className="veilcourt-thread-portrait" style={{ borderColor: ident.classColor || "#7a89c2" }}>
-                  {portraitSrc ? <img src={portraitSrc} alt="" /> : <span>✦</span>}
-                </span>
-                <span className="veilcourt-thread-body">
-                  <span className="veilcourt-thread-name" style={{ color: ident.classColor || "#e8eeff" }}>{ident.name || "Sorcerer"}</span>
-                  <span className="veilcourt-thread-last">{lastFromMe ? "You: " : ""}{last ? (last.text.length > 60 ? last.text.slice(0, 60) + "…" : last.text) : ""}</span>
-                </span>
-                {t.unread > 0 && <span className="veilcourt-thread-badge">{t.unread}</span>}
-              </button>;
+              const lastAuthor = last && !lastFromMe ? (last.name + ": ") : (lastFromMe ? "You: " : "");
+              return <div key={t.id} className={"veilcourt-thread-row" + (t.unread > 0 ? " has-unread" : "")}>
+                <button type="button" className="veilcourt-thread" onClick={() => openDmThreadById(t.id)}>
+                  <span className="veilcourt-thread-portrait" style={{ borderColor: headIdent.classColor || "#7a89c2" }}>
+                    {portraitSrc ? <img src={portraitSrc} alt="" /> : <span>{t.isGroup ? "👥" : "✦"}</span>}
+                    {t.isGroup && <span className="veilcourt-thread-group-badge">{t.others.length}</span>}
+                  </span>
+                  <span className="veilcourt-thread-body">
+                    <span className="veilcourt-thread-name">
+                      {t.isGroup && <span className="veilcourt-group-pill">GROUP</span>}
+                      <span style={{ color: t.isGroup ? "#f5e8b8" : (headIdent.classColor || "#e8eeff") }}>{t.label}</span>
+                    </span>
+                    <span className="veilcourt-thread-last">{last ? (lastAuthor + (last.text.length > 56 ? last.text.slice(0, 56) + "…" : last.text)) : "(no messages yet)"}</span>
+                  </span>
+                  {t.unread > 0 && <span className="veilcourt-thread-badge">{t.unread}</span>}
+                </button>
+                <button type="button" className="bt bs veilcourt-thread-leave" onClick={() => setChatLeaveConfirm(t.id)} title="Leave this chat (deletes the log for everyone)">⏻</button>
+              </div>;
             })}
           </div>
         </>}
 
-        {chatTab === "private" && chatDmThread && activeThreadIdent && <>
+        {chatTab === "private" && activeThread && <>
           <div className="veilcourt-dm-header">
-            <button type="button" className="bt bs veilcourt-dm-back" onClick={() => setChatDmThread(null)} title="Back to all chats">←</button>
-            <span className="veilcourt-dm-with">DM with <span style={{ color: activeThreadIdent.classColor || "#f5e8b8", fontWeight: 800 }}>{activeThreadIdent.name}</span>{activeThreadIdent.className && <span className="veilcourt-tag" style={{ marginLeft: 6, color: activeThreadIdent.classColor || "#cfd6ee", borderColor: (activeThreadIdent.classColor || "#7a89c2") + "55" }}>{activeThreadIdent.className}</span>}</span>
-            <button type="button" className="bt bs veilcourt-dm-profile" onClick={() => setChatProfile({ ...activeThreadIdent, channel: "global", ts: Date.now() })} title="View dossier">👤</button>
+            <button type="button" className="bt bs veilcourt-dm-back" onClick={() => setChatDmThreadId(null)} title="Back to all chats">←</button>
+            <span className="veilcourt-dm-with">
+              {activeThread.isGroup
+                ? <><span style={{ color: "#f5e8b8", fontWeight: 800 }}>👥 Group circle</span><span style={{ marginLeft: 8, color: "#cfd6ee" }}>{activeThread.label}</span></>
+                : (() => {
+                    const o = activeThread.others[0] || { name: "Sorcerer" };
+                    return <>DM with <span style={{ color: o.classColor || "#f5e8b8", fontWeight: 800 }}>{o.name}</span>{o.className && <span className="veilcourt-tag" style={{ marginLeft: 6, color: o.classColor || "#cfd6ee", borderColor: (o.classColor || "#7a89c2") + "55" }}>{o.className}</span>}</>;
+                  })()}
+            </span>
+            {!activeThread.isGroup && activeThread.others[0] && <button type="button" className="bt bs veilcourt-dm-profile" onClick={() => setChatProfile({ ...activeThread.others[0], channel: "global", ts: Date.now() })} title="View dossier">👤</button>}
+            <button type="button" className="bt bs veilcourt-dm-leave" onClick={() => setChatLeaveConfirm(activeThread.id)} title="Leave this chat (deletes the log for everyone)">⏻ Leave</button>
           </div>
+          {activeThread.isGroup && <div className="veilcourt-dm-participants">
+            {activeThread.participants.map(p => {
+              const isMe = p.playerId === veilcourtId;
+              const portraitSrc = p.portrait && /^(https?:|data:image\/)/i.test(p.portrait) ? p.portrait : (p.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + p.classId + (p.sex === "female" ? "_f" : "") + ".png") : null);
+              return <button key={p.playerId} type="button" className={"veilcourt-participant-chip" + (isMe ? " is-me" : "")} style={{ borderColor: (p.classColor || "#7a89c2") + "88" }} onClick={() => { if (!isMe) setChatProfile({ ...p, channel: "global", ts: Date.now() }); }} title={isMe ? "You" : ("Open " + p.name + "'s dossier")}>
+                <span className="veilcourt-participant-portrait" style={{ borderColor: p.classColor || "#7a89c2" }}>
+                  {portraitSrc ? <img src={portraitSrc} alt="" /> : <span>✦</span>}
+                </span>
+                <span style={{ color: p.classColor || "#e8eeff" }}>{isMe ? "You" : p.name}</span>
+              </button>;
+            })}
+          </div>}
           <div className="veilcourt-log" ref={chatDmLogRef}>
             {activeThreadDms.length === 0 && <div className="veilcourt-empty">No messages yet. Say hello.</div>}
             {activeThreadDms.map(m => renderMsgRow(m, m.playerId === veilcourtId, false))}
@@ -6725,7 +6830,7 @@ const buildGroupedBattleLog = (entries) => {
                 type="text"
                 className="veilcourt-input"
                 maxLength={580}
-                placeholder={"Whisper to " + activeThreadIdent.name + "…"}
+                placeholder={activeThread.isGroup ? "Speak to the circle…" : ("Whisper to " + (activeThread.others[0]?.name || "them") + "…")}
                 value={chatDmDraft}
                 onChange={e => setChatDmDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDm(); } }}
@@ -6740,6 +6845,34 @@ const buildGroupedBattleLog = (entries) => {
   ) : null;
 
   // Roster modal — opens when the active-sorcerer button is clicked
+  // Auto-clear stale leave-confirm if its target thread is gone (effect, not render-side-effect)
+  useEffect(() => {
+    if (chatLeaveConfirm && !dmThreads.some(t => t.id === chatLeaveConfirm)) {
+      setChatLeaveConfirm(null);
+    }
+  }, [chatLeaveConfirm, dmThreads]);
+
+  // Leave-chat confirm modal
+  const chatLeaveConfirmEl = chatLeaveConfirm ? (() => {
+    const t = dmThreads.find(x => x.id === chatLeaveConfirm);
+    if (!t) return null; // effect above will clear state on next tick
+    return (
+      <div>
+        <div style={{ position: "fixed", inset: 0, zIndex: 1400, background: "rgba(2,4,12,0.88)", backdropFilter: "blur(4px)" }} onClick={() => setChatLeaveConfirm(null)} />
+        <div className="veilcourt-leave-modal" onClick={e => e.stopPropagation()}>
+          <div className="veilcourt-leave-title">Dissolve this chat?</div>
+          <div className="veilcourt-leave-body">
+            Leaving <b style={{ color: "#f5e8b8" }}>{t.label}</b> erases the entire log <i>for everyone</i> in this {t.isGroup ? "circle" : "thread"}. There's no going back.
+          </div>
+          <div className="veilcourt-leave-actions">
+            <button type="button" className="bt bs" onClick={() => setChatLeaveConfirm(null)}>Stay</button>
+            <button type="button" className="bt veilcourt-leave-confirm" onClick={() => leaveDmThread(t.id)}>Leave & dissolve</button>
+          </div>
+        </div>
+      </div>
+    );
+  })() : null;
+
   const chatRosterEl = chatRosterOpen && pl ? (
     <div>
       <div style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(2,4,12,0.85)", backdropFilter: "blur(4px)" }} onClick={() => setChatRosterOpen(false)} />
@@ -6766,7 +6899,7 @@ const buildGroupedBattleLog = (entries) => {
               </div>
               <div className="veilcourt-roster-actions">
                 <button type="button" className="bt bs" onClick={() => insertMention(p.name)} title={"Mention @" + p.name}>@</button>
-                <button type="button" className="bt bs" onClick={() => openDmThread(p.playerId)} title="Send DM">✉ DM</button>
+                <button type="button" className="bt bs" onClick={() => openOrCreateDmWith(p.playerId)} title="Send DM">✉ DM</button>
               </div>
             </div>;
           })}
@@ -6800,7 +6933,7 @@ const buildGroupedBattleLog = (entries) => {
               {m.ts &&        (<div className="veil-profile-row"><span className="veil-profile-label">Last seen</span><span className="veil-profile-val">{new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>)}
             </div>
             {m.playerId && m.playerId !== veilcourtId && !isSystem && <div className="veil-profile-actions">
-              <button type="button" className="bt veil-profile-dm-btn" onClick={() => openDmThread(m.playerId)} title="Send a private message">✉ Send DM</button>
+              <button type="button" className="bt veil-profile-dm-btn" onClick={() => openOrCreateDmWith(m.playerId)} title="Send a private message">✉ Send DM</button>
               {m.name && <button type="button" className="bt bs veil-profile-mention-btn" onClick={() => { insertMention(m.name); setChatProfile(null); setChatTab("public"); }} title={"Mention @" + m.name + " in public chat"}>@ Mention</button>}
             </div>}
           </div>
@@ -7088,7 +7221,7 @@ const buildGroupedBattleLog = (entries) => {
 
   // SUB-SCREENS
   if (sub) return (
-    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}<div className="cd page-panel">
+    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}<div className="cd page-panel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>{sub === "items" ? "🎒 Equipment" : sub === "spells" ? "📖 Veil Archive" : sub === "stats" ? "📊 Stats" : sub === "story" ? "📜 Story" : sub === "manual" ? "📘 Game Manual" : "☰ Menu"}</div><button className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(null)}>←</button></div>
       {sub === "skills" && <div className="sb-panel"><div className="sb-title">Veil Archive</div><div className="sb-kv sb-muted">Veil Magic management has been folded into Veil Archive. Use that page for active Veil Magic, passive selection, and Veil Expansion management.</div><button className="bt bs" style={{ background: T.gd, marginTop: 6 }} onClick={() => setSub("spells")}>Open Veil Archive</button></div>}
 {sub === "items" && (() => {
@@ -7681,7 +7814,7 @@ const buildGroupedBattleLog = (entries) => {
       <div className={"pg map-bg sky-phase-" + skyPhase.key}>
         <div className="map-sky-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}sky/h${String(skyHour).padStart(2,"0")}.png')` }} />
         <div className="map-sky-veil" />
-        <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}
+        <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
           {(() => {
             const last2 = [...log].slice(-2).reverse();
@@ -7806,7 +7939,7 @@ const buildGroupedBattleLog = (entries) => {
       <div className="pg battle-bg">
         <div className="battle-arena-img" style={{ backgroundImage: `url('${battleBgUrl}')`, transform: `translate(${battleBgSeed.dx}px, ${battleBgSeed.dy}px) scale(${battleBgSeed.scale})`, filter: `hue-rotate(${battleBgSeed.hue}deg) saturate(1.05)` }} />
         <div className="battle-arena-veil" />
-        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}
+        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
@@ -8196,7 +8329,7 @@ const buildGroupedBattleLog = (entries) => {
     const bossStatus = !bossTile ? "None" : sm.bossAlive ? (remainingEncounters > 0 ? "Locked" : "Ready") : "Defeated";
     const smBg = isRift ? "linear-gradient(180deg, rgba(50,18,78,0.98), rgba(12,8,28,0.98))" : "linear-gradient(180deg, rgba(66,33,16,0.98), rgba(20,12,8,0.98))";
     return (
-      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}
+      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}
         <div className="cd" style={{ padding: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <div><div style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: isRift ? "#9c27b0" : T.bad }}>{isRift ? "🌀" : "⛺"} {sm.name}</div><div style={{ fontSize: 9, color: T.dm }}>{sm.type === "hostile" ? "Outpost" : "Dimensional Rift"} · ({sm.pos.x},{sm.pos.y})</div></div>
@@ -8287,7 +8420,7 @@ const buildGroupedBattleLog = (entries) => {
     ].map(s => ({ ...s, cat: SVC_CAT[s.id] || "mystic" }));
 
     return (
-      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}<div className="cd page-panel">
+      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}<div className="cd page-panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 16, color: T.gd }}>🏘️ {tn}</div>
           <button className="bt bs" style={{ background: T.ac }} onClick={() => { setSvc(null); setScr("map"); }}>Leave</button>
