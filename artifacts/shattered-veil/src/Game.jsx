@@ -6156,14 +6156,31 @@ const buildGroupedBattleLog = (entries) => {
   const [chatUnread, setChatUnread] = useState(0);
   const [chatProfile, setChatProfile] = useState(null);   // clicked-portrait dossier
   const [chatEmojiOpen, setChatEmojiOpen] = useState(false);
-  const [chatDockOpen, setChatDockOpen] = useState(false); // mini-chat dock on map screen
+  // v69 — tabs + roster + DMs
+  const [chatTab, setChatTab] = useState("public");        // "public" | "private"
+  const [chatRoster, setChatRoster] = useState([]);        // [{playerId, name, classId, ...}]
+  const [chatRosterOpen, setChatRosterOpen] = useState(false);
+  const [chatDms, setChatDms] = useState([]);              // all DMs (to/from me)
+  const [chatDmThread, setChatDmThread] = useState(null);  // playerId of active DM counterpart
+  const [chatDmDraft, setChatDmDraft] = useState("");
+  const [chatDmStartName, setChatDmStartName] = useState("");
+  const [chatDmStartError, setChatDmStartError] = useState("");
+  const [chatDmReadUpTo, setChatDmReadUpTo] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sv_chat_dm_read") || "{}"); } catch (_) { return {}; }
+  });
+  const [chatMentions, setChatMentions] = useState(0);     // unread @mentions on public
   const chatLogRef = useRef(null);
+  const chatDmLogRef = useRef(null);
   const chatPollRef = useRef(null);
   const chatLastIdRef = useRef(0);
+  const chatDmLastIdRef = useRef(0);
   const chatOpenRef = useRef(false);
-  const chatDockOpenRef = useRef(false);
+  const chatTabRef = useRef("public");
+  const chatDmThreadRef = useRef(null);
   useEffect(() => { chatOpenRef.current = chatOpen; }, [chatOpen]);
-  useEffect(() => { chatDockOpenRef.current = chatDockOpen; }, [chatDockOpen]);
+  useEffect(() => { chatTabRef.current = chatTab; }, [chatTab]);
+  useEffect(() => { chatDmThreadRef.current = chatDmThread; }, [chatDmThread]);
+  useEffect(() => { try { localStorage.setItem("sv_chat_dm_read", JSON.stringify(chatDmReadUpTo)); } catch (_) {} }, [chatDmReadUpTo]);
 
   const veilcourtId = useMemo(() => {
     try {
@@ -6175,6 +6192,31 @@ const buildGroupedBattleLog = (entries) => {
       return id;
     } catch (_) { return "v_anon_" + Math.random().toString(36).slice(2, 10); }
   }, []);
+
+  // Build my identity payload for presence + DM POSTs
+  const myIdentityPayload = useCallback(() => {
+    if (!pl) return null;
+    const rk = getRank(pl.level);
+    const bm = pl.bloodmark ? getBM(pl.bloodmark) : null;
+    const cv = pl.covenant ? getCV(pl.covenant) : null;
+    const myCls = CLS.find(c => c.id === (pl.cid || cls?.id));
+    const portraitFull = pl.portrait && isValidPortraitURL(pl.portrait) ? pl.portrait : classPortraitUrl(pl.cid || cls?.id, pl.sex);
+    return {
+      playerId: veilcourtId,
+      name: (pl.name || "Sorcerer").slice(0, 24),
+      classId: pl.cid || myCls?.id || null,
+      className: myCls?.nm || null,
+      classColor: myCls?.cl || null,
+      sex: pl.sex || null,
+      portrait: portraitFull,
+      rank: rk?.nm || null,
+      bloodmark: bm?.nm || null,
+      covenant: cv?.nm || null,
+    };
+  }, [pl, cls, veilcourtId]);
+
+  // My display name (for @mention self-detection)
+  const myChatNameLower = useMemo(() => (pl?.name || "").toLowerCase(), [pl]);
 
   // Stable fetch — no chatOpen dep so the polling interval doesn't churn
   const veilcourtFetch = useCallback(async () => {
@@ -6193,29 +6235,105 @@ const buildGroupedBattleLog = (entries) => {
           if (fresh.length === 0) return prev;
           return [...prev, ...fresh].slice(-100);
         });
-        const visible = chatOpenRef.current || chatDockOpenRef.current;
+        const visible = chatOpenRef.current && chatTabRef.current === "public";
         if (!visible) {
           const unread = data.messages.filter(m => m.playerId !== veilcourtId).length;
           if (unread > 0) setChatUnread(u => Math.min(99, u + unread));
         }
+        // Mention detection (server-tagged) — bumps the mention badge
+        const mentioningMe = data.messages.filter(m => Array.isArray(m.mentions) && m.mentions.includes(veilcourtId) && m.playerId !== veilcourtId).length;
+        if (mentioningMe > 0 && !visible) setChatMentions(n => Math.min(99, n + mentioningMe));
       }
       if (typeof data.online === "number") setChatOnline(data.online);
     } catch (_) { /* offline; silent */ }
   }, [veilcourtId]);
 
+  // DM polling — also runs on the same heartbeat
+  const veilcourtDmFetch = useCallback(async () => {
+    try {
+      const r = await fetch("/api/veilcourt/dm?pid=" + encodeURIComponent(veilcourtId) + "&since=" + chatDmLastIdRef.current, { headers: { "Cache-Control": "no-cache" } });
+      if (!r.ok) return;
+      const data = await r.json().catch(() => null);
+      if (!data || !Array.isArray(data.messages)) return;
+      if (data.messages.length === 0) return;
+      const incomingMaxId = data.messages.reduce((mx, m) => m.id > mx ? m.id : mx, 0);
+      if (incomingMaxId > chatDmLastIdRef.current) chatDmLastIdRef.current = incomingMaxId;
+      setChatDms(prev => {
+        if (prev.length === 0) return data.messages.slice(-300);
+        const lastSeen = prev[prev.length - 1].id;
+        const fresh = data.messages.filter(m => m.id > lastSeen);
+        if (fresh.length === 0) return prev;
+        return [...prev, ...fresh].slice(-300);
+      });
+      // Auto-mark-read when the matching thread is open
+      const activeThread = chatDmThreadRef.current;
+      const tabIsDm = chatOpenRef.current && chatTabRef.current === "private";
+      if (tabIsDm && activeThread) {
+        setChatDmReadUpTo(prev => {
+          const next = { ...prev };
+          for (const m of data.messages) {
+            const counterpart = m.playerId === veilcourtId ? m.to : m.playerId;
+            if (counterpart === activeThread && (next[counterpart] || 0) < m.id) next[counterpart] = m.id;
+          }
+          return next;
+        });
+      }
+    } catch (_) {}
+  }, [veilcourtId]);
+
+  // Presence heartbeat — keeps me on the roster + advertises my latest identity
+  const veilcourtPresence = useCallback(async () => {
+    const ident = myIdentityPayload();
+    if (!ident) return;
+    try {
+      await fetch("/api/veilcourt/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ident),
+      });
+    } catch (_) {}
+  }, [myIdentityPayload]);
+
+  // Roster fetch (used by the active-sorcerer modal)
+  const veilcourtRosterFetch = useCallback(async () => {
+    try {
+      const r = await fetch("/api/veilcourt/roster", { headers: { "Cache-Control": "no-cache" } });
+      if (!r.ok) return;
+      const data = await r.json().catch(() => null);
+      if (!data || !Array.isArray(data.players)) return;
+      setChatRoster(data.players);
+      if (typeof data.online === "number") setChatOnline(data.online);
+    } catch (_) {}
+  }, []);
+
   useEffect(() => {
     if (["title", "create"].includes(scr)) return;
     veilcourtFetch();
-    const interval = (chatOpen || chatDockOpen) ? 3500 : 9000;
-    chatPollRef.current = setInterval(veilcourtFetch, interval);
+    veilcourtDmFetch();
+    veilcourtPresence();
+    const interval = chatOpen ? 3500 : 9000;
+    chatPollRef.current = setInterval(() => {
+      veilcourtFetch();
+      veilcourtDmFetch();
+      veilcourtPresence();
+    }, interval);
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current); };
-  }, [scr, chatOpen, chatDockOpen, veilcourtFetch]);
+  }, [scr, chatOpen, veilcourtFetch, veilcourtDmFetch, veilcourtPresence]);
+
+  // Refresh roster when the roster modal opens
+  useEffect(() => { if (chatRosterOpen) veilcourtRosterFetch(); }, [chatRosterOpen, veilcourtRosterFetch]);
 
   useEffect(() => {
-    if (chatOpen && chatLogRef.current) {
+    if (chatOpen && chatTab === "public" && chatLogRef.current) {
       chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
     }
-  }, [chatOpen, chatMsgs]);
+  }, [chatOpen, chatTab, chatMsgs]);
+
+  useEffect(() => {
+    if (chatOpen && chatTab === "private" && chatDmThread && chatDmLogRef.current) {
+      chatDmLogRef.current.scrollTop = chatDmLogRef.current.scrollHeight;
+    }
+  }, [chatOpen, chatTab, chatDmThread, chatDms]);
 
   const sendVeilcourtMessage = useCallback(async (overrideText) => {
     const text = (overrideText !== undefined ? overrideText : chatDraft).trim();
@@ -6265,8 +6383,141 @@ const buildGroupedBattleLog = (entries) => {
     }
   }, [chatDraft, pl, cls, veilcourtId, veilcourtFetch]);
 
-  const openVeilcourt = useCallback(() => { setChatOpen(true); setChatUnread(0); }, []);
-  const insertEmoji = useCallback((e) => { setChatDraft(d => (d + e).slice(0, 580)); }, []);
+  const openVeilcourt = useCallback(() => { setChatOpen(true); setChatUnread(0); setChatMentions(0); }, []);
+  const insertEmoji = useCallback((e) => {
+    if (chatTabRef.current === "private") setChatDmDraft(d => (d + e).slice(0, 580));
+    else setChatDraft(d => (d + e).slice(0, 580));
+  }, []);
+
+  // Send a DM
+  const sendDm = useCallback(async (overrideText) => {
+    if (!pl || !chatDmThread) return;
+    const text = (overrideText !== undefined ? overrideText : chatDmDraft).trim();
+    if (!text) return;
+    const ident = myIdentityPayload();
+    if (!ident) return;
+    setChatStatus("Sending…");
+    try {
+      const r = await fetch("/api/veilcourt/dm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...ident, text, to: chatDmThread }),
+      });
+      if (r.status === 429) {
+        const data = await r.json().catch(() => ({}));
+        setChatStatus(data.error || "Slow down…");
+        setTimeout(() => setChatStatus(""), 1500);
+        return;
+      }
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        setChatStatus(data.error || "Send failed.");
+        setTimeout(() => setChatStatus(""), 1800);
+        return;
+      }
+      setChatDmDraft("");
+      setChatStatus("");
+      setChatEmojiOpen(false);
+      veilcourtDmFetch();
+    } catch (_) {
+      setChatStatus("Veil unreachable.");
+      setTimeout(() => setChatStatus(""), 1800);
+    }
+  }, [pl, chatDmThread, chatDmDraft, myIdentityPayload, veilcourtDmFetch]);
+
+  // Open a DM thread with a specific playerId — also marks it read up to current
+  const openDmThread = useCallback((targetPlayerId) => {
+    if (!targetPlayerId || targetPlayerId === veilcourtId) return;
+    setChatOpen(true);
+    setChatTab("private");
+    setChatDmThread(targetPlayerId);
+    setChatProfile(null);
+    setChatRosterOpen(false);
+    setChatUnread(0); setChatMentions(0);
+    // Mark all current DMs from this counterpart as read
+    setChatDmReadUpTo(prev => {
+      const maxId = chatDms.reduce((mx, m) => {
+        const cp = m.playerId === veilcourtId ? m.to : m.playerId;
+        return (cp === targetPlayerId && m.id > mx) ? m.id : mx;
+      }, prev[targetPlayerId] || 0);
+      if (maxId === (prev[targetPlayerId] || 0)) return prev;
+      return { ...prev, [targetPlayerId]: maxId };
+    });
+  }, [veilcourtId, chatDms]);
+
+  // Try to start a new DM by typing a sorcerer's name
+  const startDmByName = useCallback(async () => {
+    const name = chatDmStartName.trim();
+    if (!name) return;
+    if (name.toLowerCase() === myChatNameLower) {
+      setChatDmStartError("That's you.");
+      return;
+    }
+    setChatDmStartError("");
+    try {
+      const r = await fetch("/api/veilcourt/lookup?name=" + encodeURIComponent(name));
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        setChatDmStartError(data.error || "No sorcerer by that name in the Veilcourt.");
+        return;
+      }
+      const data = await r.json().catch(() => null);
+      if (!data || !data.player) {
+        setChatDmStartError("Lookup failed.");
+        return;
+      }
+      setChatDmStartName("");
+      openDmThread(data.player.playerId);
+    } catch (_) {
+      setChatDmStartError("Veil unreachable.");
+    }
+  }, [chatDmStartName, myChatNameLower, openDmThread]);
+
+  // Insert "@Name " into the current composer
+  const insertMention = useCallback((name) => {
+    if (!name) return;
+    if (chatTabRef.current === "private") return; // mentions only apply to public chat
+    setChatDraft(d => (d + (d.endsWith(" ") || d.length === 0 ? "" : " ") + "@" + name + " ").slice(0, 580));
+  }, []);
+
+  // Derived: DM threads (counterpart playerId → {last DM, unread count, identity guess})
+  const dmThreads = useMemo(() => {
+    const map = new Map();
+    for (const m of chatDms) {
+      const cp = m.playerId === veilcourtId ? m.to : m.playerId;
+      if (!cp || cp === veilcourtId) continue;
+      const cur = map.get(cp) || { counterpart: cp, last: null, unread: 0, identity: null };
+      if (!cur.last || m.id > cur.last.id) cur.last = m;
+      // Identity guess from the most recent message authored by them
+      if (m.playerId === cp) cur.identity = { name: m.name, classId: m.classId, className: m.className, classColor: m.classColor, sex: m.sex, portrait: m.portrait, rank: m.rank, bloodmark: m.bloodmark, covenant: m.covenant };
+      map.set(cp, cur);
+    }
+    // Compute unread per thread
+    for (const t of map.values()) {
+      const readUpTo = chatDmReadUpTo[t.counterpart] || 0;
+      let unread = 0;
+      for (const m of chatDms) {
+        const cp = m.playerId === veilcourtId ? m.to : m.playerId;
+        if (cp === t.counterpart && m.playerId !== veilcourtId && m.id > readUpTo) unread++;
+      }
+      t.unread = unread;
+    }
+    return Array.from(map.values()).sort((a, b) => (b.last?.id || 0) - (a.last?.id || 0));
+  }, [chatDms, chatDmReadUpTo, veilcourtId]);
+
+  const dmTotalUnread = useMemo(() => dmThreads.reduce((s, t) => s + t.unread, 0), [dmThreads]);
+
+  // DMs filtered to the active thread
+  const activeThreadDms = useMemo(() => {
+    if (!chatDmThread) return [];
+    return chatDms.filter(m => {
+      const cp = m.playerId === veilcourtId ? m.to : m.playerId;
+      return cp === chatDmThread;
+    });
+  }, [chatDms, chatDmThread, veilcourtId]);
+
+  // Roster filtered to exclude self
+  const rosterOthers = useMemo(() => chatRoster.filter(p => p.playerId !== veilcourtId), [chatRoster, veilcourtId]);
 
   // Quick emoji palette — curated set
   const VEIL_EMOJIS = useMemo(() => [
@@ -6277,13 +6528,39 @@ const buildGroupedBattleLog = (entries) => {
     "⚔️","🛡️","🏹","🗡️","🪄","📜","📖","🔮","🜂","☠️","🦴","🫧","🌀","🕯️","🏛️","✦"
   ], []);
 
-  // Rich-text renderer — auto-detects image URLs, YouTube links, and generic links
+  // Render a plain text run, picking out @mentions (clickable, self-highlighted)
+  const renderTextWithMentions = (text, baseKey) => {
+    if (!text) return null;
+    const parts = text.split(/(@[A-Za-z0-9_'\-]{1,24})/g);
+    return parts.map((p, i) => {
+      if (!p) return null;
+      if (p[0] === "@") {
+        const name = p.slice(1);
+        const isMe = name.toLowerCase() === myChatNameLower;
+        return <button key={baseKey + "_m_" + i} type="button" className={"veil-mention" + (isMe ? " is-self" : "")} onClick={() => {
+          if (isMe) return;
+          // Try to look up + open a DM
+          (async () => {
+            try {
+              const r = await fetch("/api/veilcourt/lookup?name=" + encodeURIComponent(name));
+              if (!r.ok) return;
+              const data = await r.json().catch(() => null);
+              if (data && data.player) openDmThread(data.player.playerId);
+            } catch (_) {}
+          })();
+        }} title={isMe ? "You were called by name" : "Open DM with @" + name}>@{name}</button>;
+      }
+      return <span key={baseKey + "_t_" + i}>{p}</span>;
+    });
+  };
+
+  // Rich-text renderer — auto-detects image URLs, YouTube links, generic links, and @mentions
   const renderRich = (text) => {
     if (!text) return null;
     const parts = text.split(/(https?:\/\/[^\s<>"]+)/g);
     return parts.map((p, i) => {
       if (!p) return null;
-      if (!/^https?:\/\//.test(p)) return <span key={i}>{p}</span>;
+      if (!/^https?:\/\//.test(p)) return <span key={i}>{renderTextWithMentions(p, "p" + i)}</span>;
       const cleanUrl = p.replace(/[)\].,!?;:]+$/, "");
       const trail = p.slice(cleanUrl.length);
       const isImg = /\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i.test(cleanUrl);
@@ -6299,13 +6576,13 @@ const buildGroupedBattleLog = (entries) => {
     });
   };
 
-  // Memoized message row — keeps poll cycles from re-rendering existing messages
-  const MsgRow = React.useMemo(() => React.memo(function MsgRow({ m, mine, onPortrait }) {
+  // Render a single message row (used by both public log and DM thread)
+  const renderMsgRow = (m, mine, callsMe) => {
     const isSystem = m.channel === "system";
     const portraitSrc = m.portrait && /^(https?:|data:image\/)/i.test(m.portrait) ? m.portrait : (m.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + m.classId + (m.sex === "female" ? "_f" : "") + ".png") : null);
     return (
-      <div className={"veilcourt-msg" + (mine ? " is-mine" : "") + (isSystem ? " is-system" : "")}>
-        <button type="button" className="veilcourt-portrait veilcourt-portrait-btn" style={{ borderColor: m.classColor || (isSystem ? "#d4ad40" : "#7a89c2") }} onClick={() => onPortrait(m)} title={"View " + m.name + "'s dossier"} aria-label={"Open dossier for " + m.name} aria-haspopup="dialog">
+      <div key={m.id} className={"veilcourt-msg" + (mine ? " is-mine" : "") + (isSystem ? " is-system" : "") + (callsMe ? " is-mention-me" : "")}>
+        <button type="button" className="veilcourt-portrait veilcourt-portrait-btn" style={{ borderColor: m.classColor || (isSystem ? "#d4ad40" : "#7a89c2") }} onClick={() => setChatProfile(m)} title={"View " + m.name + "'s dossier"} aria-label={"Open dossier for " + m.name} aria-haspopup="dialog">
           {portraitSrc ? <img src={portraitSrc} alt="" draggable={false} onError={e => { try { const t = e.currentTarget; if (!t.dataset.fb && m.classId) { t.dataset.fb = "1"; t.src = (import.meta.env.BASE_URL || "/") + "class/" + m.classId + ".png"; } else { t.style.display = "none"; } } catch (_) {} }} /> : <span className="veilcourt-portrait-fallback">{isSystem ? "🜂" : "✦"}</span>}
         </button>
         <div className="veilcourt-bubble">
@@ -6315,51 +6592,184 @@ const buildGroupedBattleLog = (entries) => {
             {m.rank && <span className="veilcourt-tag">{m.rank}</span>}
             {m.covenant && <span className="veilcourt-tag" style={{ color: "#ffd77a", borderColor: "rgba(212,173,64,0.45)" }}>🏛 {m.covenant}</span>}
             {m.bloodmark && <span className="veilcourt-tag" style={{ color: "#c2a8ff", borderColor: "rgba(160,120,220,0.45)" }}>✦ {m.bloodmark}</span>}
+            {!mine && !isSystem && <button type="button" className="veil-msg-action" title={"Mention @" + m.name} onClick={() => insertMention(m.name)}>@</button>}
+            {!mine && !isSystem && <button type="button" className="veil-msg-action" title={"DM " + m.name} onClick={() => openDmThread(m.playerId)}>✉</button>}
           </div>
           <div className="veilcourt-text">{renderRich(m.text)}</div>
         </div>
       </div>
     );
-  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  const onPortraitClick = useCallback((m) => { setChatProfile(m); }, []);
+  // Find a roster identity for an arbitrary playerId (falls back to last DM author)
+  const lookupIdentity = (playerId) => {
+    const fromRoster = chatRoster.find(p => p.playerId === playerId);
+    if (fromRoster) return fromRoster;
+    const fromDm = dmThreads.find(t => t.counterpart === playerId);
+    if (fromDm && fromDm.identity) return { ...fromDm.identity, playerId };
+    return { playerId, name: "Sorcerer", classColor: "#7a89c2", classId: null, sex: null, portrait: null };
+  };
+
+  const activeThreadIdent = chatDmThread ? lookupIdentity(chatDmThread) : null;
 
   const chatEl = chatOpen && pl ? (
     <div>
       <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(2,4,12,0.78)", backdropFilter: "blur(3px)" }} onClick={() => setChatOpen(false)} />
-      <div className="veilcourt-modal v65" onClick={e => e.stopPropagation()}>
-        <div className="veilcourt-header v65">
-          <div className="veilcourt-presence">
+      <div className="veilcourt-modal v69" onClick={e => e.stopPropagation()}>
+        <div className="veilcourt-header v69">
+          <button type="button" className="veilcourt-presence-btn" onClick={() => setChatRosterOpen(true)} title="Show all online sorcerers">
             <span className="veilcourt-presence-dot" />
             <span className="veilcourt-presence-count">{chatOnline}</span>
             <span className="veilcourt-presence-label">active sorcerer{chatOnline === 1 ? "" : "s"}</span>
+            <span className="veilcourt-presence-caret">▾</span>
+          </button>
+          <div className="veilcourt-tabs">
+            <button type="button" className={"veilcourt-tab" + (chatTab === "public" ? " is-active" : "")} onClick={() => { setChatTab("public"); setChatUnread(0); setChatMentions(0); }}>
+              <span className="veilcourt-tab-ic">📢</span>
+              <span className="veilcourt-tab-lbl">Public</span>
+              {chatTab !== "public" && (chatUnread > 0 || chatMentions > 0) && <span className={"veilcourt-tab-badge" + (chatMentions > 0 ? " is-mention" : "")}>{chatMentions > 0 ? "@" + chatMentions : chatUnread}</span>}
+            </button>
+            <button type="button" className={"veilcourt-tab" + (chatTab === "private" ? " is-active" : "")} onClick={() => setChatTab("private")}>
+              <span className="veilcourt-tab-ic">✉</span>
+              <span className="veilcourt-tab-lbl">Private</span>
+              {dmTotalUnread > 0 && <span className="veilcourt-tab-badge is-mention">{dmTotalUnread}</span>}
+            </button>
           </div>
           <button className="bt bs veilcourt-close" onClick={() => setChatOpen(false)} aria-label="Close">✕</button>
         </div>
-        <div className="veilcourt-log" ref={chatLogRef}>
-          {chatMsgs.length === 0 && <div className="veilcourt-empty">No voices yet — be the first.</div>}
-          {chatMsgs.map(m => <MsgRow key={m.id} m={m} mine={m.playerId === veilcourtId} onPortrait={onPortraitClick} />)}
-        </div>
-        <div className="veilcourt-composer v65">
-          {chatEmojiOpen && (
-            <div className="veil-emoji-picker">
-              {VEIL_EMOJIS.map(e => <button key={e} type="button" className="veil-emoji-btn" onClick={() => insertEmoji(e)} title={e}>{e}</button>)}
-            </div>
-          )}
-          <div className="veilcourt-input-row">
-            <button type="button" className="bt veil-emoji-toggle" onClick={() => setChatEmojiOpen(o => !o)} title="Emoji" aria-label="Open emoji picker">😊</button>
-            <input
-              type="text"
-              className="veilcourt-input"
-              maxLength={580}
-              placeholder="Speak across the veil… (paste image / YouTube links to embed)"
-              value={chatDraft}
-              onChange={e => setChatDraft(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendVeilcourtMessage(); } }}
-            />
-            <button className="bt veilcourt-send" disabled={!chatDraft.trim()} onClick={() => sendVeilcourtMessage()}>Send</button>
+
+        {chatTab === "public" && <>
+          <div className="veilcourt-log" ref={chatLogRef}>
+            {chatMsgs.length === 0 && <div className="veilcourt-empty">No voices yet — be the first.</div>}
+            {chatMsgs.map(m => renderMsgRow(m, m.playerId === veilcourtId, Array.isArray(m.mentions) && m.mentions.includes(veilcourtId) && m.playerId !== veilcourtId))}
           </div>
-          {chatStatus && <div className="veilcourt-status-line">{chatStatus}</div>}
+          <div className="veilcourt-composer v69">
+            {chatEmojiOpen && (
+              <div className="veil-emoji-picker">
+                {VEIL_EMOJIS.map(e => <button key={e} type="button" className="veil-emoji-btn" onClick={() => insertEmoji(e)} title={e}>{e}</button>)}
+              </div>
+            )}
+            <div className="veilcourt-input-row">
+              <button type="button" className="bt veil-emoji-toggle" onClick={() => setChatEmojiOpen(o => !o)} title="Emoji" aria-label="Open emoji picker">😊</button>
+              <input
+                type="text"
+                className="veilcourt-input"
+                maxLength={580}
+                placeholder="Speak across the veil… (try @SorcererName)"
+                value={chatDraft}
+                onChange={e => setChatDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendVeilcourtMessage(); } }}
+              />
+              <button className="bt veilcourt-send" disabled={!chatDraft.trim()} onClick={() => sendVeilcourtMessage()}>Send</button>
+            </div>
+            {chatStatus && <div className="veilcourt-status-line">{chatStatus}</div>}
+          </div>
+        </>}
+
+        {chatTab === "private" && !chatDmThread && <>
+          <div className="veilcourt-dm-start">
+            <div className="veilcourt-dm-start-row">
+              <input
+                type="text"
+                className="veilcourt-input"
+                maxLength={24}
+                placeholder="Type a sorcerer's name to start a chat…"
+                value={chatDmStartName}
+                onChange={e => { setChatDmStartName(e.target.value); setChatDmStartError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); startDmByName(); } }}
+              />
+              <button className="bt veilcourt-send" disabled={!chatDmStartName.trim()} onClick={startDmByName}>Open</button>
+            </div>
+            {chatDmStartError && <div className="veilcourt-status-line is-err">{chatDmStartError}</div>}
+          </div>
+          <div className="veilcourt-thread-list">
+            {dmThreads.length === 0 && <div className="veilcourt-empty">No private chats yet. Type a name above, click @ in public chat, or open a sorcerer's dossier and tap "Send DM".</div>}
+            {dmThreads.map(t => {
+              const ident = t.identity || lookupIdentity(t.counterpart);
+              const portraitSrc = ident.portrait && /^(https?:|data:image\/)/i.test(ident.portrait) ? ident.portrait : (ident.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + ident.classId + (ident.sex === "female" ? "_f" : "") + ".png") : null);
+              const last = t.last;
+              const lastFromMe = last && last.playerId === veilcourtId;
+              return <button key={t.counterpart} type="button" className={"veilcourt-thread" + (t.unread > 0 ? " has-unread" : "")} onClick={() => openDmThread(t.counterpart)}>
+                <span className="veilcourt-thread-portrait" style={{ borderColor: ident.classColor || "#7a89c2" }}>
+                  {portraitSrc ? <img src={portraitSrc} alt="" /> : <span>✦</span>}
+                </span>
+                <span className="veilcourt-thread-body">
+                  <span className="veilcourt-thread-name" style={{ color: ident.classColor || "#e8eeff" }}>{ident.name || "Sorcerer"}</span>
+                  <span className="veilcourt-thread-last">{lastFromMe ? "You: " : ""}{last ? (last.text.length > 60 ? last.text.slice(0, 60) + "…" : last.text) : ""}</span>
+                </span>
+                {t.unread > 0 && <span className="veilcourt-thread-badge">{t.unread}</span>}
+              </button>;
+            })}
+          </div>
+        </>}
+
+        {chatTab === "private" && chatDmThread && activeThreadIdent && <>
+          <div className="veilcourt-dm-header">
+            <button type="button" className="bt bs veilcourt-dm-back" onClick={() => setChatDmThread(null)} title="Back to all chats">←</button>
+            <span className="veilcourt-dm-with">DM with <span style={{ color: activeThreadIdent.classColor || "#f5e8b8", fontWeight: 800 }}>{activeThreadIdent.name}</span>{activeThreadIdent.className && <span className="veilcourt-tag" style={{ marginLeft: 6, color: activeThreadIdent.classColor || "#cfd6ee", borderColor: (activeThreadIdent.classColor || "#7a89c2") + "55" }}>{activeThreadIdent.className}</span>}</span>
+            <button type="button" className="bt bs veilcourt-dm-profile" onClick={() => setChatProfile({ ...activeThreadIdent, channel: "global", ts: Date.now() })} title="View dossier">👤</button>
+          </div>
+          <div className="veilcourt-log" ref={chatDmLogRef}>
+            {activeThreadDms.length === 0 && <div className="veilcourt-empty">No messages yet. Say hello.</div>}
+            {activeThreadDms.map(m => renderMsgRow(m, m.playerId === veilcourtId, false))}
+          </div>
+          <div className="veilcourt-composer v69">
+            {chatEmojiOpen && (
+              <div className="veil-emoji-picker">
+                {VEIL_EMOJIS.map(e => <button key={e} type="button" className="veil-emoji-btn" onClick={() => insertEmoji(e)} title={e}>{e}</button>)}
+              </div>
+            )}
+            <div className="veilcourt-input-row">
+              <button type="button" className="bt veil-emoji-toggle" onClick={() => setChatEmojiOpen(o => !o)} title="Emoji" aria-label="Open emoji picker">😊</button>
+              <input
+                type="text"
+                className="veilcourt-input"
+                maxLength={580}
+                placeholder={"Whisper to " + activeThreadIdent.name + "…"}
+                value={chatDmDraft}
+                onChange={e => setChatDmDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDm(); } }}
+              />
+              <button className="bt veilcourt-send" disabled={!chatDmDraft.trim()} onClick={() => sendDm()}>Send</button>
+            </div>
+            {chatStatus && <div className="veilcourt-status-line">{chatStatus}</div>}
+          </div>
+        </>}
+      </div>
+    </div>
+  ) : null;
+
+  // Roster modal — opens when the active-sorcerer button is clicked
+  const chatRosterEl = chatRosterOpen && pl ? (
+    <div>
+      <div style={{ position: "fixed", inset: 0, zIndex: 1300, background: "rgba(2,4,12,0.85)", backdropFilter: "blur(4px)" }} onClick={() => setChatRosterOpen(false)} />
+      <div className="veilcourt-roster-modal" onClick={e => e.stopPropagation()}>
+        <div className="veilcourt-roster-header">
+          <span className="veilcourt-roster-title">⚜ The Veilcourt — {chatOnline} active</span>
+          <button className="bt bs veilcourt-close" onClick={() => setChatRosterOpen(false)} aria-label="Close">✕</button>
+        </div>
+        <div className="veilcourt-roster-list">
+          {rosterOthers.length === 0 && <div className="veilcourt-empty">You stand alone in the basin. Other sorcerers will appear here as they speak.</div>}
+          {rosterOthers.map(p => {
+            const portraitSrc = p.portrait && /^(https?:|data:image\/)/i.test(p.portrait) ? p.portrait : (p.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + p.classId + (p.sex === "female" ? "_f" : "") + ".png") : null);
+            return <div key={p.playerId} className="veilcourt-roster-row">
+              <button type="button" className="veilcourt-thread-portrait" style={{ borderColor: p.classColor || "#7a89c2" }} onClick={() => setChatProfile({ ...p, channel: "global", ts: p.lastSeen })} title="View dossier">
+                {portraitSrc ? <img src={portraitSrc} alt="" /> : <span>✦</span>}
+              </button>
+              <div className="veilcourt-roster-info">
+                <div className="veilcourt-roster-name" style={{ color: p.classColor || "#e8eeff" }}>{p.name}</div>
+                <div className="veilcourt-roster-tags">
+                  {p.className && <span className="veilcourt-tag" style={{ color: p.classColor || "#cfd6ee", borderColor: (p.classColor || "#7a89c2") + "55" }}>{p.className}</span>}
+                  {p.rank && <span className="veilcourt-tag">{p.rank}</span>}
+                  {p.covenant && <span className="veilcourt-tag" style={{ color: "#ffd77a", borderColor: "rgba(212,173,64,0.45)" }}>🏛 {p.covenant}</span>}
+                </div>
+              </div>
+              <div className="veilcourt-roster-actions">
+                <button type="button" className="bt bs" onClick={() => insertMention(p.name)} title={"Mention @" + p.name}>@</button>
+                <button type="button" className="bt bs" onClick={() => openDmThread(p.playerId)} title="Send DM">✉ DM</button>
+              </div>
+            </div>;
+          })}
         </div>
       </div>
     </div>
@@ -6389,6 +6799,10 @@ const buildGroupedBattleLog = (entries) => {
               {m.sex &&       (<div className="veil-profile-row"><span className="veil-profile-label">Sex</span><span className="veil-profile-val" style={{ textTransform: "capitalize" }}>{m.sex}</span></div>)}
               {m.ts &&        (<div className="veil-profile-row"><span className="veil-profile-label">Last seen</span><span className="veil-profile-val">{new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></div>)}
             </div>
+            {m.playerId && m.playerId !== veilcourtId && !isSystem && <div className="veil-profile-actions">
+              <button type="button" className="bt veil-profile-dm-btn" onClick={() => openDmThread(m.playerId)} title="Send a private message">✉ Send DM</button>
+              {m.name && <button type="button" className="bt bs veil-profile-mention-btn" onClick={() => { insertMention(m.name); setChatProfile(null); setChatTab("public"); }} title={"Mention @" + m.name + " in public chat"}>@ Mention</button>}
+            </div>}
           </div>
         </div>
       </div>
@@ -6674,7 +7088,7 @@ const buildGroupedBattleLog = (entries) => {
 
   // SUB-SCREENS
   if (sub) return (
-    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{hud}<div className="cd page-panel">
+    <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}<div className="cd page-panel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>{sub === "items" ? "🎒 Equipment" : sub === "spells" ? "📖 Veil Archive" : sub === "stats" ? "📊 Stats" : sub === "story" ? "📜 Story" : sub === "manual" ? "📘 Game Manual" : "☰ Menu"}</div><button className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(null)}>←</button></div>
       {sub === "skills" && <div className="sb-panel"><div className="sb-title">Veil Archive</div><div className="sb-kv sb-muted">Veil Magic management has been folded into Veil Archive. Use that page for active Veil Magic, passive selection, and Veil Expansion management.</div><button className="bt bs" style={{ background: T.gd, marginTop: 6 }} onClick={() => setSub("spells")}>Open Veil Archive</button></div>}
 {sub === "items" && (() => {
@@ -7267,7 +7681,7 @@ const buildGroupedBattleLog = (entries) => {
       <div className={"pg map-bg sky-phase-" + skyPhase.key}>
         <div className="map-sky-img" style={{ backgroundImage: `url('${import.meta.env.BASE_URL}sky/h${String(skyHour).padStart(2,"0")}.png')` }} />
         <div className="map-sky-veil" />
-        <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{hud}
+        <div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}
         <div className="cd page-panel" style={{ padding: 10 }}>
           {(() => {
             const last2 = [...log].slice(-2).reverse();
@@ -7325,52 +7739,13 @@ const buildGroupedBattleLog = (entries) => {
                 <><div className="map-rail-tile-name map-rail-tile-name-bio">{tile ? tile.bio.charAt(0).toUpperCase() + tile.bio.slice(1) : "..."}</div><div className="map-rail-tile-type map-rail-tile-type-bio">terrain</div></>
               )}
             </div>
-            {/* v65 — collapsable mini-chat dock under the tile name */}
-            <div className={"veil-mini-dock" + (chatDockOpen ? " is-open" : "")}>
-              <button type="button" className="veil-mini-toggle" onClick={() => { setChatDockOpen(o => !o); if (!chatDockOpen) setChatUnread(0); }} title={chatDockOpen ? "Collapse chat" : "Quick chat"}>
-                <span className="veil-mini-toggle-ic">💬</span>
-                <span className="veil-mini-toggle-lbl">{chatDockOpen ? "Hide chat" : "Veilcourt"}</span>
-                <span className="veil-mini-toggle-online">{chatOnline}</span>
-                {!chatDockOpen && chatUnread > 0 && <span className="veil-mini-toggle-unread">{chatUnread > 99 ? "99+" : chatUnread}</span>}
-              </button>
-              {chatDockOpen && (
-                <div className="veil-mini-body">
-                  <div className="veil-mini-log">
-                    {chatMsgs.length === 0 ? (
-                      <div className="veil-mini-empty">No voices yet.</div>
-                    ) : (
-                      chatMsgs.slice(-4).map(m => {
-                        const portraitSrc = m.portrait && /^(https?:|data:image\/)/i.test(m.portrait) ? m.portrait : (m.classId ? ((import.meta.env.BASE_URL || "/") + "class/" + m.classId + (m.sex === "female" ? "_f" : "") + ".png") : null);
-                        return (
-                          <div key={m.id} className="veil-mini-msg">
-                            <button type="button" className="veil-mini-portrait" style={{ borderColor: m.classColor || "#7a89c2" }} onClick={() => onPortraitClick(m)} title={"View " + m.name} aria-label={"Open dossier for " + m.name} aria-haspopup="dialog">
-                              {portraitSrc ? <img src={portraitSrc} alt="" draggable={false} onError={e => { try { e.currentTarget.style.display = "none"; } catch (_) {} }} /> : <span>✦</span>}
-                            </button>
-                            <div className="veil-mini-bubble">
-                              <span className="veil-mini-author" style={{ color: m.classColor || "#e8eeff" }}>{m.name}:</span>
-                              <span className="veil-mini-text">{m.text.length > 90 ? m.text.slice(0, 90) + "…" : m.text}</span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="veil-mini-row">
-                    <input
-                      type="text"
-                      className="veil-mini-input"
-                      maxLength={580}
-                      placeholder="Quick reply…"
-                      value={chatDraft}
-                      onChange={e => setChatDraft(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendVeilcourtMessage(); } }}
-                    />
-                    <button className="bt veil-mini-send" disabled={!chatDraft.trim()} onClick={() => sendVeilcourtMessage()} title="Send">▶</button>
-                    <button className="bt veil-mini-expand" onClick={openVeilcourt} title="Open full Veilcourt">⤢</button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* v69 — quick Veilcourt button (opens full chat directly; no inline dock) */}
+            <button type="button" className="veil-quick-open-btn" onClick={openVeilcourt} title="Open the Veilcourt">
+              <span className="veil-quick-open-ic">💬</span>
+              <span className="veil-quick-open-lbl">Veilcourt</span>
+              <span className="veil-quick-open-online">{chatOnline}</span>
+              {(chatUnread > 0 || chatMentions > 0 || dmTotalUnread > 0) && <span className={"veil-quick-open-badge" + ((chatMentions > 0 || dmTotalUnread > 0) ? " is-mention" : "")}>{chatMentions > 0 || dmTotalUnread > 0 ? "!" : (chatUnread > 99 ? "99+" : chatUnread)}</span>}
+            </button>
             <div className="map-rail-meta">
               {repelSteps > 0 && <div style={{ color: T.ok, fontSize: 9 }}>🧴 Repel: {repelSteps} steps</div>}
               {guildMission && <div style={{ fontSize: 9, color: guildMission.progress >= guildMission.goal ? T.ok : T.ac, lineHeight: 1.35 }}>
@@ -7431,7 +7806,7 @@ const buildGroupedBattleLog = (entries) => {
       <div className="pg battle-bg">
         <div className="battle-arena-img" style={{ backgroundImage: `url('${battleBgUrl}')`, transform: `translate(${battleBgSeed.dx}px, ${battleBgSeed.dy}px) scale(${battleBgSeed.scale})`, filter: `hue-rotate(${battleBgSeed.hue}deg) saturate(1.05)` }} />
         <div className="battle-arena-veil" />
-        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}
+        <div className="wr battle-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}
         <div className="battle-combat-title" style={{ fontSize: 14, fontWeight: 800, color: T.gd, letterSpacing: 0.4, marginBottom: 6, textAlign: 'center' }}>Combat</div>
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
@@ -7821,7 +8196,7 @@ const buildGroupedBattleLog = (entries) => {
     const bossStatus = !bossTile ? "None" : sm.bossAlive ? (remainingEncounters > 0 ? "Locked" : "Ready") : "Defeated";
     const smBg = isRift ? "linear-gradient(180deg, rgba(50,18,78,0.98), rgba(12,8,28,0.98))" : "linear-gradient(180deg, rgba(66,33,16,0.98), rgba(20,12,8,0.98))";
     return (
-      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{hud}
+      <div className={"pg " + (isRift ? "rift-bg" : "outpost-bg")}><div className="wr shell-viewport" style={{position:"relative",zIndex:1}}>{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}
         <div className="cd" style={{ padding: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <div><div style={{ fontFamily: "'Cinzel',serif", fontSize: 13, color: isRift ? "#9c27b0" : T.bad }}>{isRift ? "🌀" : "⛺"} {sm.name}</div><div style={{ fontSize: 9, color: T.dm }}>{sm.type === "hostile" ? "Outpost" : "Dimensional Rift"} · ({sm.pos.x},{sm.pos.y})</div></div>
@@ -7912,7 +8287,7 @@ const buildGroupedBattleLog = (entries) => {
     ].map(s => ({ ...s, cat: SVC_CAT[s.id] || "mystic" }));
 
     return (
-      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{hud}<div className="cd page-panel">
+      <div className="pg town-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{hud}<div className="cd page-panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontFamily: "'Cinzel',serif", fontSize: 16, color: T.gd }}>🏘️ {tn}</div>
           <button className="bt bs" style={{ background: T.ac }} onClick={() => { setSvc(null); setScr("map"); }}>Leave</button>

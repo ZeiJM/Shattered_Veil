@@ -5057,3 +5057,272 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 .title-bg::before, .create-bg::before {
   background: linear-gradient(180deg, rgba(6,10,24,0.18) 0%, rgba(6,10,24,0.32) 60%, rgba(6,10,24,0.55) 100%) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   v69 — VEILCOURT OVERHAUL: tabs, roster, DMs, @mentions
+   ═══════════════════════════════════════════════════════════ */
+
+/* Quick-open Veilcourt button on the map left rail (replaces the old mini-dock) */
+.veil-quick-open-btn {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 7px 10px;
+  margin: 6px 0;
+  background: linear-gradient(160deg, rgba(36,42,68,0.85), rgba(20,24,42,0.92)) !important;
+  border: 1px solid rgba(212,173,64,0.45) !important;
+  border-radius: 8px;
+  color: #f5e8b8 !important;
+  font-family: "Cinzel", serif; font-weight: 700; font-size: 11px;
+  letter-spacing: 0.5px;
+  cursor: pointer; position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.12), 0 2px 8px rgba(0,0,0,0.35);
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.veil-quick-open-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212,173,64,0.85) !important;
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.20), 0 4px 12px rgba(0,0,0,0.45), 0 0 14px rgba(212,173,64,0.30);
+}
+.veil-quick-open-ic { font-size: 14px; }
+.veil-quick-open-lbl { flex: 1; text-align: left; }
+.veil-quick-open-online {
+  font-size: 10px; font-weight: 800;
+  background: rgba(96,200,140,0.18); color: #b6f0c8;
+  border: 1px solid rgba(96,200,140,0.45);
+  border-radius: 999px; padding: 1px 6px;
+}
+.veil-quick-open-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: linear-gradient(160deg, #d43636, #941a1a);
+  color: #fff7e0;
+  font-size: 9px; font-weight: 800;
+  border-radius: 999px;
+  border: 1.5px solid #f5e8b8;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 8px rgba(212,54,54,0.65);
+}
+.veil-quick-open-badge.is-mention {
+  background: linear-gradient(160deg, #d4ad40, #8a6c1a);
+  box-shadow: 0 0 10px rgba(212,173,64,0.75);
+}
+
+/* Header: presence button (clickable) + tabs */
+.veilcourt-header.v69 {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(180deg, rgba(20,26,52,0.96), rgba(14,18,38,0.96));
+  border-bottom: 1px solid rgba(212,173,64,0.30);
+}
+.veilcourt-presence-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(36,42,68,0.7);
+  border: 1px solid rgba(212,173,64,0.35);
+  color: #e8eeff;
+  padding: 5px 10px; border-radius: 999px;
+  font-family: "Nunito", sans-serif; font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.veilcourt-presence-btn:hover {
+  background: rgba(48,56,90,0.85);
+  border-color: rgba(212,173,64,0.75);
+  transform: translateY(-1px);
+}
+.veilcourt-presence-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #6cf09a; box-shadow: 0 0 8px rgba(108,240,154,0.75);
+}
+.veilcourt-presence-count { color: #f5e8b8; font-weight: 800; }
+.veilcourt-presence-label { color: #cfd6ee; font-weight: 600; }
+.veilcourt-presence-caret { color: #d4ad40; font-size: 10px; margin-left: 2px; }
+
+/* Tabs */
+.veilcourt-tabs {
+  display: inline-flex; gap: 6px; flex: 1; justify-content: center;
+}
+.veilcourt-tab {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  background: rgba(28,34,58,0.7);
+  border: 1px solid rgba(122,137,194,0.35);
+  border-radius: 8px;
+  color: #cfd6ee;
+  font-family: "Cinzel", serif; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.veilcourt-tab:hover { background: rgba(48,56,90,0.85); color: #f5e8b8; }
+.veilcourt-tab.is-active {
+  background: linear-gradient(180deg, rgba(212,173,64,0.22), rgba(212,173,64,0.10));
+  border-color: rgba(212,173,64,0.85);
+  color: #f5e8b8;
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.18), 0 0 10px rgba(212,173,64,0.30);
+}
+.veilcourt-tab-ic { font-size: 13px; }
+.veilcourt-tab-badge {
+  margin-left: 4px;
+  min-width: 16px; height: 16px; padding: 0 5px;
+  font-size: 9px; font-weight: 800;
+  background: rgba(122,137,194,0.5); color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.veilcourt-tab-badge.is-mention {
+  background: linear-gradient(160deg, #d43636, #941a1a);
+  border-color: #f5e8b8;
+  box-shadow: 0 0 8px rgba(212,54,54,0.65);
+}
+
+/* Mention pill in messages */
+.veil-mention {
+  display: inline-block;
+  background: rgba(212,173,64,0.15);
+  border: 1px solid rgba(212,173,64,0.45);
+  color: #f5e8b8;
+  padding: 0 5px; border-radius: 4px;
+  font-weight: 700; font-family: "Nunito", sans-serif;
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+}
+.veil-mention:hover { background: rgba(212,173,64,0.32); border-color: rgba(212,173,64,0.85); }
+.veil-mention.is-self {
+  background: rgba(212,54,54,0.20);
+  border-color: rgba(212,54,54,0.75);
+  color: #ffd0d0;
+  box-shadow: 0 0 8px rgba(212,54,54,0.40);
+  cursor: default;
+}
+
+/* Message row gets a subtle highlight when it mentions me */
+.veilcourt-msg.is-mention-me {
+  background: linear-gradient(90deg, rgba(212,54,54,0.14), rgba(212,54,54,0.02) 60%, transparent);
+  border-left: 2px solid rgba(212,54,54,0.7);
+  padding-left: 6px;
+}
+
+/* Inline @ and ✉ buttons in message meta */
+.veil-msg-action {
+  background: rgba(36,42,68,0.6);
+  border: 1px solid rgba(122,137,194,0.4);
+  color: #cfd6ee;
+  font-size: 10px; font-weight: 700;
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; margin-left: 2px;
+  transition: all 0.12s;
+}
+.veil-msg-action:hover { background: rgba(212,173,64,0.25); border-color: rgba(212,173,64,0.7); color: #f5e8b8; }
+
+/* Private tab — start a new chat row */
+.veilcourt-dm-start {
+  padding: 10px 12px;
+  background: rgba(20,26,52,0.65);
+  border-bottom: 1px solid rgba(122,137,194,0.20);
+}
+.veilcourt-dm-start-row { display: flex; gap: 8px; }
+.veilcourt-status-line.is-err { color: #ff9a9a; }
+
+/* Private tab — thread list */
+.veilcourt-thread-list {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.veilcourt-thread {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(122,137,194,0.15);
+  color: #cfd6ee;
+  text-align: left; cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+  width: 100%;
+}
+.veilcourt-thread:hover { background: rgba(36,42,68,0.55); }
+.veilcourt-thread.has-unread { background: rgba(212,54,54,0.06); }
+.veilcourt-thread-portrait {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 2px solid #7a89c2;
+  background: rgba(20,26,52,0.85);
+  overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.veilcourt-thread-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.veilcourt-thread-portrait > span { font-size: 18px; color: #f5e8b8; }
+.veilcourt-thread-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.veilcourt-thread-name { font-family: "Cinzel", serif; font-weight: 700; font-size: 13px; color: #f5e8b8; }
+.veilcourt-thread-last { font-size: 11px; color: #9aa3c9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.veilcourt-thread-badge {
+  min-width: 18px; height: 18px; padding: 0 5px;
+  background: linear-gradient(160deg, #d43636, #941a1a);
+  color: #fff7e0; font-size: 10px; font-weight: 800;
+  border-radius: 999px; border: 1px solid #f5e8b8;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* DM thread header */
+.veilcourt-dm-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(28,34,58,0.92), rgba(20,26,52,0.92));
+  border-bottom: 1px solid rgba(212,173,64,0.20);
+  font-family: "Nunito", sans-serif;
+}
+.veilcourt-dm-back, .veilcourt-dm-profile {
+  width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+}
+.veilcourt-dm-with { flex: 1; color: #cfd6ee; font-size: 12px; }
+
+/* Roster modal */
+.veilcourt-roster-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 1301;
+  width: 92%; max-width: 480px; max-height: 78vh;
+  display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(20,26,52,0.97), rgba(10,14,28,0.98));
+  border: 1px solid rgba(212,173,64,0.45);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.65), 0 0 30px rgba(212,173,64,0.20);
+  overflow: hidden;
+}
+.veilcourt-roster-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(28,34,58,0.92), rgba(20,26,52,0.92));
+  border-bottom: 1px solid rgba(212,173,64,0.30);
+}
+.veilcourt-roster-title { font-family: "Cinzel", serif; font-weight: 800; color: #f5e8b8; font-size: 14px; letter-spacing: 0.5px; }
+.veilcourt-roster-list { flex: 1; overflow-y: auto; }
+.veilcourt-roster-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(122,137,194,0.15);
+  font-family: "Nunito", sans-serif;
+}
+.veilcourt-roster-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.veilcourt-roster-name { font-family: "Cinzel", serif; font-weight: 700; font-size: 13px; color: #f5e8b8; }
+.veilcourt-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.veilcourt-roster-actions { display: flex; flex-direction: column; gap: 4px; }
+.veilcourt-roster-actions .bt { padding: 4px 8px; font-size: 11px; font-weight: 700; }
+
+/* Profile modal: action buttons (Send DM + Mention) */
+.veil-profile-actions {
+  display: flex; gap: 8px; margin-top: 12px; justify-content: center; flex-wrap: wrap;
+}
+.veil-profile-dm-btn {
+  background: linear-gradient(160deg, #d4ad40, #8a6c1a) !important;
+  color: #1a1208 !important;
+  border: 1px solid #f5e8b8 !important;
+  font-family: "Cinzel", serif !important;
+  font-weight: 800 !important;
+  padding: 7px 14px !important;
+  box-shadow: 0 0 12px rgba(212,173,64,0.45) !important;
+}
+.veil-profile-dm-btn:hover { box-shadow: 0 0 18px rgba(212,173,64,0.75) !important; transform: translateY(-1px); }
+.veil-profile-mention-btn { padding: 7px 12px !important; font-weight: 700 !important; }
