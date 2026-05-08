@@ -271,16 +271,18 @@ const FXS = [
 ];
 function FX(id) { return FXS.find(f => f.id === id); }
 
-// BLOODMARKS — lineage traits chosen at character creation
+// BLOODMARKS — generic ancestral lineages chosen at character creation.
+// v72: ancestral lineages give 2–3 balanced stat traits and NO passive special
+// effect. Class-innate bloodmarks (CLASS_INNATES) give 0 stats but a passive.
 const BLOODMARKS = [
-  { id:"veilvein",  nm:"Veil-Veined",   ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:25},        passive:"veil_surge",    ds:"An innate technique passed through the blood — your veins carry a thinner membrane between will and the Veil, and energy moves cheaper through you than through anyone else.",  passiveDesc:"Veil Surge: Your first Veil Magic each battle costs 0 MP." },
-  { id:"stoneheart",nm:"Stoneheart",    ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:30},         passive:"iron_will",     ds:"An inherited body trait — your structure densifies under threat, the way some bloodlines reflexively reinforce themselves when their flame begins to gutter.",                  passiveDesc:"Iron Will: When HP drops below 25%, gain +15% effective DEF." },
-  { id:"stormborn", nm:"Storm-Born",    ic:"⚡",  cl:"#ffd740", stat:{spd:4,atk:2},         passive:"lightning_step",ds:"An innate technique that runs the body's responses ahead of conscious thought. Your line moves before the moment lands — sometimes twice within it.",                            passiveDesc:"Lightning Step: 20% chance to act twice on any physical attack turn." },
-  { id:"ashblood",  nm:"Ashblood",      ic:"🔥",  cl:"#ff7043", stat:{atk:3,mag:2},         passive:"ember_aura",    ds:"An inherited combustive technique. Heat rides quietly in your strikes, igniting on contact with anything tense enough to catch.",                                              passiveDesc:"Ember Aura: Physical attacks have a 15% chance to apply Burn for free." },
-  { id:"frostmere", nm:"Frost-Mere",    ic:"❄️",  cl:"#80d8ff", stat:{mag:2,def:2,lck:1},  passive:"chill_field",   ds:"An ambient technique — the air around you cools without conscious cost, a passive territory of stillness that drags every enemy half a step behind.",                            passiveDesc:"Chill Field: Every 3rd turn, all enemies receive Slow at no MP cost." },
-  { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:4,hp:-10,lck:2}, passive:"void_gaze",     ds:"A rare ancestral imprint. Something on the other side of the Veil noticed your line once, and a thread of its silence has stayed in your eyes ever since.",                    passiveDesc:"Void Gaze: Damage skills have +10% chance to apply Silence." },
-  { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:4,hp:15,mp:15},  passive:"fortune_flame", ds:"A subtle warping technique inherited from a charmed bloodline. Probability bends a little around your hands — coins land your way, doors stick on the right side.",            passiveDesc:"Fortune Flame: +20% gold from battles. +10% rare item drop chance." },
-  { id:"tidesbrood", nm:"Tides-Brood", ic:"🌊",  cl:"#4dd0e1", stat:{mp:35,def:1,spd:1},  passive:"tidal_flow",    ds:"An innate cyclical technique. The deeper you are wounded, the more readily your reserves replenish — pressure becomes pressure converted.",                                  passiveDesc:"Tidal Flow: Recover 5 MP each time you take damage in battle." },
+  { id:"veilvein",   nm:"Veil-Veined",  ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:20},        ds:"An ancestral lineage carried in the marrow — your veins run a touch closer to the Veil, lending an arcane edge to whatever skill you bring." },
+  { id:"stoneheart", nm:"Stoneheart",   ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:25},        ds:"A bloodline of mountain-keeps. Your bones set heavier than your kin's, and you weather what would buckle them." },
+  { id:"stormborn",  nm:"Storm-Born",   ic:"⚡",  cl:"#ffd740", stat:{spd:3,atk:2},        ds:"A line born under torn skies. Your reflexes carry the cadence of falling rain — quick to start, quicker to strike." },
+  { id:"ashblood",   nm:"Ashblood",     ic:"🔥",  cl:"#ff7043", stat:{atk:3,mag:2},        ds:"An ember-tempered ancestry. Your hands run warm and your blows carry a shimmer of heat behind them." },
+  { id:"frostmere",  nm:"Frost-Mere",   ic:"❄️",  cl:"#80d8ff", stat:{mag:2,def:2,lck:1}, ds:"A lineage of still lakes and held breath. You read situations colder and steadier than your peers." },
+  { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:3,lck:2,mp:15}, ds:"A rare ancestral imprint. Something on the far side of the Veil noticed your line once, and a thread of that silence has stayed in your eyes." },
+  { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:3,hp:15,mp:10}, ds:"A charmed bloodline. Probability bends a little around your hands — coins land your way, doors stick on the right side." },
+  { id:"tidesbrood", nm:"Tides-Brood",  ic:"🌊",  cl:"#4dd0e1", stat:{mp:25,def:1,spd:2}, ds:"A cyclical ancestry tuned to deep currents. Your reserves move with the pull of unseen tides." },
 ];
 // PNG icon path for bloodmarks (filenames match bm.id)
 const BM_ICON_PATH = (id) => (import.meta.env.BASE_URL || "/") + "bm/" + id + ".png";
@@ -429,7 +431,9 @@ function buildClassBloodmarks(cls) {
     cl: cls.cl,
     cs: true,
     classId: cls.id,
-    stat: t.st,
+    // v72: class-innate bloodmarks grant a passive but NO raw stats. Stat
+    // distribution is reserved for ancestral lineages (BLOODMARKS).
+    stat: {},
     passive: "innate_" + cls.id + "_" + i,
     ds: t.ds,
     passiveDesc: cls.nm + " " + t.suffix + ": " + t.desc.replace(new RegExp("^" + t.suffix + ":\\s*"), ""),
@@ -4067,9 +4071,9 @@ function Game() {
     const elDisplay = primalEls ? primalEls.join("/") : [c.el, c.el2].filter(Boolean).join("/");
     const allInter = c.inter || [{ ds: "Debuff then attack: +15% damage bonus", k: "setup" },{ ds: "Guard then skill: +10% power", k: "guard_skill" }];
     const startTown = P(START_TOWNS);
-    // Randomly pick 2 of 6 hidden interactions
+    // v72: only ONE skill interaction is rolled at character creation.
     const shuffled = [...allInter].sort(() => Math.random() - 0.5);
-    const inter = pickAssignedInteractions(shuffled, 2, c.id);
+    const inter = pickAssignedInteractions(shuffled, 1, c.id);
     const startingLegacy = legacyTraitFor(cName.trim().length + c.el.length);
     let openingHp = Math.max(1, Math.floor(c.st.hp * ageProfile(1).mult.hp));
     let openingMp = Math.max(1, Math.floor(c.st.mp * ageProfile(1).mult.mp));
@@ -7141,18 +7145,18 @@ const buildGroupedBattleLog = (entries) => {
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontFamily: "'Cinzel',serif", fontSize: 12, fontWeight: 700, color: bm.cl, lineHeight: 1.15 }}>{bm.nm}</div>
               <div style={{ fontSize: 10, color: "#bcc6e6", marginTop: 3 }}>
-                {Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 5, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>)}
+                {Object.keys(bm.stat || {}).length > 0 ? Object.entries(bm.stat).map(([k,v]) => <span key={k} style={{ marginRight: 5, color: v > 0 ? "#7be88f" : "#ff8a80" }}>{v > 0 ? "+" : ""}{v} {k.toUpperCase()}</span>) : <span style={{ color: "#9aa6c8", fontStyle: "italic" }}>No stat bonus — passive only</span>}
               </div>
             </div>
           </div>
           <div style={{ fontSize: 10, color: "#cfd6ee", lineHeight: 1.4, marginBottom: 5 }}>{bm.ds}</div>
-          <div style={{ fontSize: 10, padding: "4px 7px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.4 }}>⚡ {bm.passiveDesc}</div>
+          {bm.passiveDesc ? <div style={{ fontSize: 10, padding: "4px 7px", background: bm.cl + "26", border: "1px solid " + bm.cl + "66", borderRadius: 4, color: bm.cl, lineHeight: 1.4 }}>⚡ {bm.passiveDesc}</div> : <div style={{ fontSize: 9, padding: "3px 7px", background: "rgba(212,173,64,0.10)", border: "1px dashed rgba(212,173,64,0.32)", borderRadius: 4, color: "#d4ad40", lineHeight: 1.4, fontStyle: "italic" }}>Ancestral lineage — stat traits only, no passive.</div>}
         </div>;
         return <div className="bm-step" style={{ position: "relative" }}>
           <div className="bm-step-bg" aria-hidden><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/><span/></div>
           <div style={{ textAlign: "center", marginBottom: 10, position: "relative", zIndex: 1 }}>
-            <div style={{ fontSize: 13, color: "#cfe0ff", lineHeight: 1.4 }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities and starting statistics.</div>
-            <div style={{ fontSize: 11, color: T.dm, marginTop: 4 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
+            <div style={{ fontSize: 13, color: "#cfe0ff", lineHeight: 1.4 }}>Your Bloodmark is the lineage trait passed through your ancestors. It shapes your passive abilities.</div>
+            <div style={{ fontSize: 11, color: "#ffd98a", marginTop: 6, fontStyle: "italic", textShadow: "0 1px 6px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.6)", padding: "3px 8px", display: "inline-block", background: "rgba(8,12,28,0.55)", border: "1px solid rgba(255,217,138,0.32)", borderRadius: 6 }}>You may skip this step — an unmarked hero is still a valid choice.</div>
           </div>
           <div style={{ position: "relative", zIndex: 1, maxHeight: "56vh", overflowY: "auto", paddingRight: 4 }}>
             {pickedClass && <div className="bm-section">
@@ -7191,7 +7195,7 @@ const buildGroupedBattleLog = (entries) => {
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: pickedClass.cl, boxShadow: "0 0 6px " + pickedClass.cl }} />
                   <div style={{ fontFamily: "'Cinzel',serif", fontSize: 11, fontWeight: 800, color: pickedClass.cl, letterSpacing: "0.06em" }}>UNIQUE CLASS INTERACTIONS</div>
                 </div>
-                <div style={{ fontSize: 10, color: "#bcc6e6", lineHeight: 1.5, fontStyle: "italic" }}>Two interactions are rolled randomly each run from this class's signature pool. They complement the {pickedClass.nm}'s playstyle — different runs, different combos.</div>
+                <div style={{ fontSize: 10, color: "#bcc6e6", lineHeight: 1.5, fontStyle: "italic" }}>Only one interaction is rolled randomly each run from this class's signature pool. It complements the {pickedClass.nm}'s playstyle — different runs, different combos.</div>
                 <RotatingInteractionShowcase cls={pickedClass} />
               </div>}
             </div>
@@ -7548,13 +7552,13 @@ const buildGroupedBattleLog = (entries) => {
               <span style={{ fontSize: 16 }}>{bm.ic}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: bm.cl, fontFamily: "'Cinzel',serif" }}>{bm.nm}</div>
-                <div style={{ fontSize: 7, color: T.dm }}>{Object.entries(bm.stat).map(([k,v]) => (v > 0 ? "+" : "") + v + " " + k.toUpperCase()).join(" · ")}</div>
+                <div style={{ fontSize: 7, color: T.dm }}>{Object.keys(bm.stat || {}).length > 0 ? Object.entries(bm.stat).map(([k,v]) => (v > 0 ? "+" : "") + v + " " + k.toUpperCase()).join(" · ") : "Passive lineage — no stat bonus"}</div>
               </div>
             </div>
-            <div style={{ fontSize: 8, padding: "3px 5px", background: bm.cl + "18", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div>
+            {bm.passiveDesc ? <div style={{ fontSize: 8, padding: "3px 5px", background: bm.cl + "18", borderRadius: 4, color: bm.cl, lineHeight: 1.3 }}>⚡ {bm.passiveDesc}</div> : <div style={{ fontSize: 8, padding: "3px 5px", background: "rgba(212,173,64,0.10)", borderRadius: 4, color: "#d4ad40", lineHeight: 1.3, fontStyle: "italic" }}>Ancestral lineage — stat traits only.</div>}
           </div> : null; })() : <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
             <div style={{ fontSize: 9, color: T.dm, fontWeight: 700 }}>✦ No Bloodmark</div>
-            <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>Choose at character creation. Grants passive abilities and stat bonuses.</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>Chosen at character creation. Class-innate marks grant a passive; ancestral lineages grant stat traits.</div>
           </div>}
 
           {/* COVENANT CARD */}
@@ -7623,7 +7627,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="sb-grid">
           <div className="sb-panel">
             <div className="sb-title">✦ Bloodmarks</div>
-            <div className="sb-kv sb-muted">A Bloodmark is an innate technique inherited through your bloodline. It is not learned and cannot be taught — it is simply present at birth, and shapes how energy moves through you. Each of the eight Bloodmarks grants passive stat bonuses and a unique passive ability: Veil-Veined heroes channel cheaper, Storm-Born heroes act twice, Ashblood heroes ignite their strikes, Void-Touched heroes silence the world around them. Bloodmarks pass to your heirs along the family line, with a rare chance of mutation each generation.</div>
+            <div className="sb-kv sb-muted">A Bloodmark is what your bloodline carries with it into the moment you draw your first breath. There are two kinds. <b>Class-innate bloodmarks</b> are an inherited technique tied to your sorcerer line — they grant a unique passive ability (no raw stats), like Hexblade's Cursed Edge or Phoenix's Rebirth Pulse. <b>Generic ancestral lineages</b> (Veil-Veined, Stoneheart, Storm-Born, Ashblood, Frost-Mere, Void-Touched, Golden-Soul, Tides-Brood) are older, broader heritages — they grant 2–3 balanced stat traits but no special passive. You may also choose neither and walk in unmarked. Bloodmarks pass to your heirs along the family line, with a rare chance of mutation each generation.</div>
           </div>
           <div className="sb-panel">
             <div className="sb-title">🏛 Covenants</div>

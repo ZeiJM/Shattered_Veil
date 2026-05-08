@@ -216,3 +216,10 @@ Most recent polish/depth rounds, condensed. Refer to git history for full diff c
 - **Chat input no longer pipes through to map** — the global keydown handler bails on `chatOpenRef.current` OR an active INPUT/TEXTAREA/contentEditable target, so WASD/Space typed inside the Veilcourt composer stays in the input.
 
 CSS: single `v71 — MAP/HUD POLISH PASS` block appended at the end of `game.css`. JSX touched in 6 spots (POI helper, dashboard fragment, rail tile coords, rail quick fish button, hud-char-info bars block, removal of old `hud-bars-strip`, legend pill markup, sound navBtn label).
+
+## v72 — Bloodmark tier separation + single skill interaction
+
+- **Two clearly-different bloodmark tiers.** Class-innate bloodmarks (`CLASS_INNATES` via `buildClassBloodmarks`) now grant a passive but **0 stats** (`stat: {}`). Generic ancestral lineages (`BLOODMARKS`) give 2–3 balanced stat traits and **no passive** (the `passive`/`passiveDesc` fields were removed from each entry). The negative `hp:-10` on Void-Touched is gone — no ancestral lineage carries a downside. Skipping (no bloodmark) is still allowed.
+- **Card UI auto-adapts.** `renderCard` and the Stats-page bloodmark card now branch on `bm.passiveDesc`: shows the passive box if present, otherwise a dashed "Ancestral lineage — stat traits only" plate. Stat row branches on `Object.keys(bm.stat).length` and falls back to "No stat bonus — passive only" for class-innate cards.
+- **Skill interactions: 1 per run.** `createChar` now calls `pickAssignedInteractions(shuffled, 1, c.id)` (was 2). Identity-step copy reads "Only one interaction is rolled randomly each run…". Battle logic (`evaluateInteractions`, `getReadyInteractions`) iterates `pl.inter` so the smaller list is handled automatically — no battle changes needed.
+- **Bloodmark step text fixed.** Header now reads "It shapes your passive abilities." (dropped "and starting statistics"). The "You may skip this step" line moved from `T.dm` (which vanished into the dark step bg) to a warm `#ffd98a` italic pill with a subtle navy chip and gold border, so it reads cleanly over the painted backdrop.
