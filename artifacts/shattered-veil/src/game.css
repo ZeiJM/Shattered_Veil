@@ -2321,3 +2321,162 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .map-bg .player-aura-ring { animation: none !important; opacity: 0.7; filter: none; }
   .map-bg .world-tile.is-player::before { animation: none !important; opacity: 0.6; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v49 — LANE+ENTITY MERGER + ACTION BUTTON OVERFLOW FIX
+   The lane bar now IS the player/enemy panel. Each lane token is a rich
+   avatar tile with portrait + name + HP/MP bars. Click → detail popup.
+   The old .battle-top-grid (Player/Allies/Enemies cards) is hidden — those
+   cards duplicated info that now lives on the lane tokens themselves.
+   Also: action button text was getting clipped — force wrap + visible overflow.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Hide the redundant entity-row cards — info now lives on the lane tokens */
+.battle-bg .battle-top-grid { display: none !important; }
+
+/* Lane bar gets a bit more room since it carries everything now */
+.battle-bg .battle-lane {
+  padding: 8px 10px !important;
+  margin-bottom: 6px !important;
+  gap: 6px !important;
+}
+.battle-bg .battle-lane-tile {
+  min-height: 96px !important;
+  padding: 4px 3px !important;
+  justify-content: flex-start !important;
+}
+.battle-bg .battle-lane-tokens {
+  flex-wrap: wrap;
+  gap: 4px !important;
+  width: 100%;
+  flex: 1;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+.battle-bg .battle-lane-label {
+  margin-top: auto;
+  padding-top: 3px;
+  font-size: 8px !important;
+  opacity: 0.85;
+  letter-spacing: 0.05em;
+}
+
+/* Rich entity token — portrait + name + HP/MP bars stacked vertically */
+.battle-lane-token.is-rich {
+  width: 60px !important;
+  height: auto !important;
+  min-height: 78px;
+  border-radius: 8px !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 3px;
+  gap: 2px;
+  cursor: pointer;
+  background: linear-gradient(160deg, rgba(40,60,100,0.95), rgba(20,30,60,0.98));
+  border: 1.5px solid rgba(180,200,240,0.55);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  font-size: 10px;
+}
+.battle-lane-token.is-rich:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.14), 0 0 8px rgba(212,173,64,0.32);
+  border-color: rgba(242,196,92,0.7);
+}
+.battle-lane-token.is-rich.foe {
+  background: linear-gradient(160deg, rgba(120,30,40,0.95), rgba(60,12,18,0.98));
+  border-color: rgba(220,140,140,0.65);
+}
+.battle-lane-token.is-rich.ally {
+  background: linear-gradient(160deg, rgba(40,90,60,0.95), rgba(18,48,28,0.98));
+  border-color: rgba(150,220,180,0.55);
+}
+.battle-lane-token.is-rich.target-mark {
+  box-shadow: 0 0 0 2px rgba(255,80,80,0.7), 0 0 14px rgba(255,80,80,0.55);
+  border-color: rgba(255,120,120,0.85);
+}
+.battle-lane-token.is-rich .ent-portrait {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.battle-lane-token.is-rich .ent-name {
+  font-family: 'Cinzel', serif;
+  font-size: 7.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f0f3ff;
+  letter-spacing: 0.02em;
+  padding: 0 1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+.battle-lane-token.is-rich .ent-bar {
+  height: 4px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.4);
+}
+.battle-lane-token.is-rich .ent-bar.ent-mp { height: 3px; }
+.battle-lane-token.is-rich .ent-bar > div {
+  height: 100%;
+  transition: width .25s ease;
+}
+.battle-lane-token.is-rich .ent-hp > div { background: linear-gradient(90deg, #d04d4d, #ff7a7a); box-shadow: 0 0 4px rgba(255,90,90,0.5); }
+.battle-lane-token.is-rich .ent-mp > div { background: linear-gradient(90deg, #4d8cd0, #6bb0ff); box-shadow: 0 0 3px rgba(100,170,255,0.4); }
+.battle-lane-token.is-rich .ent-boss-mark {
+  position: absolute;
+  top: 1px; right: 2px;
+  font-size: 9px;
+  color: #ffd77a;
+  text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 0 6px rgba(212,90,80,0.7);
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Smaller tokens on tight viewports — bars + portrait only, name truncates */
+@media (max-width: 760px) {
+  .battle-bg .battle-lane-tile { min-height: 86px !important; }
+  .battle-lane-token.is-rich { width: 52px !important; min-height: 68px; }
+  .battle-lane-token.is-rich .ent-name { font-size: 7px; }
+}
+@media (max-width: 480px) {
+  .battle-bg .battle-lane { padding: 6px 6px !important; gap: 4px !important; }
+  .battle-bg .battle-lane-tile { min-height: 76px !important; padding: 3px 2px !important; }
+  .battle-lane-token.is-rich { width: 44px !important; min-height: 60px; padding: 2px; }
+  .battle-lane-token.is-rich .ent-portrait { font-size: 14px; }
+  .battle-lane-token.is-rich .ent-name { display: none; }
+}
+
+/* ── Action button text overflow fix ──
+   Veil Magic / Combat Actions buttons were clipping their lower-line stats
+   ("Dmg ... Cost ... Additional Effect ..."). Force soft wrap + visible
+   overflow + a sensible min-height so multi-line content doesn't get cut. */
+.battle-bg .battle-action-btn,
+.battle-bg .battle-action-btn > div {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+.battle-bg .battle-action-btn { line-height: 1.18 !important; }
+.battle-bg .battle-action-card-wrap { min-height: 0; }
+.battle-bg .battle-action-card-wrap .battle-action-btn {
+  min-height: 92px !important;
+  height: auto !important;
+  padding-bottom: 10px !important;
+}
+@media (max-width: 760px) {
+  .battle-bg .battle-action-card-wrap .battle-action-btn { min-height: 88px !important; padding-bottom: 9px !important; }
+  .battle-bg .battle-action-grid .bt,
+  .battle-bg button.battle-action-btn { min-height: 76px !important; height: auto !important; padding-bottom: 8px !important; }
+}

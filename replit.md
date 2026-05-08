@@ -212,6 +212,18 @@ Five-item polish round addressing direct user feedback ("music is annoying / ove
 
 - All CSS in a single appended `v48 — MAP RICHNESS + PLAYER AURA + WIDER GRID` block at end of `game.css` (~line 2230+). JSX touched at 3 lines (CrossfadePortrait transition, VW/VH constants, player tile className+aura span).
 
+### v49 — Lane+entity merger + action button overflow fix
+User feedback: "merge map for movement on top with player and enemy bubbles… clicking icon shows pertinent summary, but small HP/MP bar always visible. Save space. Also info getting cut off in Veil Magic / Combat Actions buttons."
+
+- **Lane bar IS now the entity panel.** Each lane token (`battle-lane-token.is-rich`) renders portrait + truncated name + HP bar (4px) + MP bar (3px) stacked vertically. Tokens are 60px wide on desktop, 52px on tablet, 44px (name hidden) on mobile.
+- **Click behavior**: empty allied lane area = move (existing); foe token first click = target, second click on already-targeted foe = info popup; ally/player/pet token = info popup directly. Lane-tile `onClick` only fires when clicking outside tokens (token `handleClick` calls `ev.stopPropagation()`).
+- **Sorcerer Dossier popup** (`openEntityInfoPopup`) — uses `setPopup({ title, node, fullscreen: true })` with a React node containing 56px portrait, name with element tags, full HP/MP bars (`pBar`), SPD with color, passive name + description, "View Element Matchups" button (delegates to `openElementSummaryPopup`), and active status effects (`StatusTag` row).
+- **Token data shape**: `{ k, ic, img?, classId?, sex?, cls: "ally"|"foe", isTarget?, entity: { name, hp, mhp, mp, mmp, spd, els[], efx[], passiveName, passiveDs, isBoss?, kind } }`. Built once per render in the lane IIFE (~line 6973), no extra state. PvP-ready: `entity` is a flat snapshot, fully serializable.
+- **`.battle-top-grid` (Player / Allies / Enemies cards) hidden** via `display: none !important` in CSS — those cards duplicated info now living on tokens. JSX kept intact (no removal) so any logic still referencing it doesn't break.
+- **Lane tiles taller** (`min-height: 96px` desktop, 86 tablet, 76 mobile) to fit the new 78px+ rich tokens. Lane bar padding bumped 6→8.
+- **Action button text overflow fixed.** v47's button cards had `padding: 26px 8px 8px 8px` (top space for the `?` help chip) but their inner text used default `white-space` which clipped multi-line stat lines like "Dmg ... Cost ... Additional Effect ...". Fix: forced `white-space: normal !important; word-break: break-word !important; overflow: visible !important; line-height: 1.18` on `.battle-action-btn` + descendants, plus `min-height: 92px` (88 tablet, 76 mobile) and `height: auto` to let content expand.
+- All CSS in a single appended `v49 — LANE+ENTITY MERGER + ACTION BUTTON OVERFLOW FIX` block at end of `game.css` (~line 2380+). JSX touched only inside the lane render IIFE (~line 6973-7090) — added `entity` field to each token, `openEntityInfoPopup` helper, `renderRichToken` helper, and replaced the inline token map with a `renderRichToken` call.
+
 ### Future combat hooks (queued, not built)
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
 - Enemy lane-1 charge attack (boss steps into Front for one big hit, retreats).

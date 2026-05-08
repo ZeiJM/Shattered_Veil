@@ -6970,18 +6970,24 @@ const buildGroupedBattleLog = (entries) => {
         {(() => {
           const livingFoes = (btl.en || []).filter(e => e.hp > 0);
           // v40: positional combat. Player lane = btl.plPos; allies fill nearby allied lanes; foes use their pos.
+          // v49: Tokens now carry full entity data so the lane bar IS the player/enemy panel.
           const plLane = btl.plPos ?? 1;
-          const playerTok = { k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, sex: pl?.sex, cls: "ally" };
-          const petTok = (pet && (pet.chp ?? pet.hp ?? 0) > 0) ? { k: "pet", ic: pet.ic || "🐾", cls: "ally" } : null;
-          const allyTok = (ally && ally.hp > 0) ? { k: "ally", ic: ally.ic || "🤝", cls: "ally" } : null;
-          // Place pet & ally on the Vanguard if player is on Front/Mid, else just behind player.
+          const plEffSt = effSt(pl);
+          const plPassive = equippedPassiveFor(pl);
+          const playerEnt = { name: battlePlayerName, hp: pl.chp, mhp: plEffSt.hp, mp: pl.cmp, mmp: plEffSt.mp, spd: plEffSt.spd, els: entityBattleElements(pl), efx: pl.efx, passiveName: plPassive?.nm || "None", passiveDs: plPassive?.ds, kind: "player" };
+          const playerTok = { k: "p", ic: pl.ic || cls.ic || "🗡", img: pl?.portrait, classId: pl?.cid || cls?.id, sex: pl?.sex, cls: "ally", entity: playerEnt };
+          const petTok = (pet && (pet.chp ?? pet.hp ?? 0) > 0) ? { k: "pet", ic: pet.ic || "🐾", cls: "ally", entity: { name: pet.nm, hp: pet.chp ?? pet.hp, mhp: pet.mhp ?? pet.hp, mp: pet.mp ?? pet.mmp ?? 0, mmp: pet.mmp ?? pet.mp ?? 0, spd: pet.spd || 0, els: entityBattleElements(pet), efx: [], passiveName: pet.passive || pet.passiveName || "None", passiveDs: pet.passive || pet.passiveName ? ("Pet instinct: " + (pet.passiveBonus || "damage") + "-leaning support.") : null, kind: "pet" } } : null;
+          const allyTok = (ally && ally.hp > 0) ? { k: "ally", ic: ally.ic || "🤝", cls: "ally", entity: { name: ally.nm, hp: ally.hp, mhp: ally.mhp, mp: ally.mp ?? ally.mmp ?? 0, mmp: ally.mmp ?? 0, spd: ally.spd || 0, els: entityBattleElements(ally), efx: [], passiveName: ally.passive || ally.passiveName || "None", passiveDs: ally.passive || ally.passiveName ? ("Ally role: " + (ally.role || ally.passiveBonus || "support") + ".") : null, kind: "ally" } } : null;
           const petLane = petTok ? (plLane === 0 ? 1 : 0) : -1;
           const allyLane = allyTok ? (plLane === 0 ? 2 : (petLane === 0 ? (plLane === 1 ? 2 : 1) : 0)) : -1;
           const laneTokens = [[],[],[],[],[]];
           laneTokens[plLane].push(playerTok);
           if (petTok) laneTokens[Math.max(0, Math.min(2, petLane))].push(petTok);
           if (allyTok) laneTokens[Math.max(0, Math.min(2, allyLane))].push(allyTok);
-          livingFoes.forEach(e => { const fp = Math.max(3, Math.min(4, e.pos ?? 3)); laneTokens[fp].push({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id, foePos: fp }); });
+          livingFoes.forEach(e => {
+            const fp = Math.max(3, Math.min(4, e.pos ?? 3));
+            laneTokens[fp].push({ k: e.id, ic: EL_IC[e.el] || "👾", cls: "foe", isTarget: btlTarget === e.id, foePos: fp, entity: { name: e.name, hp: e.hp, mhp: e.mhp, mp: e.cmp ?? e.mmp ?? 0, mmp: e.mmp ?? 0, spd: e.spd || 0, els: entityBattleElements(e), efx: e.efx || [], passiveName: e.monPassive || "None", passiveDs: e.monPassive ? (MONSTER_PASSIVE_INFO[e.monPassiveKey] || "A unique trait.") : null, isBoss: !!e.boss, foeEl: e.el, kind: "foe", foeId: e.id } });
+          });
           const tiles = [
             { label: "Vanguard", role: "lane-melee" },
             { label: "Front",    role: "lane-melee" },
@@ -6991,8 +6997,68 @@ const buildGroupedBattleLog = (entries) => {
           ];
           const tgtFoe = btlTarget ? livingFoes.find(e => e.id === btlTarget) : null;
           const tgtDist = tgtFoe ? Math.abs(plLane - (tgtFoe.pos ?? 3)) : null;
+          const openEntityInfoPopup = (tok) => {
+            const ent = tok.entity; if (!ent) return;
+            const nameColor = tok.cls === "foe" ? T.bad : (tok.cls === "ally" && tok.k === "p" ? T.ac : T.ok);
+            const node = (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "#e8eeff", fontSize: 12 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <div style={{ position: "relative", width: 56, height: 56, borderRadius: 10, overflow: "hidden", background: "rgba(20,30,60,0.6)", border: "1px solid rgba(212,173,64,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
+                    {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 800, color: nameColor, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                      <span>{ent.name}</span>{ent.isBoss ? <span className="tg" style={{ background: T.bad + "33", color: T.bad }}>BOSS</span> : null}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
+                      {(ent.els || []).map((elx, i) => <ElementTag key={elx + "_p_" + i} el={elx} fontSize={10} />)}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, color: "#bfc9ef", marginBottom: 2 }}>HP {Math.max(0, ent.hp)}/{ent.mhp}</div>
+                  {pBar(ent.hp, ent.mhp, T.hp)}
+                </div>
+                {ent.mmp > 0 && <div>
+                  <div style={{ fontSize: 9, color: "#bfc9ef", marginBottom: 2 }}>MP {Math.max(0, ent.mp)}/{ent.mmp}</div>
+                  {pBar(ent.mp, ent.mmp, T.mp)}
+                </div>}
+                <div style={{ fontSize: 11 }}>SPD: <span style={{ color: spdColor(ent.spd), fontWeight: 700 }}>{ent.spd}</span></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ fontSize: 11 }}><span style={{ color: "#bfc9ef" }}>Passive: </span><span style={{ color: T.gd, fontWeight: 700 }}>{ent.passiveName}</span></div>
+                  {ent.passiveDs && <div style={{ fontSize: 10, color: "#cdd5ee", lineHeight: 1.4 }}>{ent.passiveDs}</div>}
+                </div>
+                {ent.els && ent.els.length > 0 && <button type="button" className="bt bs battle-element-summary-btn" style={{ padding: "4px 8px", fontSize: 10 }} onClick={() => { setPopup(null); setTimeout(() => openElementSummaryPopup(ent.els, tok.cls === "foe" ? "enemy" : "player", ent.name), 50); }}>View Element Matchups</button>}
+                {ent.efx && ent.efx.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{ent.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
+              </div>
+            );
+            setPopup({ title: "Sorcerer Dossier", node, fullscreen: true });
+          };
+          const renderRichToken = (tok, canMove) => {
+            const ent = tok.entity;
+            const hpPct = ent ? Math.max(0, Math.min(100, (Math.max(0, ent.hp) / Math.max(1, ent.mhp)) * 100)) : 100;
+            const mpPct = ent && ent.mmp > 0 ? Math.max(0, Math.min(100, (Math.max(0, ent.mp) / Math.max(1, ent.mmp)) * 100)) : 0;
+            const handleClick = (ev) => {
+              ev.stopPropagation();
+              if (tok.cls === "foe" && tok.k && isPT) {
+                if (btlTarget === tok.k) openEntityInfoPopup(tok);
+                else setBtlTarget(tok.k);
+              } else {
+                openEntityInfoPopup(tok);
+              }
+            };
+            return <div key={tok.k} onClick={handleClick} title={ent ? (ent.name + " — click for details" + (tok.cls === "foe" ? " (click again to target)" : "")) : ""} className={"battle-lane-token is-rich " + tok.cls + (tok.isTarget ? " target-mark" : "")}>
+              <div className="ent-portrait">
+                {tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", fontSize: 18, position: "relative" }}>{tok.ic}{portraitOverlay(tok.img)}</span>}
+                {ent && ent.isBoss ? <span className="ent-boss-mark">★</span> : null}
+              </div>
+              {ent && <div className="ent-name" title={ent.name}>{ent.name}</div>}
+              {ent && <div className="ent-bar ent-hp"><div style={{ width: hpPct + "%" }} /></div>}
+              {ent && ent.mmp > 0 && <div className="ent-bar ent-mp"><div style={{ width: mpPct + "%" }} /></div>}
+            </div>;
+          };
           return <>
-            <div className="battle-lane" title="Click an allied lane (Vanguard / Front / Mid) to reposition. One free move per turn.">
+            <div className="battle-lane" title="Click an empty allied lane (Vanguard / Front / Mid) to reposition. Click a token for details. Click a foe to target — click again for details.">
               {tiles.map((t, i) => {
                 const isAllyLane = i <= 2;
                 const isPlayerHere = i === plLane;
@@ -7001,7 +7067,7 @@ const buildGroupedBattleLog = (entries) => {
                   className={"battle-lane-tile " + t.role + (canMove ? " lane-clickable" : "") + (isPlayerHere ? " lane-player-here" : "")}
                   onClick={canMove ? () => bMove(i) : undefined}>
                   <div className="battle-lane-tokens">
-                    {laneTokens[i].length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : laneTokens[i].map(tok => <div key={tok.k} onClick={tok.cls === "foe" && tok.k && isPT ? (ev) => { ev.stopPropagation(); setBtlTarget(tok.k); } : undefined} className={"battle-lane-token " + tok.cls + (tok.isTarget ? " target-mark" : "")} style={{ position: "relative", overflow: "hidden", cursor: tok.cls === "foe" ? "pointer" : (canMove ? "pointer" : "default") }}>{tok.classId ? playerAvatar(tok.classId, tok.ic, tok.img, tok.sex) : <>{tok.ic}{portraitOverlay(tok.img)}</>}</div>)}
+                    {laneTokens[i].length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : laneTokens[i].map(tok => renderRichToken(tok, canMove))}
                   </div>
                   <div className="battle-lane-label">{t.label}</div>
                 </div>;
