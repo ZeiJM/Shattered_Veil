@@ -6169,40 +6169,77 @@ const buildGroupedBattleLog = (entries) => {
   // ── HUD ──
   const fishCount = Array.isArray(fish) ? fish.reduce((s, f) => s + (f.qty || 1), 0) : 0;
   const hud = pl && !["title","create"].includes(scr) ? (
-    <div className="cd hud-shell" style={{ padding: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div className="hud-avatar" style={{ position: "relative", width: 36, height: 36, borderRadius: "50%", background: cls?.cl, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, overflow: "hidden", border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 10px " + (cls?.cl || T.gd) + "55" }}>{playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)}</div>
-          <div>
-            <div className="hud-name-line" style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 700, fontSize: 12, fontFamily: "'Cinzel',serif", color: cls?.cl, flexWrap: "wrap" }}><span>{pl.name}</span>{entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={10} />)}</div>
-            <div style={{ fontSize: 10, color: T.dm }}>{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
-            <div style={{ display: "flex", gap: 4, marginTop: 2, flexWrap: "wrap" }}>
-              {(() => { const rk = getRank(pl.level); return <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: rk.cl + "22", border: "1px solid " + rk.cl + "55", color: rk.cl, fontWeight: 700 }}>{rk.ic} {rk.nm}</span>; })()}
-              {pl.bloodmark && (() => { const bm = getBM(pl.bloodmark); return bm ? <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: bm.cl + "22", border: "1px solid " + bm.cl + "44", color: bm.cl }}>{bm.ic} {bm.nm}</span> : null; })()}
-              {pl.covenant && (() => { const cv = getCV(pl.covenant); return cv ? <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: cv.cl + "22", border: "1px solid " + cv.cl + "44", color: cv.cl }}>{cv.ic} {cv.nm}</span> : null; })()}
+    <div className="cd hud-shell hud-shell-v63" style={{ padding: 8 }}>
+      {/* v63 — top row: character box + resource box */}
+      <div className="hud-top-row">
+        {/* CHARACTER BOX */}
+        <div className="hud-char-box">
+          <div className="hud-char-portrait" style={{ background: cls?.cl, border: "1.5px solid " + (cls?.cl || T.gd), boxShadow: "0 0 0 1px rgba(0,0,0,0.5), 0 0 12px " + (cls?.cl || T.gd) + "66" }}>
+            {playerAvatar(pl?.cid || cls?.id, cls?.ic, pl?.portrait, pl?.sex)}
+          </div>
+          <div className="hud-char-info">
+            <div className="hud-char-name-row">
+              <span className="hud-char-name" style={{ color: cls?.cl }}>{pl.name}</span>
+              {entityBattleElements(pl).map((elx, i) => <ElementTag key={elx + "_hud_" + i} el={elx} fontSize={9} />)}
+            </div>
+            <div className="hud-char-sub">{cls?.nm} · Gen.{pl.generation || 1} · {ageSummary}</div>
+            <div className="hud-char-tags">
+              {(() => { const rk = getRank(pl.level); return <span className="hud-tag" style={{ background: rk.cl + "22", borderColor: rk.cl + "55", color: rk.cl, fontWeight: 700 }}>{rk.ic} {rk.nm}</span>; })()}
+              {pl.bloodmark && (() => { const bm = getBM(pl.bloodmark); return bm ? <span className="hud-tag" style={{ background: bm.cl + "22", borderColor: bm.cl + "44", color: bm.cl }}>{bm.ic} {bm.nm}</span> : null; })()}
+              {pl.covenant && (() => { const cv = getCV(pl.covenant); return cv ? <span className="hud-tag" style={{ background: cv.cl + "22", borderColor: cv.cl + "44", color: cv.cl }}>{cv.ic} {cv.nm}</span> : null; })()}
             </div>
           </div>
         </div>
-        <div className="hud-meta" style={{ textAlign: "right", fontSize: 11 }}>
-          <div style={{ fontWeight: 700, color: T.gd }}>💰{gold}</div>
-          <div style={{ fontSize: 8, color: "#ce93d8" }}>🔮 Fragments: {fragments} · Shards: {shards}</div>
-          <div style={{ fontSize: 8, color: "#7fd1ff", cursor: fishCount > 0 ? "pointer" : "default" }} onClick={() => fishCount > 0 && setShowFishLedger(v => !v)}>🐟 Fish: {fishCount}{bank > 0 ? " · 🏦 " + bank : ""}{loan > 0 ? " · 💸 " + loan : ""}{fishCount > 0 ? (showFishLedger ? " ▲" : " ▼") : ""}</div>
-          {showFishLedger && fishLedger.length > 0 && <div style={{ marginTop: 4, fontSize: 8, color: "#9fd6ff", lineHeight: 1.45, background: T.c2, border: `1px solid ${T.bd}`, borderRadius: 6, padding: 6, maxHeight: 96, overflowY: "auto" }}>{fishLedger.map(f => <div key={f.nm} style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span>{f.nm}</span><span style={{ color: T.tx }}>×{f.qty}</span></div>)}</div>}
-          {pet && <div style={{ fontSize: 9, color: T.dm }}>{pet.ic}{pet.nm}</div>}
-          {ally && <div style={{ fontSize: 9, color: T.ok }}>🤝{ally.nm}</div>}{spouse && <button type="button" className="bt bs" style={{ fontSize: 8, color: "#ffb7d8", background: "transparent", padding: 0, border: "none", boxShadow: "none" }} onClick={() => setPopup({ text: spouseDetailText(spouse) })}>💍{spouse.nm}</button>}
+        {/* RESOURCE BOX */}
+        <div className="hud-resource-box">
+          <div className="hud-res-row hud-res-primary">
+            <div className="hud-res-tile hud-res-gold" title="Gold"><span className="hud-res-ic">💰</span><span className="hud-res-val">{gold}</span></div>
+            <div className="hud-res-tile hud-res-frag" title="Veil Fragments"><span className="hud-res-ic">🔮</span><span className="hud-res-val">{fragments}</span><span className="hud-res-lbl">frag</span></div>
+            <div className="hud-res-tile hud-res-shard" title="Relic Shards"><span className="hud-res-ic">✦</span><span className="hud-res-val">{shards}</span><span className="hud-res-lbl">shd</span></div>
+          </div>
+          <div className="hud-res-row hud-res-secondary">
+            <div className={"hud-res-tile hud-res-fish" + (fishCount > 0 ? " is-clickable" : "")} title="Fish caught" onClick={() => fishCount > 0 && setShowFishLedger(v => !v)}>
+              <span className="hud-res-ic">🐟</span><span className="hud-res-val">{fishCount}</span>{fishCount > 0 && <span className="hud-res-caret">{showFishLedger ? "▲" : "▼"}</span>}
+            </div>
+            {bank > 0 && <div className="hud-res-tile hud-res-bank" title="Bank balance"><span className="hud-res-ic">🏦</span><span className="hud-res-val">{bank}</span></div>}
+            {loan > 0 && <div className="hud-res-tile hud-res-loan" title="Outstanding loan"><span className="hud-res-ic">💸</span><span className="hud-res-val">{loan}</span></div>}
+            {pet && <div className="hud-res-tile hud-res-pet" title={"Pet — " + pet.nm}><span className="hud-res-ic">{pet.ic}</span><span className="hud-res-val hud-res-name">{pet.nm}</span></div>}
+            {ally && <div className="hud-res-tile hud-res-ally" title={"Ally — " + ally.nm}><span className="hud-res-ic">🤝</span><span className="hud-res-val hud-res-name">{ally.nm}</span></div>}
+            {spouse && <button type="button" className="hud-res-tile hud-res-spouse is-clickable" title={"Spouse — " + spouse.nm} onClick={() => setPopup({ text: spouseDetailText(spouse) })}><span className="hud-res-ic">💍</span><span className="hud-res-val hud-res-name">{spouse.nm}</span></button>}
+          </div>
+          {showFishLedger && fishLedger.length > 0 && <div className="hud-fish-ledger">{fishLedger.map(f => <div key={f.nm} className="hud-fish-row"><span>{f.nm}</span><span className="hud-fish-qty">×{f.qty}</span></div>)}</div>}
         </div>
       </div>
-      <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 8, width: 16, color: T.hp, fontWeight: 700 }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span style={{ fontSize: 9, color: T.dm, minWidth: 36, textAlign: "right" }}>{pl.chp}/{st.hp}</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 8, width: 16, color: T.mp, fontWeight: 700 }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span style={{ fontSize: 9, color: T.dm, minWidth: 36, textAlign: "right" }}>{pl.cmp}/{st.mp}</span></div>
-        {(() => { const tileNow = mData && pos ? mData[pos.y * MW + pos.x] : null; return tileNow && tileNow.bio === "ocean" ? <div style={{ fontSize: 8, color: "#ffb3b3", fontWeight: 700 }}>🌊 Drowning — swim to land. Ocean travel drains 1 HP and 1 MP every 2 seconds.</div> : null; })()}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 8, width: 16, color: T.xp, fontWeight: 700 }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span style={{ fontSize: 9, color: T.dm, minWidth: 36, textAlign: "right" }}>{pl.xp}/{xpFor(pl.level)}</span></div>
+      {/* v63 — compact bar strip */}
+      <div className="hud-bars-strip">
+        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.hp }}>HP</span>{pBar(pl.chp, st.hp, T.hp)}<span className="hud-bar-num">{pl.chp}/{st.hp}</span></div>
+        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.mp }}>MP</span>{pBar(pl.cmp, st.mp, T.mp)}<span className="hud-bar-num">{pl.cmp}/{st.mp}</span></div>
+        <div className="hud-bar-cell"><span className="hud-bar-tag" style={{ color: T.xp }}>XP</span>{pBar(pl.xp, xpFor(pl.level), T.xp, 3)}<span className="hud-bar-num">{pl.xp}/{xpFor(pl.level)}</span></div>
       </div>
-      {pl.efx && pl.efx.length > 0 && <div style={{ display: "flex", gap: 2, marginTop: 4, flexWrap: "wrap" }}>{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}<details style={{ marginTop: 4 }}><summary style={{ cursor: "pointer", fontSize: 8, color: "#9fd6ff" }}>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
-      {scr !== "battle" && <div className="hud-quick-nav" style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
-        {[["📊","stats"],["🎒","items"],["📖","spells"],["📜","story"],["📘","manual"],["☰","menu"]].map(([i, s]) => <button key={s} className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(sub === s ? null : s)}>{i}</button>)}
-        <button className="bt bs hud-veilcourt-btn" style={{ background: "linear-gradient(160deg,#1a2860,#0e1a38)", color: "#f5e8b8", border: "1px solid rgba(212,173,64,0.55)", position: "relative" }} onClick={openVeilcourt} title="The Veilcourt — global chat">💬{chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>}</button>
-        <button className="bt bs" style={{ background: "linear-gradient(160deg,#1a2860,#0e1a38)", color: "#f5e8b8", border: "1px solid rgba(212,173,64,0.55)" }} onClick={toggleMusicMute} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? "🔇" : "🎵"}</button>
+      {(() => { const tileNow = mData && pos ? mData[pos.y * MW + pos.x] : null; return tileNow && tileNow.bio === "ocean" ? <div className="hud-drown-warn">🌊 Drowning — swim to land. Ocean travel drains 1 HP and 1 MP every 2 seconds.</div> : null; })()}
+      {pl.efx && pl.efx.length > 0 && <div className="hud-efx-row">{pl.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
+      <details className="hud-element-summary"><summary>Element Summary</summary>{renderMatchupInline(entityBattleElements(pl), "player")}</details>
+      {/* v63 — quick-nav: grouped (Character | Lore | Social | System) */}
+      {scr !== "battle" && <div className="hud-quick-nav hud-quick-nav-v63">
+        <div className="hud-nav-group" data-group="character">
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "stats" ? null : "stats")} title="Stats">📊</button>
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "items" ? null : "items")} title="Inventory">🎒</button>
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "spells" ? null : "spells")} title="Spells">📖</button>
+        </div>
+        <div className="hud-nav-sep" />
+        <div className="hud-nav-group" data-group="lore">
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "story" ? null : "story")} title="Story">📜</button>
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "manual" ? null : "manual")} title="Manual">📘</button>
+        </div>
+        <div className="hud-nav-sep" />
+        <div className="hud-nav-group" data-group="social">
+          <button className="bt bs hud-nav-btn hud-veilcourt-btn" onClick={openVeilcourt} title="The Veilcourt — global chat">💬{chatUnread > 0 && <span className="hud-veilcourt-badge">{chatUnread > 99 ? "99+" : chatUnread}</span>}</button>
+        </div>
+        <div className="hud-nav-sep" />
+        <div className="hud-nav-group" data-group="system">
+          <button className="bt bs hud-nav-btn" onClick={toggleMusicMute} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? "🔇" : "🎵"}</button>
+          <button className="bt bs hud-nav-btn" onClick={() => setSub(sub === "menu" ? null : "menu")} title="Menu">☰</button>
+        </div>
       </div>}
     </div>
   ) : null;
