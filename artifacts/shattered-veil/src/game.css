@@ -4410,3 +4410,421 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .ui-icon-btn .ui-icon-tip { transition: opacity 80ms ease; transform: translateX(-50%); }
   .ui-icon-btn:hover .ui-icon-tip { transform: translateX(-50%); }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   v65 — VEILCOURT REWRITE
+   • Always-left portraits (no more is-mine flip)
+   • Click-to-expand profile dossier
+   • Auto-embed for image URLs + YouTube; clickable links otherwise
+   • Emoji picker
+   • Header trimmed to active-sorcerer count
+   • Footer hint copy removed
+   • Collapsible mini-chat dock for the world map
+   • Memoized message rows (perf — done in JSX)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Header — strip tagline; surface active count */
+.veilcourt-modal.v65 .veilcourt-header {
+  padding: 10px 14px;
+}
+.veilcourt-presence {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 5px 12px;
+  background: linear-gradient(180deg, rgba(20,28,56,0.75), rgba(8,12,28,0.85));
+  border: 1px solid rgba(212,173,64,0.45);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.18), 0 0 12px rgba(212,173,64,0.18);
+}
+.veilcourt-presence-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #7fffa3, #1aa055);
+  box-shadow: 0 0 8px rgba(96,255,140,0.85), 0 0 0 2px rgba(0,0,0,0.4);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.veilcourt-presence-count {
+  font-family: 'Cinzel', serif;
+  font-size: 16px; font-weight: 800;
+  color: #f5e8b8;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+.veilcourt-presence-label {
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  color: #cfd6ee;
+  font-style: italic;
+}
+
+/* All portraits on the LEFT — kill the is-mine flip */
+.veilcourt-modal.v65 .veilcourt-msg.is-mine { flex-direction: row !important; }
+.veilcourt-modal.v65 .veilcourt-msg.is-mine .veilcourt-bubble {
+  background: linear-gradient(160deg, rgba(50,38,18,0.55), rgba(28,22,10,0.78)) !important;
+  border-color: rgba(212,173,64,0.50) !important;
+}
+
+/* Portrait button — clickable, focusable */
+.veilcourt-portrait-btn {
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.veilcourt-portrait-btn:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.5),
+    0 6px 18px rgba(0,0,0,0.50),
+    0 0 16px rgba(212,173,64,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.veilcourt-portrait-btn:focus-visible {
+  outline: 2px solid #d4ad40;
+  outline-offset: 2px;
+}
+
+/* Composer trim */
+.veilcourt-composer.v65 { padding: 10px 12px 12px; }
+.veilcourt-composer.v65 .veilcourt-self { display: none; } /* kill the speaking-as card */
+.veilcourt-status-line {
+  margin-top: 6px;
+  font-size: 10px;
+  color: #ffb074;
+  font-style: italic;
+  text-align: center;
+}
+
+/* Emoji button + picker */
+.veil-emoji-toggle {
+  background: linear-gradient(180deg, rgba(40,28,12,0.85), rgba(20,14,6,0.95)) !important;
+  color: #f5e8b8 !important;
+  border: 1px solid rgba(212,173,64,0.45) !important;
+  font-size: 18px !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  flex-shrink: 0;
+}
+.veil-emoji-toggle:hover {
+  border-color: rgba(255,210,120,0.85) !important;
+  box-shadow: 0 0 10px rgba(212,173,64,0.40) !important;
+}
+.veil-emoji-picker {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-height: 168px;
+  overflow-y: auto;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: linear-gradient(180deg, rgba(8,12,28,0.85), rgba(4,6,16,0.95));
+  border: 1px solid rgba(212,173,64,0.30);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
+  animation: su 0.15s ease;
+}
+.veil-emoji-btn {
+  background: rgba(20,28,56,0.40);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 0;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.1s ease, transform 0.1s ease, border-color 0.1s ease;
+}
+.veil-emoji-btn:hover {
+  background: rgba(212,173,64,0.20);
+  border-color: rgba(212,173,64,0.55);
+  transform: scale(1.15);
+}
+
+/* Inline media in messages */
+.veilcourt-text { word-break: break-word; }
+.veil-link {
+  color: #ffd77a;
+  text-decoration: underline dotted rgba(212,173,64,0.55);
+  text-underline-offset: 2px;
+}
+.veil-link:hover { color: #fff7c8; text-decoration-style: solid; }
+.veil-media {
+  display: block;
+  margin: 6px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(212,173,64,0.35);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  background: rgba(0,0,0,0.40);
+}
+.veil-media-img {
+  max-width: 100%;
+  max-height: 320px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+.veil-media-yt {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: 380px;
+}
+.veil-media-yt iframe {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border: 0;
+  border-radius: 8px;
+}
+
+/* Profile dossier modal */
+.veil-profile-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1202;
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100vh - 40px);
+  display: flex; flex-direction: column;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(148,26,26,0.20) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 100%, rgba(30,51,104,0.30) 0%, transparent 45%),
+    linear-gradient(165deg, #0a0d22 0%, #0e1438 50%, #060a18 100%);
+  border: 1px solid rgba(212,173,64,0.55);
+  border-radius: 16px;
+  box-shadow:
+    0 32px 90px rgba(0,0,0,0.80),
+    0 0 0 1px rgba(212,173,64,0.15),
+    inset 0 1px 0 rgba(255,240,200,0.12);
+  overflow: hidden;
+  animation: su 0.22s ease;
+}
+.veil-profile-portrait {
+  width: 100%; aspect-ratio: 4 / 5;
+  max-height: 60vh;
+  background: linear-gradient(180deg, #1a1f3a 0%, #0a0d22 100%);
+  border-bottom: 2px solid rgba(212,173,64,0.45);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.veil-profile-portrait img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: drop-shadow(0 6px 20px rgba(0,0,0,0.55));
+}
+.veil-profile-portrait::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 60%, rgba(8,9,26,0.85) 100%);
+  pointer-events: none;
+}
+.veil-profile-portrait-fb {
+  font-size: 84px;
+  color: #f5e8b8;
+  filter: drop-shadow(0 4px 12px rgba(212,173,64,0.55));
+}
+.veil-profile-info { padding: 16px 18px 18px; overflow-y: auto; }
+.veil-profile-name {
+  font-family: 'Cinzel', serif;
+  font-size: 22px; font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.55);
+  margin-bottom: 3px;
+}
+.veil-profile-tagline {
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  font-size: 12px;
+  color: #cfd6ee;
+  margin-bottom: 12px;
+}
+.veil-profile-grid {
+  display: grid; gap: 6px;
+  background: rgba(8,12,28,0.55);
+  border: 1px solid rgba(120,140,200,0.20);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.veil-profile-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(120,140,200,0.20);
+  font-size: 12px;
+}
+.veil-profile-row:last-child { border-bottom: 0; }
+.veil-profile-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  color: #97a7d5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.veil-profile-val {
+  font-family: 'Crimson Text', serif;
+  font-size: 13px;
+  color: #eef3ff;
+  text-align: right;
+}
+
+/* Mini-chat dock — sits in the map left rail under the tile-name card */
+.veil-mini-dock {
+  margin-top: 6px;
+  background: linear-gradient(180deg, rgba(8,12,28,0.62), rgba(4,6,16,0.78));
+  border: 1px solid rgba(212,173,64,0.30);
+  border-radius: 10px;
+  overflow: hidden;
+  backdrop-filter: blur(2px);
+  box-shadow: inset 0 1px 0 rgba(255,240,200,0.10), 0 4px 12px rgba(0,0,0,0.40);
+  transition: border-color 0.15s ease;
+}
+.veil-mini-dock.is-open { border-color: rgba(212,173,64,0.65); }
+
+.veil-mini-toggle {
+  width: 100%;
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: #f5e8b8;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  position: relative;
+  transition: background 0.15s ease;
+}
+.veil-mini-toggle:hover { background: rgba(212,173,64,0.10); }
+.veil-mini-toggle-ic {
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px rgba(212,173,64,0.55));
+}
+.veil-mini-toggle-lbl { flex: 1; text-align: left; }
+.veil-mini-toggle-online {
+  font-family: 'Nunito', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  color: #7fffa3;
+  background: rgba(20,80,40,0.45);
+  border: 1px solid rgba(96,255,140,0.45);
+  border-radius: 999px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+}
+.veil-mini-toggle-online::before {
+  content: "● ";
+  color: #7fffa3;
+}
+.veil-mini-toggle-unread {
+  position: absolute;
+  top: 2px; right: 4px;
+  min-width: 16px; height: 16px;
+  padding: 0 5px;
+  background: linear-gradient(160deg, #d43636, #941a1a);
+  color: #fff7e0;
+  font-family: 'Nunito', sans-serif;
+  font-size: 9px; font-weight: 800;
+  border-radius: 999px;
+  border: 1.5px solid #f5e8b8;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 6px rgba(212,54,54,0.55);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.veil-mini-body {
+  border-top: 1px solid rgba(212,173,64,0.20);
+  padding: 8px 8px 8px;
+  animation: su 0.15s ease;
+}
+.veil-mini-log {
+  display: flex; flex-direction: column;
+  gap: 5px;
+  max-height: 168px;
+  overflow-y: auto;
+  margin-bottom: 7px;
+  padding-right: 2px;
+}
+.veil-mini-empty {
+  font-family: 'Crimson Text', serif;
+  font-style: italic;
+  font-size: 10px;
+  color: #97a7d5;
+  text-align: center;
+  padding: 12px 0;
+}
+.veil-mini-msg {
+  display: flex; gap: 6px; align-items: flex-start;
+}
+.veil-mini-portrait {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(20,28,56,0.85);
+  border: 1px solid #7a89c2;
+  padding: 0;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  color: #f5e8b8;
+}
+.veil-mini-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.veil-mini-portrait:hover { box-shadow: 0 0 6px rgba(212,173,64,0.55); }
+.veil-mini-bubble {
+  flex: 1; min-width: 0;
+  background: rgba(20,28,56,0.55);
+  border: 1px solid rgba(120,140,200,0.20);
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.veil-mini-author {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 5px;
+}
+.veil-mini-text { color: #eef3ff; }
+
+.veil-mini-row {
+  display: flex; gap: 4px;
+}
+.veil-mini-input {
+  flex: 1; min-width: 0;
+  background: rgba(6,12,28,0.85);
+  border: 1px solid rgba(212,173,64,0.30);
+  border-radius: 6px;
+  padding: 5px 8px;
+  color: #fff7e0;
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  outline: none;
+}
+.veil-mini-input:focus { border-color: rgba(212,173,64,0.75); }
+.veil-mini-send, .veil-mini-expand {
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #d4ad40, #a87f1a) !important;
+  color: #1a1206 !important;
+  border: 1px solid rgba(255,235,170,0.55) !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+}
+.veil-mini-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.veil-mini-expand {
+  background: linear-gradient(180deg, rgba(40,28,12,0.85), rgba(20,14,6,0.95)) !important;
+  color: #f5e8b8 !important;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .veilcourt-presence-dot,
+  .veil-mini-toggle-unread,
+  .hud-veilcourt-badge { animation: none; }
+  .veilcourt-portrait-btn { transition: none; }
+}

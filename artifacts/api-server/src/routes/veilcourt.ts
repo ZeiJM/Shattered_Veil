@@ -5,8 +5,9 @@ const router: IRouter = Router();
 
 const MAX_MESSAGES = 200;
 const MAX_NAME = 24;
-const MAX_TEXT = 280;
+const MAX_TEXT = 600;
 const RATE_MS = 1500;
+const PRESENCE_WINDOW_MS = 90 * 1000;
 
 interface VeilMessage {
   id: number;
@@ -36,21 +37,6 @@ function pushMessage(m: Omit<VeilMessage, "id" | "ts">): VeilMessage {
   return full;
 }
 
-pushMessage({
-  playerId: "system",
-  name: "Veilcourt",
-  classId: null,
-  className: null,
-  classColor: null,
-  sex: null,
-  portrait: null,
-  rank: null,
-  bloodmark: null,
-  covenant: null,
-  text: "The scrying basin stirs. Speak, sorcerer — your voice carries across the rift.",
-  channel: "system",
-});
-
 const PostBody = z.object({
   playerId: z.string().min(4).max(64),
   name: z.string().min(1).max(MAX_NAME),
@@ -79,12 +65,29 @@ function safePortrait(p: string | null | undefined): string | null {
   return null;
 }
 
+const lastSeenByPlayer = new Map<string, number>();
+
+function activeCount(now: number): number {
+  let n = 0;
+  for (const ts of lastSeenByPlayer.values()) if (now - ts < PRESENCE_WINDOW_MS) n++;
+  return n;
+}
+
 router.get("/veilcourt/messages", (req, res) => {
   const sinceRaw = req.query["since"];
   const since = typeof sinceRaw === "string" ? Number(sinceRaw) : 0;
   const cutoff = Number.isFinite(since) && since > 0 ? since : 0;
+  const pidRaw = req.query["pid"];
+  const now = Date.now();
+  if (typeof pidRaw === "string" && pidRaw.length >= 4 && pidRaw.length <= 64) {
+    lastSeenByPlayer.set(pidRaw, now);
+    if (lastSeenByPlayer.size > 1000) {
+      for (const [k, v] of lastSeenByPlayer) if (now - v > PRESENCE_WINDOW_MS * 4) lastSeenByPlayer.delete(k);
+    }
+  }
   const out = messages.filter((m) => m.id > cutoff).slice(-100);
-  res.json({ messages: out, latestId: messages.length > 0 ? messages[messages.length - 1]!.id : 0, online: lastSendByPlayer.size });
+  res.set("Cache-Control", "no-store");
+  res.json({ messages: out, latestId: messages.length > 0 ? messages[messages.length - 1]!.id : 0, online: activeCount(now) });
 });
 
 router.post("/veilcourt/messages", (req, res) => {
@@ -107,6 +110,7 @@ router.post("/veilcourt/messages", (req, res) => {
     return;
   }
   lastSendByPlayer.set(body.playerId, now);
+  lastSeenByPlayer.set(body.playerId, now);
   if (lastSendByPlayer.size > 500) {
     const cutoff = now - 1000 * 60 * 30;
     for (const [k, v] of lastSendByPlayer) if (v < cutoff) lastSendByPlayer.delete(k);
