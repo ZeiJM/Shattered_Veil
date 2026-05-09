@@ -7299,3 +7299,103 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   max-width: min(96vw, 560px);
   word-wrap: break-word;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Pass 15 (v89) — Battle visual rework + mobile world-map fixes
+   Additive only. No save shape change. Fixes:
+   1) Hex unit tokens are now tappable (pointer-events override the
+      Pass 13 pointer-events:none on .sv-arena-grid-hex .sv-arena-unit).
+   2) Subtle hover/tap affordance on clickable units.
+   3) Tighter battle layout on phones (smaller padding, no overflow).
+   4) World-map screen scrolls properly on mobile so the side rail
+      AND the map grid are both reachable; legend always opens.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* 1) Tappable unit tokens on the hex board */
+.sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-clickable {
+  pointer-events: auto !important;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease;
+}
+.sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-clickable:hover {
+  transform: scale(1.06);
+  filter: brightness(1.18) saturate(1.12);
+  z-index: 6;
+}
+.sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-clickable:active {
+  transform: scale(0.97);
+}
+/* Make the portrait inside a clickable unit also receive the click */
+.sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-clickable .sv-arena-unit-portrait,
+.sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-clickable .sv-arena-unit-ic {
+  pointer-events: none;
+}
+
+/* 2) Tighter, prettier hex board on phones */
+@media (max-width: 640px) {
+  .sv-arena-panel { padding: 6px !important; }
+  .sv-arena-head { gap: 4px !important; flex-wrap: wrap; }
+  .sv-arena-eyebrow { font-size: 8px !important; }
+  .sv-arena-name { font-size: 12px !important; }
+  .sv-arena-tag { font-size: 8px !important; padding: 2px 5px !important; }
+  .sv-arena-grid.sv-arena-grid-hex { padding: 4px 2px 8px !important; }
+  /* Crisper rings on small tiles so portraits don't disappear into bg */
+  .sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-player  { box-shadow: 0 0 0 2px rgba(140,210,255,1), 0 0 8px rgba(80,160,240,0.55); }
+  .sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-enemy   { box-shadow: 0 0 0 2px rgba(255,110,110,1), 0 0 8px rgba(220,60,60,0.55); }
+  .sv-arena-grid.sv-arena-grid-hex .sv-arena-unit.is-friend  { box-shadow: 0 0 0 2px rgba(140,235,170,0.95), 0 0 6px rgba(70,200,120,0.45); }
+  /* Bigger HP bar so it's actually readable on phones */
+  .sv-arena-grid.sv-arena-grid-hex .sv-arena-unit-hp { height: 4px; bottom: 8%; left: 12%; right: 12%; }
+}
+
+/* 3) Pass 15 — world map screen MUST scroll on mobile so the rail
+      AND the painted hex grid are both reachable. The Pass 14 layout
+      put the rail above the grid in a single column; on short screens
+      the grid was below the fold with no way to scroll. */
+.map-bg .wr {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 720px) {
+  .map-bg .wr {
+    max-height: none !important;
+    height: auto !important;
+    min-height: 100dvh;
+    padding-bottom: 24px !important;
+  }
+  .map-bg .page-panel {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .map-bg .map-main-area {
+    min-height: 280px;
+  }
+  .map-bg .battle-world-grid {
+    /* Square, not capped by viewport height — let the page scroll */
+    aspect-ratio: 1 / 1 !important;
+    width: 100% !important;
+    max-width: min(96dvw, 520px) !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+  }
+  /* Always show the legend grid on mobile (no need to tap to open) */
+  .map-bg .map-rail-legend > .map-legend-toggle {
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .map-bg .map-rail-legend .map-legend-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 3px !important;
+    padding: 4px !important;
+    max-width: 100% !important;
+  }
+}
+
+/* 4) Battle screen — squeeze a bit tighter on phones now that the
+      "Lane: Front · Target ..." readout pill is gone. */
+@media (max-width: 640px) {
+  .battle-bg .battle-actions-card { padding: 4px !important; max-height: 58vh !important; }
+  .battle-bg .battle-top-grid { gap: 4px !important; }
+  .battle-bg .battle-info-card { padding: 4px !important; }
+  .battle-bg .battle-info-strip { gap: 4px !important; flex-wrap: wrap; }
+}

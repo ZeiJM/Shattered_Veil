@@ -936,3 +936,26 @@ Final integration / QA pass for the entire battle rework (Passes 1–13). Strict
 - **Three known orphans documented**: `ageCurvePopupText`, `ageGraphRows`, and the internal name `veilExpansionDetailText` are deliberately left in place to keep the diff surgical. Each has a player-facing surface that is already correct.
 
 No combat-engine, hex-grid, classes/skills, towns, Veilcourt, or save-shape changes.
+
+## v89 — Pass 15: battle visual rework + mobile world-map fixes
+
+User reported three issues from mobile screenshots: (1) hex battle grid felt asymmetric/messy, no obvious way to inspect units on the board; (2) the "Lane: Front · Target … · Move available" readout pill above the hex board was redundant noise; (3) world map screen was unreachable on mobile — the painted hex grid sat below the fold with no scroll. All Pass 15 changes are additive and surgical — no engine math, save shape, or prior-pass system was touched.
+
+- **Lane readout pill removed** (`Game.jsx` ~L9156). The `<div class="battle-range-readout">…</div>` block (lane label, target name + distance, point-blank/long-shot bonus hints, "Move available", "Click a hex tile…" hint) is gone. The IIFE that wrapped it now `return null`. Helpers (`plLane`, `tgtFoe`, `tgtDist`, `renderRichToken`, `openEntityInfoPopup`) are intentionally retained — combat damage formulas and dossier popups still consume them.
+- **Tap-to-inspect on the hex board** (`ArenaBoard.jsx` + `Game.jsx`):
+  - `ArenaBoard` accepts a new `onUnitClick(unit)` prop. The unit `<span class="sv-arena-unit">` now has an `onClick` that `stopPropagation`s the tile-level click, suppressed during `moveMode` / `targetingMode` so positional combat is unaffected.
+  - When `onUnitClick` is wired and not in move/targeting mode, the unit token gets `.is-clickable` (cursor pointer + subtle hover scale + active press).
+  - `Game.jsx` passes a **self-contained** dossier handler (the original `openEntityInfoPopup` lives in a sibling IIFE and is not in scope at the ArenaBoard mount site — the new handler builds the popup inline using only component-scope helpers: `setPopup`, `T`, `pBar`, `ElementTag`, `StatusTag`, `playerAvatar`, `portraitOverlay`, `equippedPassiveFor`, `effSt`, `entityBattleElements`, `spdColor`, `openElementSummaryPopup`, `MONSTER_PASSIVE_INFO`, plus battle-block locals `elIc`/`battlePlayerName`/`isPT`/`btl`/`btlTarget`/`setBtlTarget`).
+  - Behaviour mirrors `renderRichToken`'s lane-bar logic: tapping a fresh enemy sets `btlTarget`; a second tap (or any tap on an already-targeted enemy / friendly / pet / player) opens the dossier with full HP/MP/SPD/passive/element-matchup details.
+- **Hex tessellation tweak** (`ArenaBoard.jsx`). Row overlap factor bumped from `0.18` → `0.25` of tile size so flat-top clip-path hexes nest into a true honeycomb instead of looking row-staggered. `--svh-offset` (half tile-width) was already correct; the row spacing was the issue.
+- **Mobile world-map scroll fix** (`game.css`). New Pass 15 block:
+  - `.map-bg .wr` gets `overflow-y: auto` always, plus `max-height: none; height: auto; min-height: 100dvh; padding-bottom: 24px` at `≤720px` so the page itself scrolls instead of clipping.
+  - `.map-bg .map-main-area { min-height: 280px }` and `.map-bg .battle-world-grid` is forced to a `1 / 1` aspect ratio with `max-width: min(96dvw, 520px)` and **no** `max-height` cap — the grid is always square and visible, the page handles overflow.
+  - Legend on mobile is opened by default (`pointer-events: none` on the toggle, `display: grid` forced on `.map-legend-row`, three-column grid for compactness) so the painted-icon legend is no longer hidden behind a tap.
+- **Mobile battle polish** (same CSS block):
+  - Crisper unit rings on small tiles (player/enemy/friend boxshadow tightened) so portraits remain identifiable when tile size drops to 26–38 px.
+  - HP bar inside hex bumped from `3px` to `4px` height with wider extents (`left/right: 12%`) for readability.
+  - `.sv-arena-panel` / `.sv-arena-head` / `.sv-arena-tag` shrunk one notch on `≤640px`.
+  - `.battle-actions-card` gains a touch more headroom (`max-height: 58vh`) now that the lane readout no longer steals vertical space; `.battle-info-strip` wraps cleanly.
+
+No combat-engine, hex-engine, save-shape, classes/skills, Veilcourt, or AI changes. ArenaBoard's existing pointer-events:none on `.sv-arena-unit` is preserved as the default; only `.is-clickable` opts back into pointer events, so move/targeting flows are unaffected.

@@ -49,6 +49,8 @@ export default function ArenaBoard({
   onTargetSelect = null,  // (tile) => void — fires when player clicks a valid target tile.
   onTargetHover = null,   // (tile|null) => void — for live area preview while aiming.
   targetingHint = null,   // optional banner text shown above the grid in targeting mode.
+  // Pass 15 — tap a unit token to open its dossier (handled by Game.jsx).
+  onUnitClick = null,     // (unit) => void — fires when a unit token is tapped.
 }) {
   const [hover, setHover] = useState(null);
 
@@ -94,7 +96,7 @@ export default function ArenaBoard({
   const tileSize = isMobile
     ? clamp(Math.floor(380 / arena.cols), 26, 38)
     : clamp(Math.floor(820 / arena.cols), 42, 64);
-  const rowOverlap = Math.round(tileSize * 0.18); // pull rows up so hexes tessellate
+  const rowOverlap = Math.round(tileSize * 0.25); // Pass 15 — true honeycomb tessellation (was 0.18, looked staggered)
 
   const handleEnter = useCallback((x, y) => setHover({ x, y }), []);
   const handleLeave = useCallback(() => setHover(null), []);
@@ -231,10 +233,16 @@ export default function ArenaBoard({
                       const unitCls = "sv-arena-unit " +
                         (u.kind === "enemy" ? "is-enemy" : u.kind === "player" ? "is-player" : "is-friend") +
                         (u.isTarget ? " is-target" : "") +
-                        (u.kind === "player" && veilbreakReady ? " is-primed" : "");
+                        (u.kind === "player" && veilbreakReady ? " is-primed" : "") +
+                        (typeof onUnitClick === "function" && !moveMode && !targetingMode ? " is-clickable" : "");
                       const fallbackGlyph = u.ic || (u.kind === "enemy" ? "👾" : "🗡");
+                      const handleUnitClick = (ev) => {
+                        if (!onUnitClick || moveMode || targetingMode) return;
+                        ev.stopPropagation();
+                        try { onUnitClick(u); } catch(_){}
+                      };
                       return (
-                        <span key={u.id} className={unitCls} title={u.label}>
+                        <span key={u.id} className={unitCls} title={u.label} onClick={handleUnitClick}>
                           {/* Pass 13 — always render the icon underneath; the
                               portrait <img> sits on top via absolute fill.
                               If the image errors (or is missing), the icon

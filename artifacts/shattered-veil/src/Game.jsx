@@ -9153,16 +9153,11 @@ const buildGroupedBattleLog = (entries) => {
           // dossier popups still consume them. A compact range-readout pill
           // is kept so players can see distance + move availability at a
           // glance without the bulky lane tile strip.
-          return <>
-            <div className="battle-range-readout">
-              <span>📍 Lane: <b>{["Vanguard","Front","Mid"][plLane] || "?"}</b></span>
-              {tgtFoe && <span>🎯 Target: <b>{tgtFoe.name}</b> (dist {tgtDist})</span>}
-              {tgtFoe && tgtDist === 1 && <span style={{ color: "#ffb066" }}>⚡ Point-blank bonus on melee</span>}
-              {tgtFoe && tgtDist >= 3 && <span style={{ color: "#88c5ff" }}>🎯 Long-shot bonus on magic</span>}
-              <span style={{ color: btl.moved ? "#9aa1b8" : "#ffd77a" }}>{btl.moved ? "✓ Moved this turn" : "↔ Move available"}</span>
-              <span style={{ color: "#9fb3ff", fontSize: 9 }}>· Click a hex tile to inspect or move</span>
-            </div>
-          </>;
+          // Pass 15 — readout pill removed entirely. The hex board carries
+          // all distance/move/target affordances; this strip was redundant
+          // visual noise on mobile. Helpers above (plLane, tgtFoe, tgtDist)
+          // are intentionally retained — combat formulas still consume them.
+          return null;
         })()}
         <div className="battle-top-grid">
           <div className="battle-team-col">
@@ -9494,6 +9489,72 @@ const buildGroupedBattleLog = (entries) => {
                 onTargetSelect={targetingActive ? confirmArenaTarget : null}
                 onTargetHover={targetingActive ? previewArenaTarget : null}
                 targetingHint={targetingHint}
+                onUnitClick={(u) => {
+                  // Pass 15 — tap any unit on the hex board to open a
+                  // dossier popup. Tapping a fresh enemy just sets target;
+                  // a second tap (or any tap on a friendly/pet/player or
+                  // already-targeted enemy) opens the dossier. Mirrors the
+                  // lane-bar behaviour in renderRichToken.
+                  // NOTE: openEntityInfoPopup lives in a sibling IIFE and
+                  // is NOT in scope here — this handler is self-contained
+                  // and uses only component-scope helpers (setPopup, T,
+                  // pBar, ElementTag, StatusTag, playerAvatar, etc.).
+                  try {
+                    if (!u || !u.kind) return;
+                    let ent = null, nameColor = T.ac, classId = null, ic = "🗡", img = null, sex = null, portraitSrc = u.portraitSrc || null, isBoss = false, isFoe = false;
+                    if (u.kind === "enemy") {
+                      const en = btl.en.find(x => x.id === u.id);
+                      if (!en) return;
+                      if (isPT && en.hp > 0 && btlTarget !== en.id) { setBtlTarget(en.id); return; }
+                      ent = { name: en.name, hp: en.hp, mhp: en.mhp, mp: en.cmp ?? en.mmp ?? 0, mmp: en.mmp ?? 0, spd: en.spd, els: entityBattleElements(en), efx: en.efx || [], passiveName: en.monPassive || "None", passiveDs: en.monPassiveKey ? (MONSTER_PASSIVE_INFO[en.monPassiveKey] || null) : null, isBoss: !!en.boss };
+                      isFoe = true; isBoss = !!en.boss; nameColor = T.bad; ic = elIc[en.el] || "👾";
+                    } else if (u.kind === "player") {
+                      const pSt = effSt(pl); const pPas = equippedPassiveFor(pl);
+                      ent = { name: battlePlayerName, hp: pl.chp, mhp: pSt.hp, mp: pl.cmp, mmp: pSt.mp, spd: pSt.spd, els: entityBattleElements(pl), efx: pl.efx || [], passiveName: pPas?.nm || "None", passiveDs: pPas?.ds || null };
+                      classId = pl?.cid || cls?.id; ic = pl?.ic || cls?.ic || "🗡"; img = pl?.portrait; sex = pl?.sex; nameColor = T.ac;
+                    } else if (u.kind === "ally" && ally) {
+                      ent = { name: ally.nm, hp: ally.hp, mhp: ally.mhp, mp: ally.mp ?? ally.mmp ?? 0, mmp: ally.mmp ?? 0, spd: ally.spd || 0, els: entityBattleElements(ally), efx: ally.efx || [], passiveName: ally.passive || ally.passiveName || "None", passiveDs: null };
+                      classId = ally.cid || null; ic = ally.ic || "🤝"; sex = ally.sex; nameColor = T.ok;
+                    } else if (u.kind === "pet" && pet) {
+                      ent = { name: pet.nm, hp: pet.chp ?? pet.hp, mhp: pet.mhp ?? pet.hp, mp: pet.mp ?? pet.mmp ?? 0, mmp: pet.mmp ?? pet.mp ?? 0, spd: pet.spd || 0, els: entityBattleElements(pet), efx: pet.efx || [], passiveName: pet.passive || pet.passiveName || "None", passiveDs: null };
+                      ic = pet.ic || "🐾"; nameColor = T.ok;
+                    }
+                    if (!ent) return;
+                    const node = (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, color: "#e8eeff", fontSize: 12 }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                          <div style={{ position: "relative", width: 72, height: 72, borderRadius: 10, overflow: "hidden", background: "rgba(20,30,60,0.6)", border: "1px solid rgba(212,173,64,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
+                            {classId ? playerAvatar(classId, ic, img, sex) : (portraitSrc ? <img src={portraitSrc} alt={ent.name} draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(ev) => { ev.target.style.display = "none"; }} /> : <>{ic}{portraitOverlay(img)}</>)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: "'Cinzel', serif", fontSize: 15, fontWeight: 800, color: nameColor, display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                              <span>{ent.name}</span>{isBoss ? <span className="tg" style={{ background: T.bad + "33", color: T.bad }}>BOSS</span> : null}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 3 }}>
+                              {(ent.els || []).map((elx, i) => <ElementTag key={elx + "_u_" + i} el={elx} fontSize={10} />)}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 9, color: "#bfc9ef", marginBottom: 2 }}>HP {Math.max(0, ent.hp)}/{ent.mhp}</div>
+                          {pBar(ent.hp, ent.mhp, T.hp)}
+                        </div>
+                        {ent.mmp > 0 && <div>
+                          <div style={{ fontSize: 9, color: "#bfc9ef", marginBottom: 2 }}>MP {Math.max(0, ent.mp)}/{ent.mmp}</div>
+                          {pBar(ent.mp, ent.mmp, T.mp)}
+                        </div>}
+                        <div style={{ fontSize: 11 }}>SPD: <span style={{ color: spdColor(ent.spd), fontWeight: 700 }}>{ent.spd}</span></div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          <div style={{ fontSize: 11 }}><span style={{ color: "#bfc9ef" }}>Passive: </span><span style={{ color: T.gd, fontWeight: 700 }}>{ent.passiveName}</span></div>
+                          {ent.passiveDs && <div style={{ fontSize: 10, color: "#cdd5ee", lineHeight: 1.4 }}>{ent.passiveDs}</div>}
+                        </div>
+                        {ent.els && ent.els.length > 0 && <button type="button" className="bt bs battle-element-summary-btn" style={{ padding: "4px 8px", fontSize: 10 }} onClick={() => { setPopup(null); setTimeout(() => openElementSummaryPopup(ent.els, isFoe ? "enemy" : "player", ent.name), 50); }}>View Element Matchups</button>}
+                        {ent.efx && ent.efx.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{ent.efx.map((ef, i) => <StatusTag key={i} ef={ef} />)}</div>}
+                      </div>
+                    );
+                    setPopup({ title: "Sorcerer Dossier", node, fullscreen: true });
+                  } catch (err) { if (typeof console !== "undefined") console.warn("unit popup failed:", err); }
+                }}
               />
             );
           } catch (err) {
