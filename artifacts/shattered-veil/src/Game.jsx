@@ -4788,6 +4788,36 @@ function Game() {
       return { ...b, arena: { ...nextArena, units: { ...b.arena?.units, ...nextArena.units } }, moved: true };
     });
     setArenaMoveMode(false);
+    // Pass 7 — Tactical Step counts toward the unordered "useTacticalAction"
+    // Veilbreak requirement, but doesn't end the turn here, so we update only
+    // the requirement list (no chain ctx evaluation, no field tick).
+    setBtl(b => {
+      if (!b || !b.veilbreak || !Array.isArray(b.veilbreak.requirements)) return b;
+      try {
+        const wasReady = vbIsReady(b.veilbreak.requirements);
+        const evald = vbApplyAction(b.veilbreak.requirements, { act: "move", tacticalStep: true }, (b.tn || 0) + 1);
+        if (!evald.anyChange) return b;
+        const nowReady = vbIsReady(evald.reqs);
+        const extras = [];
+        evald.newlyFulfilled.forEach(r => extras.push("PLAYER|✦ Veilbreak condition met — " + r.label + "."));
+        if (!wasReady && nowReady) {
+          extras.push("PLAYER|🌌 The Veil thinned around the battlefield.");
+          extras.push("PLAYER|🌟 Veilbreak ready — " + ((pl?.ult?.name) || "your Veilbreak") + " can be unleashed.");
+        }
+        if (extras.length) setLog(l => [...l, ...extras]);
+        const nextChainProg = evald.reqs.filter(r => r.fulfilled).length;
+        return { ...b, veilbreak: { ...b.veilbreak, requirements: evald.reqs }, chainProg: nextChainProg };
+      } catch (e) { return b; }
+    });
+    if (pl?.ult && !pl.ult.ready) {
+      try {
+        const reqs = btl?.veilbreak?.requirements || [];
+        const evald = vbApplyAction(reqs, { act: "move", tacticalStep: true }, (btl?.tn || 0) + 1);
+        if (evald.anyChange && vbIsReady(evald.reqs)) {
+          setPl(p => p?.ult ? ({ ...p, ult: { ...p.ult, ready: true } }) : p);
+        }
+      } catch (e) {}
+    }
     const nm = pl?.nm || "You";
     setLog(l => [...l, "PLAYER|› " + nm + " shifted across the arena to (" + tile.x + "," + tile.y + ") — " + terrainLabel + "."]);
   }, [btl, pl, effSt, pet, ally]);
@@ -4957,6 +4987,15 @@ function Game() {
     };
     let _activatedFieldThisAction = null;
     let _vbResetAfterCast = false;
+    // Snapshot enemy/player HP and log length so we can derive damage,
+    // statuses applied, crits and defeats by diffing AFTER the action runs.
+    const _vbEnHpBefore = {};
+    (en || []).forEach(e => { if (e && e.id != null) _vbEnHpBefore[e.id] = e.hp; });
+    const _vbPlHpBefore = np.chp || 0;
+    const _vbLgStart = lg.length;
+    // Pass 7 — must precede the requirement evaluator below (TDZ-safe).
+    const resolvedLastSkillEl = act === "skill" ? eqSk[idx]?.el : (act === "copy" ? (copied?.el || btl.lastSkillEl) : (act === "mend" ? "Null" : btl.lastSkillEl));
+    const resolvedLastSkillType = act === "skill" ? eqSk[idx]?.t : (act === "guard" ? "guard" : act === "strike" ? "strike" : act === "mend" ? "heal" : act === "copy" ? (copied?.t || "copy") : btl.lastSkillType);
     let nextInteractionState = { ...(btl.interactionState || {}) };
     if (!Array.isArray(nextInteractionState.freezeAppliedIds)) nextInteractionState.freezeAppliedIds = [];
     if (!Array.isArray(nextInteractionState.usedElements)) nextInteractionState.usedElements = [];
@@ -5538,28 +5577,94 @@ function Game() {
 
     setBtlPanel(null);
 
-    // Check ult chain
+    // ── Pass 7 — Veilbreak unordered requirement evaluation ──
+    // We no longer require the player to chain actions in a strict order.
+    // Instead each Veilbreak has 2/3/4 unordered conditions; once met, they
+    // STAY met until the Veilbreak is cast or the battle ends. Unrelated
+    // actions never reset progress.
+    //
+    // We also keep the legacy `chainProg` integer in sync (= number of
+    // fulfilled requirements) so any older HUD readouts keep rendering.
+    let _vbState = btl.veilbreak || vbEnsureState(np.ult, btl.veilbreak);
+    if (_vbResetAfterCast) {
+      // The ult was cast this turn — rebuild a fresh requirement list.
+      _vbState = vbEnsureState(np.ult, null);
+    } else if (np.ult && (!_vbState || _vbState.ultId !== (np.ult.id || np.ult.name))) {
+      // Player swapped Veilbreak mid-battle (btl_set_ult).
+      _vbState = vbEnsureState(np.ult, null);
+    }
+
+    // Build the action ctx now that all side-effects of this action have run.
+    try {
+      _vbCtx.castElement = act === "skill" ? (resolvedLastSkillEl || null)
+                          : act === "copy" ? (resolvedLastSkillEl || null)
+                          : null;
+      _vbCtx.skillType = resolvedLastSkillType || null;
+      let _vbDealt = 0, _vbDefeated = false;
+      (en || []).forEach(e => {
+        if (!e || e.id == null) return;
+        const before = _vbEnHpBefore[e.id];
+        if (before == null) return;
+        if (e.hp < before) _vbDealt += (before - e.hp);
+        if (before > 0 && e.hp <= 0) _vbDefeated = true;
+      });
+      _vbCtx.dealtDamage = _vbDealt;
+      _vbCtx.defeatedEnemy = _vbDefeated;
+      const _vbPlHpAfter = np.chp || 0;
+      if (_vbPlHpAfter < _vbPlHpBefore) _vbCtx.spentHP = _vbPlHpBefore - _vbPlHpAfter;
+      const _vbAppliedSet = {};
+      (en || []).forEach(e => {
+        (e?.efx || []).forEach(ef => { if (ef && ef.justApplied && ef.id) _vbAppliedSet[ef.id] = true; });
+      });
+      _vbCtx.appliedStatuses = Object.keys(_vbAppliedSet);
+      // Crit detection: scan log entries appended this action for the crit marker.
+      const _vbNewLogs = lg.slice(_vbLgStart);
+      _vbCtx.wasCrit = _vbNewLogs.some(line => /(?:^|\W)(crit|critical|💥)/i.test(String(line || "")));
+      _vbCtx.terrainKey = _playerTerrainKey || null;
+      _vbCtx.usedTerrainBonus = !!_terrainBonusLogged;
+    } catch (e) { /* never let ctx capture crash combat */ }
+
     let nextProg = btl.chainProg || 0;
-    const expected = np.ult?.combo?.[nextProg];
-    const lastAction = ch[ch.length - 1];
-    if (np.ult && !np.ult.ready && lastAction !== undefined && lastAction >= 0) {
-      if (lastAction === expected) {
-        nextProg += 1;
-        if (nextProg >= np.ult.chain) { np.ult = { ...np.ult, ready: true }; lg.push("Event: Veil Break — " + np.ult.name + " is charged and your Motto is ready to be spoken."); lg.push("🌟 VEIL BREAK CHARGED!"); nextProg = np.ult.chain; }
-      } else {
-        nextProg = lastAction === np.ult.combo[0] ? 1 : 0;
-        // No log message - chain highlighting handles the visual feedback
-      }
-      // Pass 6 — Broken Veil Font grants an extra chain step on Veil Magic casts.
-      if (act === "skill" && _playerTerrainKey && nextProg < np.ult.chain) {
-        const _veilBonus = arenaGetTerrainBonusForUnit(np, _playerTerrainKey, { kind: "skill", el: "Null", skillType: "veil", range: 1 });
-        if (_veilBonus && _veilBonus.bonusType === "veilExtra") {
-          const _extra = arenaClampBonusValue(_veilBonus.bonusType, _veilBonus.bonusValue);
-          if (_extra > 0) {
-            nextProg = Math.min(np.ult.chain, nextProg + _extra);
-            if (nextProg >= np.ult.chain) { np.ult = { ...np.ult, ready: true }; lg.push("Event: Veil Break — " + np.ult.name + " is charged and your Motto is ready to be spoken."); lg.push("🌟 VEIL BREAK CHARGED!"); }
-            consumeTerrainBonus(_veilBonus);
-          }
+    if (np.ult && !np.ult.ready && _vbState && Array.isArray(_vbState.requirements)) {
+      try {
+        const wasReady = vbIsReady(_vbState.requirements);
+        const round = (btl.tn || 0) + 1;
+        const evald = vbApplyAction(_vbState.requirements, _vbCtx, round);
+        if (evald.anyChange) {
+          _vbState = { ..._vbState, requirements: evald.reqs };
+          evald.newlyFulfilled.forEach(r => {
+            lg.push("✦ Veilbreak condition met — " + r.label + ".");
+          });
+        }
+        const summary = vbSummary(_vbState.requirements);
+        nextProg = summary.done;
+        if (!wasReady && summary.ready) {
+          np.ult = { ...np.ult, ready: true };
+          lg.push("🌌 The Veil thinned around the battlefield.");
+          lg.push("🌟 Veilbreak ready — " + (np.ult.name || "your Veilbreak") + " can be unleashed.");
+        }
+      } catch (e) { /* requirement evaluator must never break combat */ }
+    } else if (np.ult && np.ult.ready) {
+      nextProg = (_vbState && Array.isArray(_vbState.requirements)) ? _vbState.requirements.length : nextProg;
+    }
+
+    // ── Pass 7 — Active field tick / expire ──
+    // Tick once per player action. Guard via `appliedAtTn` so React strict
+    // double-renders or rapid re-entry can't double-tick.
+    let _vbActiveField = btl.activeField || null;
+    if (_activatedFieldThisAction) {
+      _vbActiveField = _activatedFieldThisAction;
+    } else if (_vbActiveField) {
+      const currentTn = (btl.tn || 0) + 1;
+      if (_vbActiveField.appliedAtTn !== currentTn) {
+        try { vbTickField(_vbActiveField, np, en, lg); } catch (e) { /* tick must never crash combat */ }
+        const remaining = (_vbActiveField.remainingTurns || 0) - 1;
+        _vbActiveField = { ..._vbActiveField, remainingTurns: remaining, appliedAtTn: currentTn };
+        if (remaining <= 0) {
+          lg.push("🌫 The Veilbreak field faded from the arena.");
+          _vbActiveField = null;
+        } else {
+          lg.push("✦ " + _vbActiveField.fieldName + " — " + remaining + " " + (remaining === 1 ? "turn" : "turns") + " remaining.");
         }
       }
     }
@@ -5749,10 +5854,8 @@ function Game() {
     }
 
     en = en.filter(e => (e.hp || 0) > 0).map(e => ({ ...e, efx: [...(e.efx || [])] }));
-    const resolvedLastSkillEl = act === "skill" ? eqSk[idx]?.el : (act === "copy" ? (copied?.el || btl.lastSkillEl) : (act === "mend" ? "Null" : btl.lastSkillEl));
-    const resolvedLastSkillType = act === "skill" ? eqSk[idx]?.t : (act === "guard" ? "guard" : act === "strike" ? "strike" : act === "mend" ? "heal" : act === "copy" ? (copied?.t || "copy") : btl.lastSkillType);
     const previewTarget = (tgt && tgt.hp > 0 ? tgt : en.find(e => e.hp > 0)) || null;
-    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1, moved: false };
+    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, veilbreak: _vbState, activeField: _vbActiveField, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1, moved: false };
     const nextReadyList = getReadyInteractions(np.inter, previewBattleState, previewTarget).filter(ai => ai.isReady);
     nextInteractionState.readyKeys = nextReadyList.map(ai => String(ai.k || "").toLowerCase());
     nextReadyList.forEach(ai => {
@@ -7836,11 +7939,39 @@ const buildGroupedBattleLog = (entries) => {
               <div className="sb-kv">Power: <span style={{ color: T.tx }}>{pl.ult.pow} + MAG×2</span></div>
               <div className="sb-kv">Element: <span style={{ color: ELC[pl.ult.el] || T.tx }}>{pl.ult.el}</span></div>
               <div className="sb-kv">Effect: <button type="button" className="bt bs" style={{ background: T.c2, color: T.tx, fontSize: 8, padding: "2px 6px", marginLeft: 4 }} onClick={() => setPopup({ text: pl.ult.fx ? archiveEffectInfoText(pl.ult.fx, pl.ult.fxDur || 0) : "No extra effect." })}>{pl.ult.fx || "None"}{pl.ult.fx ? " · " + (pl.ult.fxDur || 0) + " Turns" : ""}</button></div>
-              <div className="sb-kv" style={{ marginTop: 4, color: pl.ult.ready ? T.ok : T.dm, fontWeight: 700 }}>{pl.ult.ready ? "🌟 Ready to unleash in battle" : "Build the chain below in combat to charge it"}{!pl.ult.ready && ` (${Math.min(btl?.chainProg || 0, pl.ult.chain)}/${pl.ult.chain})`}</div>
+              {(() => {
+                // Pass 7 — derive unordered requirement progress from live battle state.
+                let _sbReqs = [];
+                try { _sbReqs = (btl?.veilbreak?.requirements && btl.veilbreak.ultId === (pl.ult.id || pl.ult.name)) ? btl.veilbreak.requirements : vbBuildRequirements(pl.ult); } catch (e) { _sbReqs = []; }
+                const _sbSum = vbSummary(_sbReqs);
+                const _ready = !!pl.ult.ready || _sbSum.ready;
+                return <div className="sb-kv" style={{ marginTop: 4, color: _ready ? T.ok : T.dm, fontWeight: 700 }}>{_ready ? "🌟 Ready to unleash in battle" : `Complete any ${_sbSum.total} requirements to break the Veil (${_sbSum.done}/${_sbSum.total})`}</div>;
+              })()}
             </div>
             <div className="sb-line-card">
-              <div className="sb-title">Required Chain</div>
-              <div className="sb-chain-text">{pl.ult.combo.map(v => ["Veil Magic 1","Veil Magic 2","Veil Magic 3","Veil Magic 4","On Hand Item 1","On Hand Item 2","Battle Item 1","Battle Item 2","Guard","Copied Skill"][v] || "?").join(" → ")}</div>
+              <div className="sb-title">Veilbreak Conditions</div>
+              <div className="sb-kv sb-muted" style={{ marginBottom: 4 }}>Any order. Once met, conditions stay met until you cast or the battle ends.</div>
+              {(() => {
+                let _sbReqs = [];
+                try { _sbReqs = (btl?.veilbreak?.requirements && btl.veilbreak.ultId === (pl.ult.id || pl.ult.name)) ? btl.veilbreak.requirements : vbBuildRequirements(pl.ult); } catch (e) { _sbReqs = []; }
+                const _field = vbBuildField(pl.ult);
+                return <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    {_sbReqs.map(r => {
+                      const meta = VB_REQ_TYPES[r.type] || { ic: "✦" };
+                      return <div key={r.id} className={"veilbreak-req-chip" + (r.fulfilled ? " is-complete" : "")}>
+                        <span className="vbq-icon">{r.fulfilled ? "✓" : (meta.ic || "•")}</span>
+                        <span className="vbq-label">{r.label}</span>
+                        <span className="vbq-desc">{r.description}</span>
+                      </div>;
+                    })}
+                  </div>
+                  {_field && <div className="veilbreak-field-summary" style={{ marginTop: 6 }}>
+                    <div style={{ color: T.gd, fontWeight: 700, fontSize: 10 }}>Field: {_field.fieldName}</div>
+                    <div className="sb-kv">{_field.fieldDescription} · {_field.duration} turns · {vbDescribeRecurring(_field)}</div>
+                  </div>}
+                </>;
+              })()}
             </div>
           </div>
           {spellHelpOpen && <div className="sb-line-card" style={{ marginTop: 8 }}>
@@ -8584,21 +8715,31 @@ const buildGroupedBattleLog = (entries) => {
         <div className="cd battle-info-card" style={{ padding: 6 }}>
               <div className="battle-info-strip">
                 <div>
-                  <div className="battle-chain-line" style={{ whiteSpace: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                    <span className="tg" style={{ background: pl.ult.ready ? T.gd + "22" : T.c2, color: pl.ult.ready ? T.gd : T.dm, marginRight: 4 }}>{chainProg + "/" + pl.ult.chain}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={() => setPopup({ text: veilExpansionDetailText(pl.ult) })}>ℹ</button><span style={{ color: T.dm }}> — </span>
-                    {pl.ult.combo.map((v, i) => {
-                      const label = chainLabels[v] || "?";
-                      const isComplete = i < chainProg;
-                      const isCurrent = i === chainProg && !pl.ult.ready;
-                      const isReady = pl.ult.ready;
-                      const stepCls = "veilbreak-chain-step" + (isReady ? " is-ready" : isComplete ? " is-complete" : isCurrent ? " is-current" : "");
-                      return <span key={i}>{i > 0 && <span style={{ color: T.dm }}>→</span>}<span className={stepCls} style={{
-                        padding: "0 3px", borderRadius: 2, fontWeight: 700,
-                        background: isReady ? T.gd + "44" : isComplete ? T.ok + "33" : isCurrent ? T.ac + "33" : "transparent",
-                        color: isReady ? T.gd : isComplete ? T.ok : isCurrent ? T.ac : T.dm,
-                      }}>{label}</span></span>;
-                    })}
-                  </div>
+                  {(() => {
+                    // Pass 7 — unordered Veilbreak requirement strip.
+                    let _vbReqs = [];
+                    try { _vbReqs = (btl?.veilbreak?.requirements && btl.veilbreak.ultId === (pl.ult.id || pl.ult.name)) ? btl.veilbreak.requirements : vbBuildRequirements(pl.ult); } catch (e) { _vbReqs = []; }
+                    const _vbSum = vbSummary(_vbReqs);
+                    const _ready = !!pl.ult.ready;
+                    const _activeField = btl?.activeField || null;
+                    return <>
+                      <div className={"battle-chain-line" + (_ready ? " is-ready" : "")} style={{ whiteSpace: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                        <span className="tg" style={{ background: _ready ? T.gd + "22" : T.c2, color: _ready ? T.gd : T.dm, marginRight: 4 }}>{_vbSum.done + "/" + _vbSum.total}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={() => setPopup({ text: veilExpansionDetailText(pl.ult) })}>ℹ</button><span style={{ color: T.dm }}> — </span>
+                        {_vbReqs.map((r, i) => {
+                          const meta = VB_REQ_TYPES[r.type] || { ic: "✦" };
+                          const stepCls = "veilbreak-req-step" + (_ready ? " is-ready" : r.fulfilled ? " is-complete" : "");
+                          return <span key={r.id || i} className={stepCls} style={{ marginRight: 4 }}>
+                            <span className="vbqs-icon">{r.fulfilled ? "✓" : (meta.ic || "•")}</span>
+                            <span className="vbqs-label">{r.label}</span>
+                          </span>;
+                        })}
+                      </div>
+                      {_activeField && <div className={"sv-veilbreak-field-banner sv-arena-field-" + (_activeField.visualTheme || "void")} style={{ marginTop: 3 }}>
+                        <span className="sv-vfb-name">✦ Active Field: {_activeField.fieldName}</span>
+                        <span className="sv-vfb-meta">{vbDescribeRecurring(_activeField)} — {_activeField.remainingTurns} {_activeField.remainingTurns === 1 ? "turn" : "turns"} left</span>
+                      </div>}
+                    </>;
+                  })()}
                   {isPT && <div className="battle-tactical-inline">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 2 }}>
                       <div style={{ color: T.gd, fontWeight: 700 }}>⚔ Tactical Readout</div>
@@ -8726,7 +8867,16 @@ const buildGroupedBattleLog = (entries) => {
                 movementStat={previewMove}
                 showMovementPreview={!arenaCollapsed}
                 veilbreakReady={!!pl?.ult?.ready}
-                field={null}
+                field={btl?.activeField ? {
+                  name: btl.activeField.fieldName,
+                  owner: btl.activeField.owner || "player",
+                  element: (btl.activeField.elementTags && btl.activeField.elementTags[0]) || null,
+                  intensity: btl.activeField.intensity || "light",
+                  theme: btl.activeField.visualTheme || "void",
+                  remainingTurns: btl.activeField.remainingTurns,
+                  recurring: btl.activeField.recurringEffect,
+                  zones: [],
+                } : null}
                 collapsed={arenaCollapsed}
                 onToggleCollapsed={() => setArenaCollapsed(v => !v)}
                 isMobile={typeof window !== "undefined" && window.innerWidth < 720}

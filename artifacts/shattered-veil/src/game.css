@@ -6391,3 +6391,131 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   0%, 100% { box-shadow: inset 0 0 4px rgba(255, 216, 107, 0.15); opacity: 0.75; }
   50%      { box-shadow: inset 0 0 9px rgba(255, 216, 107, 0.40); opacity: 1; }
 }
+
+/* ── Pass 7 — Veilbreak unordered requirement chips + active field overlay ── */
+.veilbreak-req-chip {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 215, 122, 0.18);
+  font-size: 10px;
+  line-height: 1.4;
+  transition: background .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.veilbreak-req-chip .vbq-icon { font-weight: 800; color: #ffd86b; min-width: 14px; text-align: center; }
+.veilbreak-req-chip .vbq-label { font-weight: 700; color: #ffe9b3; }
+.veilbreak-req-chip .vbq-desc { color: #cfc6a9; font-style: italic; font-size: 9px; }
+.veilbreak-req-chip.is-complete {
+  background: linear-gradient(90deg, rgba(102, 187, 106, 0.18), rgba(255, 216, 107, 0.10));
+  border-color: rgba(102, 187, 106, 0.55);
+  box-shadow: 0 0 10px rgba(102, 187, 106, 0.22), inset 0 0 6px rgba(255, 216, 107, 0.10);
+  animation: sv-veilbreak-req-glow 2.4s ease-in-out infinite;
+}
+.veilbreak-req-chip.is-complete .vbq-icon { color: #66bb6a; }
+
+@keyframes sv-veilbreak-req-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(102, 187, 106, 0.18), inset 0 0 6px rgba(255, 216, 107, 0.08); }
+  50%      { box-shadow: 0 0 14px rgba(102, 187, 106, 0.34), inset 0 0 10px rgba(255, 216, 107, 0.18); }
+}
+
+/* Inline strip variant used in the battle info card */
+.veilbreak-req-step {
+  display: inline-flex; align-items: baseline; gap: 3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 215, 122, 0.16);
+  color: #d8cfb1;
+}
+.veilbreak-req-step .vbqs-icon { color: #ffd86b; font-weight: 800; }
+.veilbreak-req-step .vbqs-label { white-space: nowrap; }
+.veilbreak-req-step.is-complete {
+  background: rgba(102, 187, 106, 0.18);
+  border-color: rgba(102, 187, 106, 0.55);
+  color: #b8eab9;
+  box-shadow: 0 0 8px rgba(102, 187, 106, 0.22);
+}
+.veilbreak-req-step.is-complete .vbqs-icon { color: #66bb6a; }
+.veilbreak-req-step.is-ready {
+  background: rgba(255, 216, 107, 0.22);
+  border-color: rgba(255, 216, 107, 0.7);
+  color: #ffe9b3;
+  animation: veilbreakReadyPulse 1.2s ease-in-out infinite;
+}
+
+.battle-chain-line.is-ready {
+  animation: veilbreakReadyPulse 1.2s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* Active-field banner shown above the action panel */
+.sv-veilbreak-field-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(255, 216, 107, 0.18), rgba(0, 0, 0, 0.18));
+  border: 1px solid rgba(255, 216, 107, 0.45);
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.18);
+  animation: sv-veilbreak-field-pulse 3.2s ease-in-out infinite;
+  font-size: 9px;
+  color: #ffe9b3;
+}
+.sv-veilbreak-field-banner .sv-vfb-name { font-weight: 800; color: #ffd86b; letter-spacing: .3px; }
+.sv-veilbreak-field-banner .sv-vfb-meta { color: #d8cfb1; font-style: italic; }
+
+@keyframes sv-veilbreak-field-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 216, 107, 0.14); }
+  50%      { box-shadow: 0 0 18px rgba(255, 216, 107, 0.34); }
+}
+
+/* Field-themed banner accents */
+.sv-veilbreak-field-banner.sv-arena-field-fire    { border-color: rgba(255, 122, 89, 0.6);  background: linear-gradient(90deg, rgba(255, 122, 89, 0.20), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-nature  { border-color: rgba(140, 209, 122, 0.6); background: linear-gradient(90deg, rgba(140, 209, 122, 0.20), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-shadow  { border-color: rgba(178, 132, 224, 0.6); background: linear-gradient(90deg, rgba(178, 132, 224, 0.20), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-light   { border-color: rgba(255, 240, 178, 0.7); background: linear-gradient(90deg, rgba(255, 240, 178, 0.22), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-storm   { border-color: rgba(122, 188, 255, 0.6); background: linear-gradient(90deg, rgba(122, 188, 255, 0.20), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-void    { border-color: rgba(150, 130, 200, 0.6); background: linear-gradient(90deg, rgba(150, 130, 200, 0.20), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-water   { border-color: rgba(122, 188, 255, 0.6); background: linear-gradient(90deg, rgba(122, 188, 255, 0.18), rgba(0,0,0,0.18)); }
+.sv-veilbreak-field-banner.sv-arena-field-earth   { border-color: rgba(196, 168, 122, 0.6); background: linear-gradient(90deg, rgba(196, 168, 122, 0.18), rgba(0,0,0,0.18)); }
+
+/* Arena board overlay when a field is active */
+.sv-arena-panel.sv-arena-field-active {
+  position: relative;
+  animation: sv-arena-field-overlay-pulse 4s ease-in-out infinite;
+}
+.sv-arena-panel.sv-arena-field-active::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: screen;
+  opacity: 0.32;
+  z-index: 1;
+}
+.sv-arena-panel.sv-arena-field-fire::before    { background: radial-gradient(ellipse at 50% 60%, rgba(255, 122, 89, 0.45), transparent 70%); }
+.sv-arena-panel.sv-arena-field-nature::before  { background: radial-gradient(ellipse at 50% 60%, rgba(140, 209, 122, 0.45), transparent 70%); }
+.sv-arena-panel.sv-arena-field-shadow::before  { background: radial-gradient(ellipse at 50% 60%, rgba(178, 132, 224, 0.50), transparent 70%); }
+.sv-arena-panel.sv-arena-field-light::before   { background: radial-gradient(ellipse at 50% 50%, rgba(255, 240, 178, 0.55), transparent 70%); }
+.sv-arena-panel.sv-arena-field-storm::before   { background: radial-gradient(ellipse at 50% 30%, rgba(122, 188, 255, 0.45), transparent 70%); }
+.sv-arena-panel.sv-arena-field-void::before    { background: radial-gradient(ellipse at 50% 50%, rgba(150, 130, 200, 0.50), transparent 70%); }
+.sv-arena-panel.sv-arena-field-water::before   { background: radial-gradient(ellipse at 50% 70%, rgba(122, 188, 255, 0.45), transparent 70%); }
+.sv-arena-panel.sv-arena-field-earth::before   { background: radial-gradient(ellipse at 50% 70%, rgba(196, 168, 122, 0.45), transparent 70%); }
+
+@keyframes sv-arena-field-overlay-pulse {
+  0%, 100% { box-shadow: inset 0 0 22px rgba(255, 216, 107, 0.06); }
+  50%      { box-shadow: inset 0 0 38px rgba(255, 216, 107, 0.18); }
+}
+
+.sv-arena-panel.sv-veilbreak-ready {
+  box-shadow: 0 0 18px rgba(255, 216, 107, 0.22), inset 0 0 14px rgba(255, 216, 107, 0.10);
+}
+
+.sv-arena-tag.sv-arena-tag-field {
+  background: rgba(255, 216, 107, 0.22);
+  color: #ffe9b3;
+  border: 1px solid rgba(255, 216, 107, 0.5);
+  font-weight: 800;
+}

@@ -426,3 +426,45 @@ Pass 6 is the first round where rare terrain tiles **actually do something** in 
 - Status-effect interactions on rare tiles (e.g. Bloodstone amplifies Bleed).
 - Destructible-object → terrain transitions (e.g. shattered Pillar leaves Bloodstone).
 - Codex / tutorial page documenting all terrain bonuses.
+
+## v80 — Battle Rework Pass 7: Unordered Veilbreak Requirements + Field Foundation
+
+Reworks Veilbreak charging from a strict ordered combo into 2/3/4 unordered conditions that don't reset on unrelated actions. Adds the foundation for active battlefield "fields" that linger after a Veilbreak is cast, with end-of-round ticks and an arena overlay. Field Clash and Field Attunement are intentionally deferred to Pass 8.
+
+### Player-facing
+
+- **Unordered Veilbreak conditions.** Each Veilbreak now lists 2 (chain ≤ 4), 3 (chain = 5), or 4 (chain ≥ 6) requirements such as "Cast a Fire skill", "Deal 60+ damage in one action", "Apply a status to an enemy", "Use a Tactical Step", or "Guard". Conditions can be completed in any order and **stay completed** until you cast the Veilbreak — unrelated moves no longer wipe progress.
+- **Active fields.** Casting a Veilbreak instantiates a battlefield field (e.g. Ember Pyre, Verdant Bloom, Tide Surge, Voidscar) tinted by the ult's element. Each field lasts 2–3 turns, ticks once per player action with a flavor effect (recurring DoT/HoT/buff) and shows up as a glowing arena overlay + a top-of-action banner with remaining turns.
+- **HUD.** Battle info strip and spellbook both show requirement chips with check marks, replacing the old `→ → →` chain. The arena board glows in the field's element tint while the field is active.
+- **Tactical Step counts.** Moving on the arena board now satisfies the `Use a Tactical Step` condition without ending the turn or affecting other progress.
+
+### Architecture
+
+- **New module** — `artifacts/shattered-veil/src/battle/arena/veilbreakChain.js`. Pure, testable. Exports:
+  - `VB_REQ_TYPES` — registry of requirement types (icon + matcher fn).
+  - `buildRequirementsForUlt(ult)` — deterministic per-ult selection (id-seeded, count derived from `ult.chain`).
+  - `buildFieldForUlt(ult)` — element → theme/recurring-effect mapping, returns the field template (name, description, theme, intensity, duration, recurring effect spec).
+  - `evaluateRequirementMatch(req, ctx)` / `applyActionToRequirements(reqs, ctx, round)` — unordered evaluator; returns `{reqs, anyChange, newlyFulfilled}`.
+  - `isReadyFromRequirements`, `summarizeRequirements`, `ensureBattleVeilbreakState`, `instantiateActiveField`, `tickActiveField`, `describeFieldRecurring`.
+- **`btl.veilbreak`** — transient battle state `{ ultId, requirements:[...] }`. Each requirement carries `{id, type, label, description, fulfilled, fulfilledAtRound, params}`.
+- **`btl.activeField`** — transient `{ fieldName, fieldDescription, owner, visualTheme, intensity, elementTags, duration, remainingTurns, recurringEffect, appliedAtTn }`.
+- **Save shape unchanged.** `pl.ult.chain` / `pl.ult.combo` are preserved untouched. `btl.chainProg` is now derived (= count of fulfilled requirements) so any older read sites still see a sensible number.
+- **Action ctx capture (`Game.jsx` bAct).** Snapshot HP & log length at action start, then derive `castElement / skillType / dealtDamage / defeatedEnemy / spentHP / appliedStatuses / wasCrit / terrainKey / usedTerrainBonus` after the action resolves and feed it to `applyActionToRequirements`.
+- **Field tick.** End of every player action: tick the field (if not the activation action), apply recurring effect, decrement `remainingTurns`, log per-turn flavor + remaining count, fade when 0. Guarded with `appliedAtTn` to prevent React-strict double ticks.
+- **`bTacticalStep` hook.** Credits `useTacticalAction` independently of the chain-eval path so movement doesn't end the turn or roll the field.
+- **`ArenaBoard`** — wrapper now appends `sv-arena-field-active sv-arena-field-<theme>` (radial overlay tint + box-shadow pulse) and `sv-veilbreak-ready` (gold halo when primed without a field). Field tag shows remaining turns inline.
+- **CSS** — `.veilbreak-req-chip`, `.veilbreak-req-step` (+ `is-complete` / `is-ready`), `.sv-veilbreak-field-banner` with per-element variants, arena overlay variants per theme (fire/nature/shadow/light/storm/void/water/earth), keyframes for ready-pulse and field-pulse.
+
+### Out of scope (deferred to Pass 8)
+
+- Field Clash (overlapping enemy + player fields negotiate per-tile dominance).
+- Field Attunement (passive/perk that lets specific classes interact with friendly fields, e.g. tile-tagged buffs, pull tiles into terrain bonuses).
+- Per-skill `range` overrides on requirement matching.
+- WebSocket Veilcourt upgrade.
+
+### Notes / gotchas
+
+- `Game.jsx` is now ~8900 lines — Babel deopt warning is normal; HMR is slow but clean.
+- Requirement evaluator is wrapped in try/catch — combat never crashes if a requirement matcher throws.
+- Field tick uses `appliedAtTn` keyed to the post-action turn number; do **not** tick on the same turn the field was instantiated, otherwise duration would be 1 short.
+- `pl.ult.combo` is intentionally NOT removed — keeping save back-compat means players migrating from v79 still load cleanly.

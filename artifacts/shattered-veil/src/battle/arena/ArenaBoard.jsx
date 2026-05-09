@@ -100,7 +100,7 @@ export default function ArenaBoard({
   const hoverInRange = hover ? moveRangeKeys.has(keyOf(hover.x, hover.y)) : false;
 
   return (
-    <div className={"sv-arena-panel cd " + themeCls}>
+    <div className={"sv-arena-panel cd " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
       <div className="sv-arena-head">
         <div className="sv-arena-title">
           <span className="sv-arena-eyebrow">Battlefield Foundation</span>
@@ -108,7 +108,7 @@ export default function ArenaBoard({
         </div>
         <div className="sv-arena-meta">
           <span className="sv-arena-tag">{arena.cols}×{arena.rows}</span>
-          {field && <span className="sv-arena-tag sv-arena-tag-field">{field.name || "Veilbreak Field"}</span>}
+          {field && <span className="sv-arena-tag sv-arena-tag-field">{field.name || "Veilbreak Field"}{field.remainingTurns != null ? " · " + field.remainingTurns + "t" : ""}</span>}
           {veilbreakReady && !field && <span className="sv-arena-tag sv-arena-tag-primed">Veilbreak primed</span>}
           {moveMode && <span className="sv-arena-tag sv-arena-tag-move">Select destination</span>}
           {targetingMode && <span className="sv-arena-tag sv-arena-tag-target">Select target</span>}
