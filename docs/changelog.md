@@ -959,3 +959,23 @@ User reported three issues from mobile screenshots: (1) hex battle grid felt asy
   - `.battle-actions-card` gains a touch more headroom (`max-height: 58vh`) now that the lane readout no longer steals vertical space; `.battle-info-strip` wraps cleanly.
 
 No combat-engine, hex-engine, save-shape, classes/skills, Veilcourt, or AI changes. ArenaBoard's existing pointer-events:none on `.sv-arena-unit` is preserved as the default; only `.is-clickable` opts back into pointer events, so move/targeting flows are unaffected.
+
+## v90 — Pass 16: NinjaRPG-style icon-tile action grid
+
+User-requested visual rework of the battle action cards (Veil Magic, Combat, Items tabs) inspired by the TheNinja-RPG layout: large square icon tiles in a dense auto-fill grid, with full action details revealed on **hover (desktop)** or via a clearly-labeled **ⓘ INFO** tap-target on **mobile/touch**. Tactical tab kept as text-dense cards (different content shape — exempted via `.sv-tactical-grid`).
+
+**Pure-CSS refactor — no JSX, no engine, no save-shape changes.** The existing markup already had everything needed: first `<div>` carries emoji+name, subsequent `<div>`s carry detail rows, and the `.battle-help-chip` was already wired to `setPopup({ text: battleMatchupPopupText(...), fullscreen: true })` for the long-press popup.
+
+- **`game.css` Pass 16 block** (~190 lines appended at end):
+  - `.battle-action-grid` switched from fixed 2-col to `repeat(auto-fill, minmax(108px, 1fr))` (90px @ ≤720px, 78px @ ≤480px) — many more tiles per row.
+  - `.battle-action-card-wrap .battle-action-btn` becomes a square-ish ~104px tile (92px mobile, 84px small phones), padding `22px 6px 8px 6px`, flex-column, gap 2px, overflow hidden, smooth `transform`/`box-shadow` transitions.
+  - First `<div>` (emoji + name) is forced large (22px desktop, 18px mobile, 16px small) with bold weight + drop-shadow — reads as the "icon" of the tile.
+  - Secondary detail rows (`> div + div`, `+ div + div + div`, `+ div + div + div + div`) and `.sv-arena-card-badges` are **hidden by default** so each tile is a clean icon+name square.
+  - On hover (desktop only, gated by `@media (hover: hover) and (pointer: fine)`): card blooms — `min-height: 168px`, `transform: translateY(-3px) scale(1.06)`, gold glow box-shadow, `z-index: 60` so it overflows the grid cleanly. All hidden detail rows reveal inline at 9px font, justified center. Disabled cards still bloom slightly (148px, crimson outline) so users can read the disabled reason.
+  - `.battle-help-chip` rebuilt as a clear tap-target: gold gradient banner with `ⓘ INFO` text via `::after` content (replaces the bare "?" so mobile users instantly see what it does); 18px tall desktop, 22px touch. Hover turns the chip crimson with white text. Already wires into the existing fullscreen matchup popup, so this becomes the universal "long-press equivalent" on mobile.
+  - `.sv-tactical-grid` carved out an exemption: tactical cards keep their multi-line summary visible, left-aligned, no bloom — they don't fit the icon-tile mold.
+  - `.battle-actions-card` switched to `overflow-x: visible` so bloomed tiles don't get clipped at the card edge; vertical scroll preserved.
+
+- **No regression risk to other tabs**: `.sv-tactical-grid` selector blocks the hide rules for the Tactical tab; aux-row buttons (Flee/End Turn) live outside `.battle-action-grid` and are untouched. `.battle-element-summary`, info-strip, hex-board CSS are all untouched.
+
+- **No JSX edits**: every existing `onClick`, `disabled`, `tryAimAction`, `bAct(...)` call site is unchanged. The matchup-popup-on-touch-top-18px hack each card already had still works (touch lands on the now-larger help chip).
