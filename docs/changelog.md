@@ -254,3 +254,33 @@ Player-facing rename + battle UI tidy + readiness signaling. No combat math, bal
 - **TODO planning block** — a 50-line comment block was added in `Game.jsx` just above `buildGroupedBattleLog` documenting the next foundation pass for *large* arena combat (variable sizes 12x8 / 14x10 / 16x12 / irregular, terrain + destructibles, Veilbreak field overlays, Field Clash, new Field Attunement stat, range/area shapes, movement stat). Explicit note: the previous 5x3 grid sketch is superseded — future maps are large arenas.
 
 CSS in lines following the `.battle-log-entry.log-loss` rule (new `.log-player/.log-enemy/.log-veilbreak`, `.battle-log-title`, `.battle-log-line.line-*`, `.veilbreak-chain-step.*`, `.battle-ready-chip.is-ready`, `.battle-bg .battle-action-btn > div` typography pass).
+
+## v76 — Battle Rework Pass 2: Big Arena Foundation
+
+Non-destructive groundwork for future tactical arena combat. The current lane-style battle remains the source of truth; this pass adds a visual prototype + future-proof data model only.
+
+**New files**
+- `artifacts/shattered-veil/src/battle/arena/arenaMaps.js` — terrain catalogue (12 types), destructible-object catalogue (7 kinds), 5 arena templates (Ruined Courtyard 12×10, Rift Crater 14×10 irregular, Moonlit Forest Hollow 12×10, Broken Shrine 10×8, Abyssal Expanse 16×12 boss arena with central canyon + bridges), `pickArenaTemplate(ctx)` selector.
+- `artifacts/shattered-veil/src/battle/arena/arenaEngine.js` — pure helpers: `getArenaTemplateForBattle`, `createInitialArenaState`, `getValidTiles`, `getMovementRange` (BFS with terrain costs), `getSkillRangeTiles` (Manhattan), `getAreaShapeTiles` (single/burst/ring/line/cone), `isTileBlocked`, `getTerrainAt`, `getObjectsAt`, `assignSpawns`. Zero global state.
+- `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx` — visual grid panel: variable-size grid, irregular shape mask, terrain tints, destructible glyphs, unit tokens with HP bar, rare-tile glow, Veilbreak field overlay placeholder, hover/click tooltip, movement-range preview, mobile-tightened tile sizing.
+
+**Modified files**
+- `artifacts/shattered-veil/src/Game.jsx` — imports the new module; adds `arenaCollapsed` state; mounts `<ArenaBoard>` between `battle-info-card` and `battle-lower-grid` inside a `try/catch` so a preview failure can never crash the live battle. Includes TODO comments for the next pass (real `mv` stat, real `{x,y}` positions, active Veilbreak field hookup).
+- `artifacts/shattered-veil/src/game.css` — appended `sv-arena-*` CSS block (~190 lines): dark mystical palette, terrain tints, rare-tile + Veilbreak field animations, primed-Veilbreak pulse on player tile, mobile breakpoint at 720px.
+- `docs/changelog.md` — this entry.
+
+**Foundation only / not implemented**
+- Combat math, balance, status effects, save shape, character creation, world map, towns, marriage, succession, chat, and backend are all unchanged.
+- Movement, skill range, AoE shapes, destructible damage, terrain bonuses, rare-tile triggers, Veilbreak field domination, Field Clash, and Field Attunement exist as data + helpers + visuals only — no rule yet reads them.
+- Active Veilbreak field is intentionally `null`; player tile pulses when ult is primed.
+
+**Validation**
+- Vite HMR applied cleanly across all edits; no new console errors.
+- Battle screen renders the preview; lane bar above + action card below remain fully usable.
+- Crash-proof: try/catch around the mount block returns `null` on any error.
+- Mobile layout: tile size clamps to 14–22px when `window.innerWidth < 720`, panel padding tightened.
+
+**Risky areas for next pass**
+- Replacing `btl.plPos` (lane 0–4) and `e.pos` (lane 3–4) with real arena `{x,y}` positions will touch the entire combat dispatcher.
+- Wiring per-skill `range`/`shape` requires editing every entry in the skill catalogue.
+- Veilbreak field activation needs a transient battle-state slot for `activeField` + duration ticking inside the existing turn loop.

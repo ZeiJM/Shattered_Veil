@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import './game.css';
+// BIG ARENA FOUNDATION (Pass 2) — visual prototype + future-proof data model.
+// Mounted inside the battle screen as a non-destructive preview panel.
+import ArenaBoard from './battle/arena/ArenaBoard.jsx';
+import { createInitialArenaState } from './battle/arena/arenaEngine.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -3378,6 +3382,8 @@ function Game() {
   const [copied, setCopied] = useState(null);
   const [copyN, setCopyN] = useState(0);
   const [battleHelpOpen, setBattleHelpOpen] = useState(false);
+  // BIG ARENA FOUNDATION — collapsed state for the new battlefield preview panel.
+  const [arenaCollapsed, setArenaCollapsed] = useState(false);
   const [spellHelpOpen, setSpellHelpOpen] = useState(false);
   const [battleBonus, setBattleBonus] = useState(null);
   const [ults, setUlts] = useState([]);
@@ -8270,6 +8276,72 @@ const buildGroupedBattleLog = (entries) => {
                   <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{[...FXS].sort((a,b)=>a.nm.localeCompare(b.nm)).map(f => <Tooltip key={f.id} text={<span><b>{f.ic} {f.nm}</b><br/>{STATUS_DESC[f.id] || f.nm + " effect."}</span>}><span className="tg" style={{ background: f.type === "dot" ? T.bad + "22" : f.type === "buff" || f.type === "hot" ? T.ok + "22" : T.wn + "22", color: f.type === "dot" ? T.bad : f.type === "buff" || f.type === "hot" ? T.ok : T.wn, fontSize: 8, cursor: "pointer" }}>{f.ic}{f.nm}</span></Tooltip>)}</div>
               </div>}
             </div>
+        {/* BIG ARENA FOUNDATION START — visual battlefield preview, no combat impact yet. */}
+        {(() => {
+          try {
+            const livingFoes = (btl?.en || []).filter(e => e.hp > 0);
+            const isBoss = livingFoes.some(e => e.boss);
+            const isRift = !!(typeof subMap !== "undefined" && subMap && (subMap.type === "rift" || subMap.kind === "rift"));
+            const biomeHint = (typeof subMap !== "undefined" && subMap?.biome) || "";
+            const seed = (btl?.startedAt || 0) ^ ((pl?.lvl || 1) * 7919);
+            const arena = createInitialArenaState({ isBoss, isRift, biomeHint, enemyCount: livingFoes.length, seed });
+            const tpl = arena.template;
+            // Place units onto template spawns (visual only; does not move real combat positions).
+            const ps = tpl.playerSpawns || [{ x: 1, y: 1 }];
+            const es = tpl.enemySpawns  || [{ x: tpl.cols - 2, y: 1 }];
+            const units = [];
+            units.push({
+              id: "player",
+              kind: "player",
+              label: pl?.nm || "You",
+              ic: pl?.ic || cls?.ic || "🗡",
+              pos: ps[0],
+              hpPct: Math.max(0, Math.min(100, (pl?.chp / Math.max(1, effSt(pl).hp)) * 100)),
+              isTarget: false,
+            });
+            if (pet && (pet.chp ?? pet.hp ?? 0) > 0 && ps[1]) {
+              units.push({ id: "pet", kind: "pet", label: pet.nm, ic: pet.ic || "🐾", pos: ps[1], hpPct: Math.max(0, Math.min(100, ((pet.chp ?? pet.hp) / Math.max(1, pet.mhp ?? pet.hp)) * 100)) });
+            }
+            if (ally && ally.hp > 0 && ps[2]) {
+              units.push({ id: "ally", kind: "ally", label: ally.nm, ic: ally.ic || "🤝", pos: ps[2], hpPct: Math.max(0, Math.min(100, (ally.hp / Math.max(1, ally.mhp)) * 100)) });
+            }
+            livingFoes.forEach((e, i) => {
+              const slot = es[i % es.length];
+              if (!slot) return;
+              units.push({
+                id: e.id,
+                kind: "enemy",
+                label: e.name,
+                ic: EL_IC[e.el] || "👾",
+                pos: slot,
+                hpPct: Math.max(0, Math.min(100, (e.hp / Math.max(1, e.mhp)) * 100)),
+                isTarget: btlTarget === e.id,
+              });
+            });
+            // TODO (future pass): replace lane positions with real {x,y} arena positions on pl/btl.en.
+            // TODO (future pass): derive movement stat from a real `mv` field; for now use a small preview value.
+            const previewMove = 3;
+            // TODO (future pass): hook activeField from currently-firing Veilbreak; this pass only previews "primed".
+            return (
+              <ArenaBoard
+                arena={arena}
+                units={units}
+                movementStat={previewMove}
+                showMovementPreview={!arenaCollapsed}
+                veilbreakReady={!!pl?.ult?.ready}
+                field={null}
+                collapsed={arenaCollapsed}
+                onToggleCollapsed={() => setArenaCollapsed(v => !v)}
+                isMobile={typeof window !== "undefined" && window.innerWidth < 720}
+              />
+            );
+          } catch (err) {
+            // Crash-proof: never let the preview break the live battle screen.
+            if (typeof console !== "undefined") console.warn("ArenaBoard preview skipped:", err);
+            return null;
+          }
+        })()}
+        {/* BIG ARENA FOUNDATION END */}
         <div className="battle-lower-grid">
           <div className="battle-main-stack">
             <div className="cd battle-actions-card" style={{ padding: 6 }}>
