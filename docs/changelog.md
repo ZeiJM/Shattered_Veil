@@ -1027,3 +1027,33 @@ User feedback: "battle screen is bad and not optimized size wise, hexes weirdly 
 - **Vite HMR**: all changes are CSS / pure-data / one prop wiring — picked up live. No new packages.
 
 Files: `artifacts/shattered-veil/src/battle/arena/arenaMaps.js`, `artifacts/shattered-veil/src/battle/arena/arenaEngine.js`, `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx`, `artifacts/shattered-veil/src/Game.jsx` (one-line onTileSelect tweak), `artifacts/shattered-veil/src/game.css` (Pass 17 block ~L7450), `artifacts/shattered-veil/public/battle/bg_*.jpg`.
+
+## v92 (Pass 18) — Mobile-fit battle screen + map header redesign + Veilbreak chain copy fix
+
+User feedback this pass: (1) world map mobile must center on the character; (2) above-map clutter (Veilcourt + Legend + Events + compass) wastes phone screen real estate; (3) battle bg is too dominant — hexes hard to discern; (4) entire battlefield doesn't fit on a phone (only the bottom slice is visible); (5) action buttons too big and text-heavy; (6) the manual still says Veilbreak progress resets on a wrong action — but we made it order-independent in Pass 7 and never updated the copy. Strict additive — no engine math, no save shape change.
+
+- **Veilbreak chain manual entry rewritten** (`Game.jsx` L632 — `TAGS["chain"]`). Old text "Use actions in the exact shown order to charge your ultimate. A wrong action resets progress." is wrong twice: (a) requirements are unordered, (b) wrong actions never reset, they just don't tick a checkbox. New copy reflects the actual `applyActionToRequirements` behaviour from `battle/arena/veilbreakChain.js` (only matching actions set `fulfilled: true`; once true, it stays true until the Veilbreak is cast or the battle ends).
+
+- **Battle backgrounds — far more transparent** (game.css Pass 18 block). Vignette dropped from `rgba(8,12,28, 0.55→0.30→0.55)` to `rgba(8,12,28, 0.30→0.10→0.30)`; pseudo-element overlay opacity 0.45 → 0.18; bg `filter: saturate(0.85) brightness(0.78)`. Hex tiles bumped from `rgba(20,28,52,0.32)` to `rgba(28,38,72,0.62)` with brighter inset border + drop-shadow so each hex is a clear silhouette on top of the painting. `is-in-move` and `is-target-valid` now use 0.40 alpha + crisp 2px outlines so move/target hints are obvious through the bg.
+
+- **Battle screen fits the phone viewport** (game.css mobile blocks). At ≤720px:
+  - `.battle-info-card` padding cut to 5/6 px; info-strip becomes a flex-wrap row of 9.5px pills.
+  - `.sv-combat-profile-strip` pills shrink to 8.5px / 1px-4px padding.
+  - `.battle-actions-card` clamped to `max-height: 26vh`; `.battle-log-card` clamped to `max-height: 20vh`. Net: hex board claims the dominant slice of vertical space; the only scroll target is the battle log.
+  - Hex tile size shrunk to `clamp(28px, 6vw, 40px)` so a 13-wide arena fits in viewport width without horizontal scroll.
+
+- **Compact action buttons** (game.css mobile block). At ≤720px the action grid switches to `repeat(4, 1fr)` with 56px tall buttons (52px at ≤420px), 9.5/9px font. The cost/secondary text rows underneath the name are hidden on mobile — full info is still available on long-press (the existing top-edge touchstart → fullscreen popup is preserved). Tactical-grid stays 3-col for readability. Note: per-skill generated icons were *not* shipped this pass — 50+ skills × 21 classes makes a generation pass impractical, and we needed a fast win first. The CSS is structured so a future pass can drop in element/skill icons via a `::before` pseudo with no JSX churn.
+
+- **World map mobile redesign** (game.css mobile block). The pre-map rail used to stack 8 vertically-arranged blocks (action button → quick row → tile → compass → veilcourt → events → meta → legend → controls) which pushed the actual map well below the fold. New layout uses CSS-grid with `1fr 1fr` columns at ≤720px:
+  - Action button + quick HP/MP/Fish row + terrain bubble span full width at the top.
+  - Compass folds in directly underneath the terrain bubble (dashed top border, shared-card feel) so coords + nearest landmarks read as one block.
+  - Veilcourt button (left) and Legend `<details>` (right) sit side-by-side on one row.
+  - Events become a single horizontally-scrollable lane of pills.
+  - Meta + Controls collapse to thin bottom strips.
+  Net: the rail's vertical footprint shrinks dramatically and the map takes more of the screen.
+
+- **Map auto-scroll on mobile** (`Game.jsx` ~L3505 useEffect). When `scr === "map"` and `window.innerWidth ≤ 720`, after an 80ms tick we `swipeRef.current.scrollIntoView({ block: "center" })`. The grid's internal math already centers the player tile inside the grid (`gx = pos.x - hfX + idx % VW`), so centering the grid in the viewport effectively centers the player on screen. Desktop unaffected.
+
+- **Engine math, save shape, OpenAPI contract** — all untouched.
+
+Files: `artifacts/shattered-veil/src/Game.jsx` (L632 manual copy + ~L3505 mobile-scroll useEffect), `artifacts/shattered-veil/src/game.css` (Pass 18 block appended at EOF, ~250 lines).

@@ -7845,3 +7845,268 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
     font-size: 10.5px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Pass 18 (v92) — Battle screen mobile fit + bg subtlety + 
+   compact action buttons + world map mobile redesign.
+   Per user feedback: backgrounds too dominant (hexes hard to
+   see), entire battlefield not visible on phone, world map
+   not centered around character on mobile, header stack too
+   busy. Each rule below addresses a specific complaint.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Battle backgrounds — far more subtle ───────────────────
+   v91 painted the bg through a fairly heavy 0.55/0.30/0.55
+   vignette; user can't see hexes. Soften the vignette and
+   bump the tile opacity so hexes pop on top of the painting. */
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg {
+  background-image:
+    linear-gradient(180deg, rgba(8,12,28,0.30), rgba(8,12,28,0.10) 40%, rgba(8,12,28,0.30)),
+    var(--sv-arena-bg-img) !important;
+  filter: saturate(0.85) brightness(0.78);
+}
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg::before {
+  opacity: 0.18 !important;
+}
+/* Tiles much more opaque + visible ring so hex edges are obvious. */
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg .sv-arena-tile-normal {
+  background: rgba(28,38,72,0.62) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(220,235,255,0.18),
+    inset 0 0 8px rgba(0,0,0,0.28) !important;
+}
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg .sv-arena-tile {
+  border-color: rgba(220,235,255,0.22) !important;
+}
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg .sv-arena-tile.is-in-move {
+  background: rgba(96,160,255,0.40) !important;
+  outline: 2px solid rgba(140,200,255,0.85) !important;
+  outline-offset: -3px !important;
+}
+.sv-arena-grid.sv-arena-grid-hex.sv-arena-grid-has-bg .sv-arena-tile.is-target-valid {
+  background: rgba(255,180,120,0.40) !important;
+  outline: 2px solid rgba(255,220,140,0.95) !important;
+  outline-offset: -3px !important;
+}
+
+/* ── Battle layout — make the entire field fit on mobile ────
+   On phones (≤720px) we trim the info-strip to one tight row,
+   shrink the action grid so it occupies ~26vh, and clamp the
+   battle log to a small but scrollable region. Net: hex board
+   gets a generous slice of screen and nothing important is
+   off-screen. The ONLY scroll target is the battle log. */
+@media (max-width: 720px) {
+  /* Tighten the info card stack above the board. */
+  .battle-bg .battle-info-card { padding: 5px 6px !important; }
+  .battle-bg .battle-info-strip {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 3px 5px !important;
+    grid-template-columns: none !important;
+  }
+  .battle-bg .battle-info-strip > * {
+    flex: 0 0 auto !important;
+    font-size: 9.5px !important;
+    padding: 2px 5px !important;
+  }
+  /* Compact combat profile pills — wrap onto one line if possible. */
+  .battle-bg .sv-combat-profile-strip {
+    gap: 2px 4px !important;
+    padding: 2px !important;
+  }
+  .battle-bg .sv-combat-profile-pill {
+    font-size: 8.5px !important;
+    padding: 1px 4px !important;
+  }
+  /* Sized so the hex board is the dominant element. */
+  .battle-bg .battle-actions-card {
+    max-height: 26vh !important;
+    padding: 4px !important;
+  }
+  .battle-bg .battle-log-card {
+    max-height: 20vh !important;
+    padding: 4px 6px !important;
+  }
+  /* Shrink the arena tile so a 13-wide map fits in viewport width. */
+  .sv-arena-grid.sv-arena-grid-hex {
+    --svh-tile: clamp(28px, 6vw, 40px) !important;
+    --svh-offset: clamp(14px, 3vw, 20px) !important;
+  }
+}
+
+/* ── Compact action buttons (tooltip-driven) ────────────────
+   Per request: tiny buttons, name/cost shown on hover (desktop
+   title attr) or long-press (mobile fullscreen popup, already
+   wired via top-edge touchstart in Game.jsx). On phones we go
+   to a 4-col tight grid with small label so a full skill book
+   fits without scrolling. On desktop we keep readable cards. */
+@media (max-width: 720px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+  .battle-bg .battle-action-card-wrap .battle-action-btn {
+    min-height: 56px !important;
+    padding: 18px 3px 4px 3px !important;
+    font-size: 9.5px !important;
+    line-height: 1.1 !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
+    white-space: normal !important;
+  }
+  /* Hide the dimmer text rows (cost lines, MP indicator) below the
+     name on mobile — full info available via long-press popup. */
+  .battle-bg .battle-action-card-wrap .battle-action-btn > div + div + div,
+  .battle-bg .battle-action-card-wrap .battle-action-btn > div + div + div + div {
+    display: none !important;
+  }
+  /* Tactical actions and consumable rows — match. */
+  .battle-bg .sv-tactical-grid.battle-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+@media (max-width: 420px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+  .battle-bg .battle-action-card-wrap .battle-action-btn {
+    min-height: 52px !important;
+    padding: 16px 2px 3px 2px !important;
+    font-size: 9px !important;
+  }
+}
+
+/* ── Veilbreak conditions strip — tighter on mobile ─────────
+   The "1/4 Veilbreak: ... — ✓ Take the field — ✗ Land a 
+   damaging blow" strip wraps awkwardly on phones. Compact it. */
+@media (max-width: 720px) {
+  .battle-bg .battle-info-strip > div[style*="background"] { font-size: 9px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   World map mobile — center character + smarter header
+   ═══════════════════════════════════════════════════════════ */
+
+@media (max-width: 720px) {
+  /* Tighter rail — eliminates the long pre-map vertical column
+     so the player's tile lands closer to viewport center. */
+  .map-bg .map-side-rail {
+    grid-template-columns: 1fr 1fr !important;
+    grid-auto-rows: auto !important;
+    gap: 4px !important;
+    padding: 4px !important;
+  }
+  /* Action button (Idle/Enter/Fish) spans full width at top. */
+  .map-bg .map-side-rail .rail-action-btn {
+    grid-column: 1 / -1;
+    padding: 6px !important;
+    font-size: 12px !important;
+  }
+  /* Quick HP/MP/Fish row — full width. */
+  .map-bg .map-side-rail .map-rail-quick {
+    grid-column: 1 / -1;
+    display: flex !important;
+    gap: 4px !important;
+    flex-wrap: wrap;
+  }
+  /* Terrain bubble takes left half, becomes the primary info card.
+     Compass coords are appended via ::after below so we don't need
+     a separate compass row. */
+  .map-bg .map-side-rail .map-rail-tile {
+    grid-column: 1 / -1;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    flex: none !important;
+  }
+  .map-bg .map-side-rail .map-rail-tile .map-rail-tile-coords {
+    margin-top: 2px;
+    font-size: 10px;
+    opacity: 0.85;
+  }
+  /* Compass row — fold under the terrain bubble as a sub-row so
+     coordinates and nearest-POI live together as one block. */
+  .map-bg .map-side-rail .map-rail-compass {
+    grid-column: 1 / -1;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    margin-top: -2px;
+    border-top: 1px dashed rgba(255,225,154,0.18);
+    border-radius: 0 0 6px 6px;
+    background: rgba(20,28,50,0.35);
+  }
+  .map-bg .map-side-rail .mrc-row { padding: 1px 0 !important; }
+  /* Veilcourt + Legend side-by-side. */
+  .map-bg .map-side-rail .veil-quick-open-btn {
+    grid-column: 1 / 2;
+    padding: 8px !important;
+    font-size: 12px !important;
+  }
+  .map-bg .map-side-rail .map-legend-details {
+    grid-column: 2 / 3;
+    margin: 0 !important;
+    align-self: stretch;
+  }
+  .map-bg .map-side-rail .map-legend-details .map-legend-toggle {
+    padding: 8px !important;
+    font-size: 12px !important;
+    text-align: center;
+  }
+  /* Events bar — single horizontal lane above the map. */
+  .map-bg .map-side-rail .map-rail-events {
+    grid-column: 1 / -1;
+    padding: 4px 8px !important;
+  }
+  .map-bg .map-side-rail .map-rail-events .mre-head {
+    font-size: 9px !important;
+    margin-bottom: 2px;
+  }
+  .map-bg .map-side-rail .map-rail-events .mre-list {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 4px !important;
+    overflow-x: auto;
+  }
+  .map-bg .map-side-rail .map-rail-events .mre-pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+    max-width: 70vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Meta + controls — compact and at the very bottom of the rail. */
+  .map-bg .map-side-rail .map-rail-meta {
+    grid-column: 1 / -1;
+    padding: 0 4px !important;
+  }
+  .map-bg .map-side-rail .map-rail-help-btn {
+    grid-column: 1 / -1;
+    padding: 4px !important;
+    font-size: 10px !important;
+    opacity: 0.7;
+  }
+  /* Map area — fills remaining height; the grid auto-centers
+     because the player tile is always rendered at viewport
+     center via pos.x - hfX math. The previous layout had so
+     much content above the map that the player tile fell off
+     the bottom of a phone viewport — the rail compaction above
+     fixes that. Bump max-height slightly so it claims more
+     space now that the rail is tight. */
+  .map-bg .map-main-area {
+    margin-top: 4px;
+  }
+  .map-bg .battle-world-grid {
+    max-height: min(58dvh, 460px) !important;
+    max-width: 100% !important;
+  }
+}
+
+/* The rail uses display: grid on mobile — provide it. */
+@media (max-width: 720px) {
+  .map-bg .map-side-rail {
+    display: grid !important;
+  }
+}

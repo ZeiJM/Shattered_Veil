@@ -629,7 +629,7 @@ const TAG_INFO = [
   { id: "buff", nm: "Buff", ds: "Improves your combat state or grants protection." },
   { id: "debuff", nm: "Debuff", ds: "Weakens the target or sets up combos." },
   { id: "dot", nm: "DoT", ds: "Deals damage over time each turn." },
-  { id: "chain", nm: "Ult Chain", ds: "Use actions in the exact shown order to charge your ultimate. A wrong action resets progress." },
+  { id: "chain", nm: "Veilbreak Chain", ds: "Each Veilbreak has 2-4 conditions you must satisfy this battle. They can be met in any order, and unrelated actions never undo your progress — once a condition is checked off, it stays met until you cast the Veilbreak or the battle ends." },
   { id: "status", nm: "Status", ds: "Burn, freeze, poison, stun, silence, copy/mirror, and similar effects apply extra pressure, control, or utility." },
 ];
 function describeTags(sk) {
@@ -3499,6 +3499,25 @@ function Game() {
   const [cSex, setCSex] = useState("male");
   const [previewSex, setPreviewSex] = useState("male");
   useEffect(() => { if (scr !== "create") return; const id = setInterval(() => setPreviewSex(s => s === "male" ? "female" : "male"), 4500); return () => clearInterval(id); }, [scr]);
+  // v92 (Pass 18) — On mobile, when the player enters the map screen the
+  // browser's natural scroll position can leave the world grid (and thus
+  // the player tile, which is mathematically centered inside the grid)
+  // below the fold. Scroll the grid into view so the character lands at
+  // viewport center on entry. Desktop already shows everything at once.
+  useEffect(() => {
+    if (scr !== "map") return;
+    if (typeof window === "undefined") return;
+    if (window.innerWidth > 720) return;
+    const id = window.setTimeout(() => {
+      try {
+        const grid = swipeRef.current;
+        if (grid && typeof grid.scrollIntoView === "function") {
+          grid.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        }
+      } catch (_) {}
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [scr]);
   const [companionSeek, setCompanionSeek] = useState("female");
   const [tavernCompanionCycle, setTavernCompanionCycle] = useState(-1);
   const [tavernCompanions, setTavernCompanions] = useState([]);
