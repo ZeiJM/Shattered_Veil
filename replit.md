@@ -102,6 +102,18 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 11 (v84) — Class Roles + Skill Range/Shape Metadata
+
+Distinct role identity for all 21 player classes plus per-skill range/shape metadata for the arena. **Additive only** — no engine rewrites, no save shape change, existing `inter[]` / `mkPassives` / `mkUltPool` left intact (they already use canonical Pass 10 statuses).
+
+- **`battle/classRoles.js`** — single source of truth: `ROLE_META` (21 distinct roles), `RANGE_TIER` (melee/short/medium/long/global), `CLASS_ROLES` (per class: `role`, `roleSummary`, `primaryStats`, `rangeIdentity`, `preferredShape`, `terrainAffinity`, `fieldIdentity`, `weakness`, `vbTheme`). Pure-function helpers: `getClassRole`, `getRoleMeta`, `inferSkillRange`, `inferSkillShape`, `stampSkillCombatMeta`, `stampSkillListCombatMeta`, `rangeLabel`, `shapeLabel`. All finite math; no `Infinity`/`NaN`.
+- **Skill stamping** — `mkSkills` calls `stampSkillListCombatMeta(sk, c.id)` before return; `startBattle` re-stamps `pl.skills` on entry so old saves get `range`/`rangeMin`/`rangeMax`/`shape`/`targetType` lazily. Stamping never overwrites explicitly-set fields.
+- **Class pick card** (creation step 0) shows colored role badge + range identity pill + role summary blurb.
+- **Skill archive cards** show two new chips: Range (Self/Melee/Short N/Med N/Long N/Global) and Shape (Single/Line/Cone/Burst/Aura/Zone/Self/Global).
+- **Distinct primary roles** (no two classes share one): Tank · Barrier Bulwark · Field Tank · Sustain Bruiser · Crit Striker · Assassin · DoT Duelist · Ranger/Projectile · Long-Range Caster · Burst Caster · Void Debuffer · Healer · Sustain Support · Buff Support · Tempo Controller · Status Controller · Area Disruptor · Debuff Controller · Mirror Controller · Adaptive Shifter · Risk/Reward.
+- **Audit doc**: see `docs/BATTLE_CLASS_REBALANCE_AUDIT.md` for the per-class table, rationale, safeguards, and Pass 12 risk list.
+- **CSS** — additive block: `.sv-role-badge`, `.sv-role-range-pill`, `.sv-skill-range-chip`, `.sv-skill-shape-chip`.
+
 ## Battle Rework Pass 10 (v83) — Derived Combat Stats + Status Cleanup Foundation
 
 Two foundational systems landed together to keep run count down. **Save shape unchanged** — both modules are non-breaking layers on top of existing combat.

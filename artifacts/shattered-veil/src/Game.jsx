@@ -43,6 +43,20 @@ import {
 import {
   getCritChance as dsGetCritChance,
   getCritDamageMultiplier as dsGetCritDamage,
+} from './battle/derivedStats.js';
+// Pass 11 — class roles + skill range/shape metadata.
+import {
+  CLASS_ROLES,
+  ROLE_META,
+  getClassRole,
+  getRoleMeta,
+  stampSkillCombatMeta,
+  stampSkillListCombatMeta,
+  deriveSkillCombatMeta,
+  rangeLabel as crRangeLabel,
+  shapeLabel as crShapeLabel,
+} from './battle/classRoles.js';
+import {
   getAccuracy as dsGetAccuracy,
   getEvasion as dsGetEvasion,
   getMoveStat as dsGetMove,
@@ -998,6 +1012,10 @@ function mkSkills(c) {
   var idx = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].sort(function(){ return Math.random() - 0.5; });
   for (var j = 0; j < 3; j++) { sk[idx[j]].unlocked = true; sk[idx[j]].equipped = true; }
   if (c.multiEl) sk._els = els;
+  // Pass 11 — stamp range/shape/targetType so the arena system has per-skill
+  // metadata without needing a save shape change. Safe to re-run; will not
+  // overwrite hand-set fields. See battle/classRoles.js for inference rules.
+  stampSkillListCombatMeta(sk, c.id);
   return sk;
 }
 
@@ -4719,6 +4737,10 @@ function Game() {
       // Arena init must NEVER block battle start — fall back to no arena layer.
       arenaInit = null;
     }
+    // Pass 11 — stamp range/shape on player skills on battle entry so old
+    // saves (whose skills predate Pass 11 metadata) get the new combat tags.
+    // Safe to re-run; never overwrites explicit fields.
+    try { if (pl?.skills) stampSkillListCombatMeta(pl.skills, pl.cid); } catch (_) {}
     setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, arena: arenaInit, veilbreak: vbEnsureState(pl?.ult, null), activeField: null, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
     setArenaMoveMode(false);
     setArenaTargeting(null);
@@ -7977,7 +7999,11 @@ const buildGroupedBattleLog = (entries) => {
       {/* STEP 0: CLASS */}
       {cStep === 0 && <div>
         <div className="create-class-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, maxHeight: "62vh", overflowY: "auto" }}>
-          {CLS.map(c => <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 7, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
+          {CLS.map(c => {
+            // Pass 11 — surface role + range identity in the class pick card.
+            const _cr = getClassRole(c.id);
+            const _rm = _cr ? getRoleMeta(_cr.role) : null;
+            return <div key={c.id} className="cd class-pick-card" onClick={() => setSelCls(c.id)} style={{ padding: 7, cursor: "pointer", border: selCls === c.id ? "2px solid " + c.cl : "1px solid rgba(212,173,64,0.18)", background: selCls === c.id ? "linear-gradient(155deg, " + c.cl + "26 0%, rgba(6,12,28,0.92) 100%)" : "linear-gradient(155deg, rgba(10,18,44,0.92) 0%, rgba(6,12,28,0.90) 100%)", color: "#e8eeff" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
               <CrossfadePortrait cid={c.id} sex={previewSex} alt={c.nm} wrapStyle={{ width: 44, height: 44, borderRadius: 6, border: "1.5px solid " + c.cl + "88", flexShrink: 0, boxShadow: "0 0 10px " + c.cl + "33, inset 0 1px 0 rgba(255,255,255,0.1)" }} />
               <div style={{ minWidth: 0 }}>
@@ -7985,10 +8011,16 @@ const buildGroupedBattleLog = (entries) => {
                 <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{!c.multiEl && <span className="tg" style={{ background: (ELC[c.el]||"#666") + "33", color: ELC[c.el]||"#bbb", fontSize: 9 }}>{c.el}</span>}{c.el2 && <span className="tg" style={{ background: (ELC[c.el2]||"#666") + "33", color: ELC[c.el2]||"#bbb", fontSize: 9 }}>{c.el2}</span>}{c.multiEl && <span className="tg" style={{ background: "#ff6f0033", color: "#ffb074", fontSize: 9 }}>4 Random</span>}</div>
               </div>
             </div>
+            {_cr && _rm && <div className="sv-role-badge-row" style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 4 }}>
+              <span className="sv-role-badge" title={_cr.roleSummary} style={{ background: _rm.color + "26", color: _rm.color, border: "1px solid " + _rm.color + "55" }}>{_rm.ic} {_rm.label}</span>
+              <span className="sv-role-range-pill" title={"Preferred range: " + _cr.rangeIdentity}>{_cr.rangeIdentity.toUpperCase()}</span>
+            </div>}
             <div style={{ fontSize: 9, color: "#cfd6ee", lineHeight: 1.4, marginBottom: 4 }}>{c.ds}</div>
+            {_cr && <div style={{ fontSize: 9, color: "#bcc6e6", lineHeight: 1.45, marginBottom: 4, fontStyle: "italic" }}>{_cr.roleSummary}</div>}
             <div style={{ fontSize: 9, color: "#9aa6c8" }}>⚔<span style={{ color: T.gd }}>{"★".repeat(c.stR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.stR)}</span> 🔮<span style={{ color: "#4dd0e1" }}>{"★".repeat(c.skR)}</span><span style={{ color: "#3a4263" }}>{"☆".repeat(5-c.skR)}</span></div>
             {selCls === c.id && <RotatingInteractionShowcase cls={c} />}
-          </div>)}
+          </div>;
+          })}
         </div>
         <div style={{ textAlign: "center", marginTop: 10 }}><button className="bt" style={{ background: T.gd, opacity: selCls ? 1 : 0.4 }} disabled={!selCls} onClick={() => setCStep(1)}>Next: Bloodmark →</button></div>
       </div>}
@@ -8357,6 +8389,8 @@ const buildGroupedBattleLog = (entries) => {
                     <span className="tg" style={{ background: accent + "20", color: accent, border: "1px solid " + accent + "44" }}>{sk.el}</span>
                     {describeTags(sk).map(tagId => { var tag = TAG_INFO.find(function(t){return t.id === tagId;}); return tag ? <button type="button" key={tagId} className="bt bs" style={{ background: T.ac + "22", color: T.ac, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveTagInfoText(tagId) })}>{tag.nm}</button> : null; })}
                     {sk.aoe && <button type="button" className="bt bs" style={{ background: T.gd + "22", color: T.gd, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveTagInfoText("aoe") })}>AoE</button>}
+                    {/* Pass 11 — Range + Shape pills (pure derive, no mutation). Safe on old saves. */}
+                    {(() => { try { const _meta = deriveSkillCombatMeta(sk, pl?.cid || cls?.id); const _rl = crRangeLabel(_meta); const _sl = crShapeLabel(_meta.shape); return <>{_rl && <span className="tg sv-skill-range-chip" title={"Range " + (_meta.range)}>{_rl}</span>}{_sl && <span className="tg sv-skill-shape-chip" title={"Shape: " + _sl}>{_sl}</span>}</>; } catch(_) { return null; } })()}
                     {sk.fx && <button type="button" className="bt bs" style={{ background: T.wn + "22", color: T.wn, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveEffectInfoText(sk.fx, sk.fxDur || 0) })}>{FX(sk.fx)?.nm || sk.fx}{sk.fxDur ? " · " + sk.fxDur + " Turns" : ""}</button>}
                     {sk.fx2 && <button type="button" className="bt bs" style={{ background: T.ok + "22", color: T.ok, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveEffectInfoText(sk.fx2, sk.fx2Dur || 0) })}>{FX(sk.fx2)?.nm || sk.fx2}{sk.fx2Dur ? " · " + sk.fx2Dur + " Turns" : ""}</button>}
                   </div>

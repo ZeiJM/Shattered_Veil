@@ -6842,3 +6842,48 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   color: #d4ad40;
   font-style: italic;
 }
+
+/* ============================================================
+   Pass 11 — Class role badges + skill range/shape chips.
+   Additive only; does not override any prior class card styles.
+   ============================================================ */
+.sv-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.25;
+}
+.sv-role-range-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(212, 173, 64, 0.18);
+  color: #f5d57a;
+  border: 1px solid rgba(212, 173, 64, 0.42);
+}
+.sv-skill-range-chip {
+  background: rgba(125, 169, 255, 0.18) !important;
+  color: #b6cbff !important;
+  border: 1px solid rgba(125, 169, 255, 0.45) !important;
+  font-size: 8px !important;
+  padding: 2px 6px !important;
+}
+.sv-skill-shape-chip {
+  background: rgba(255, 213, 79, 0.16) !important;
+  color: #f5d57a !important;
+  border: 1px solid rgba(255, 213, 79, 0.42) !important;
+  font-size: 8px !important;
+  padding: 2px 6px !important;
+}

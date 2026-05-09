@@ -785,3 +785,83 @@ Comments in `derivedStats.js` mark class identities to build around:
 - Gear scaling with derived stats (`critRate` / `critDamage` / `healPower` fields).
 - Manual / tutorial rewrite for the new stat vocabulary.
 - Save migration for any deprecated effect names (none yet).
+
+## v84 — Battle Rework Pass 11: Class Roles + Skill Range/Shape Metadata
+
+Pass 11 lands the **class identity layer** for all 21 player classes plus
+per-skill range/shape metadata for the arena targeting system. Conservative,
+**additive only** — no engine rewrites, no save shape changes, no rewrite of
+the existing procedural skill/passive/ult generators.
+
+### What it adds
+
+- **NEW** `artifacts/shattered-veil/src/battle/classRoles.js` (~280 lines).
+  Single source of truth for class identity:
+  - `ROLE_META` — 21 distinct role labels with color + icon.
+  - `RANGE_TIER` — melee / short / medium / long / global bands.
+  - `CLASS_ROLES` — for every class: `role`, `roleSummary`, `primaryStats`,
+    `rangeIdentity`, `preferredShape`, `terrainAffinity`, `fieldIdentity`,
+    `weakness`, `vbTheme`.
+  - Helpers: `getClassRole`, `getRoleMeta`, `inferSkillRange`,
+    `inferSkillShape`, `stampSkillCombatMeta`, `stampSkillListCombatMeta`,
+    `rangeLabel`, `shapeLabel`. All pure functions; finite math only.
+
+- **NEW** `docs/BATTLE_CLASS_REBALANCE_AUDIT.md` — the full role table,
+  rationale per class, safeguards, and the Pass 12 risk list.
+
+- `Game.jsx`:
+  - `mkSkills` now calls `stampSkillListCombatMeta(sk, c.id)` before
+    return so newly generated skills carry `range`, `rangeMin`,
+    `rangeMax`, `shape`, `targetType`.
+  - `startBattle` re-stamps `pl.skills` on entry so old saves get the new
+    metadata lazily without a save migration.
+  - Class pick card (creation step 0) shows a colored role badge,
+    range identity pill, and the role summary blurb.
+  - Skill archive cards show two new chips: Range (Self/Melee/Short
+    N/Med N/Long N/Global) and Shape (Single/Line/Cone/Burst/Aura/Zone/
+    Self/Global).
+
+- `game.css` — small additive block (~50 lines): `.sv-role-badge`,
+  `.sv-role-range-pill`, `.sv-skill-range-chip`, `.sv-skill-shape-chip`.
+
+### Distinct primary roles (no two classes share one)
+
+Tank · Barrier Bulwark · Field Tank · Sustain Bruiser · Crit Striker ·
+Assassin · DoT Duelist · Ranger/Projectile · Long-Range Caster ·
+Burst Caster · Void Debuffer · Healer/Support · Sustain Support ·
+Buff Support · Tempo Controller · Status Controller · Area Disruptor ·
+Debuff Controller · Mirror Controller · Adaptive Shifter · Risk/Reward.
+
+See `docs/BATTLE_CLASS_REBALANCE_AUDIT.md` for the per-class table and
+range identity defaults.
+
+### Save shape
+
+- **Unchanged.** Range/shape are recomputed at battle entry and skill
+  generation; nothing new is persisted. Old saves load identically and
+  get stamped lazily on `startBattle`.
+
+### Files modified / created
+
+- **NEW** `artifacts/shattered-veil/src/battle/classRoles.js`.
+- **NEW** `docs/BATTLE_CLASS_REBALANCE_AUDIT.md`.
+- `artifacts/shattered-veil/src/Game.jsx` — imports, `mkSkills` post-stamp,
+  `startBattle` lazy stamp, class pick card role row, skill archive Range
+  + Shape chips.
+- `artifacts/shattered-veil/src/game.css` — role badge + chip CSS.
+
+### Intentionally NOT touched
+
+- `inter[]` interactions per class — already canonical-status-aware.
+- `mkPassives` / `mkUltPool` — already class-themed.
+- Engines (combat math, arena targeting, Veilbreak chain).
+- Bosses, bloodmarks, aging, world, towns, Veilcourt chat.
+
+### Out of scope (Pass 12+)
+
+- Per-class numeric tuning of skill power and MP costs.
+- Engine consumption of `range`/`shape` for stricter arena targeting.
+- Veilbreak chain implementing per-class field tones from `vbTheme`.
+- Gear scaling tied to role priorities (Crit gear → Monk/Assassin, etc).
+- Bloodmark interactions with role identities.
+- Heir inheritance of role-defining stats.
