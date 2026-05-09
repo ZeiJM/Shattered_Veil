@@ -1184,11 +1184,23 @@ html, body, #root {
   text-align: center !important;
   position: relative; overflow: hidden;
 }
-.battle-action-card-wrap .battle-action-btn > div { width: 100%; text-align: center !important; }
+.battle-action-card-wrap .battle-action-btn > div {
+  width: 100%; text-align: center !important;
+  /* v95 — kill mid-word hyphenation ("Thornwo od Longbow" bug) */
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  line-height: 1.15;
+}
 .battle-action-btn {
   display: flex !important; flex-direction: column !important;
   align-items: center !important; justify-content: center !important;
   text-align: center !important; gap: 2px;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
 }
 .battle-action-btn > div { text-align: center !important; }
 .battle-help-chip {
@@ -3332,8 +3344,10 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-tab-nm { font-size: 9px; }
 }
 @media (max-width: 460px) {
-  .battle-bg .battle-tab-nm { display: none; }
+  /* v95 — keep label visible (was display:none which left an icon-only dock) */
+  .battle-bg .battle-tab-nm { display: inline-block !important; font-size: 8px !important; letter-spacing: 0.2px; }
   .battle-bg .battle-tab { padding: 5px 4px; }
+  .battle-bg .battle-tab.v66 .battle-tab-nm { display: inline-block !important; font-size: 8px !important; }
 }
 
 /* The active tab's section gets a touch more breathing room since it's solo */
@@ -8587,4 +8601,156 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .map-bg .hud-pill { padding: 2px 6px; font-size: 10px; min-height: 24px; }
   .map-bg .battle-rib,
   .map-bg .map-rib { padding: 4px 5px !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Pass 21 (v95) — Mobile UX Repair
+ *  - World rail: condense rail-action / rail-quick / tile / events on phones
+ *  - Battle arena: fade painted background so square grid reads cleanly
+ *  - Target foreshadow color tokens (red/green/blue/gold) for action preview
+ *  - Action card sizing safeguards (length, line clamp)
+ * Additive only. Combat math, save shape, world-gen untouched.
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* Action card title length safeguard. Forces shrink-to-fit on long names
+   so we never need a hyphen-break. Pairs with the keep-all rule above. */
+.battle-action-card-wrap .battle-action-btn {
+  font-size: clamp(9px, 2.6vw, 12px) !important;
+}
+.battle-action-card-wrap .battle-action-btn > div:first-child,
+.battle-action-card-wrap .battle-action-btn > div[style*="fontWeight"] {
+  font-size: clamp(10px, 2.8vw, 13px) !important;
+  line-height: 1.1 !important;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Battle arena painted background — much subtler so the square grid wins.
+   v94 ran at 0.42 which made the brick perspective fight the tiles. */
+.sv-arena-grid.sv-arena-grid-sq.sv-arena-grid-has-bg::before {
+  opacity: 0.18 !important;
+  filter: blur(0.5px) saturate(0.85);
+}
+
+/* ── Target foreshadow color tokens (Section E)
+   Apply these to .sv-arena-tile during action preview to telegraph
+   intent. JSX wiring will add `is-fx-*` classes when previewing. */
+.sv-arena-grid .sv-arena-tile.is-fx-damage,
+.sv-arena-grid .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(255,90,90,0.95), 0 0 14px rgba(255,90,90,0.45) !important;
+}
+.sv-arena-grid .sv-arena-tile.is-fx-debuff {
+  box-shadow: inset 0 0 0 2px rgba(255,140,90,0.85), 0 0 12px rgba(255,140,90,0.40) !important;
+}
+.sv-arena-grid .sv-arena-tile.is-fx-support,
+.sv-arena-grid .sv-arena-tile.is-fx-heal,
+.sv-arena-grid .sv-arena-tile.is-fx-buff {
+  box-shadow: inset 0 0 0 2px rgba(110,230,150,0.95), 0 0 14px rgba(110,230,150,0.45) !important;
+}
+.sv-arena-grid .sv-arena-tile.is-fx-move,
+.sv-arena-grid .sv-arena-tile.sv-arena-tile-move-valid {
+  box-shadow: inset 0 0 0 2px rgba(120,200,255,0.85), 0 0 12px rgba(120,200,255,0.40) !important;
+}
+.sv-arena-grid .sv-arena-tile.is-fx-veilbreak,
+.sv-arena-grid .sv-arena-tile.is-fx-field {
+  box-shadow:
+    inset 0 0 0 2px rgba(212,173,64,0.95),
+    inset 0 0 18px rgba(168,80,255,0.45),
+    0 0 18px rgba(168,80,255,0.50) !important;
+  background-blend-mode: screen;
+}
+.sv-arena-grid .sv-arena-tile.is-fx-invalid,
+.sv-arena-grid .sv-arena-tile.is-fx-blocked {
+  filter: brightness(0.45) saturate(0.4) !important;
+  cursor: not-allowed !important;
+}
+
+/* Optional banner color hint above the board when previewing an action. */
+.sv-arena-targeting-banner.is-fx-damage  { color: #ffb0b0; border-color: rgba(255,90,90,0.6); }
+.sv-arena-targeting-banner.is-fx-support { color: #b6f0c4; border-color: rgba(110,230,150,0.55); }
+.sv-arena-targeting-banner.is-fx-move    { color: #b8dcff; border-color: rgba(120,200,255,0.55); }
+.sv-arena-targeting-banner.is-fx-veilbreak,
+.sv-arena-targeting-banner.is-fx-field   { color: #f7d68a; border-color: rgba(212,173,64,0.65); }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * World map mobile compaction (Sections A+B). The map IS already
+ * centered on the player by design (15-col grid re-renders around
+ * pos.x,pos.y), but on phones the side rail consumes too much
+ * vertical space before the map appears. These rules tighten the
+ * rail without changing layout.
+ * ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 540px) {
+  /* Big yellow ENTER/Idle/Stop button at top of rail. */
+  .map-bg .rail-action-btn {
+    min-height: 38px !important;
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+  }
+  .map-bg .rail-action-label { font-size: 12px !important; }
+
+  /* HP / MP / Fish quick buttons — were tall stacked rectangles. */
+  .map-bg .map-rail-quick {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+    margin: 4px 0 !important;
+  }
+  .map-rail-quick .map-rail-quick-btn.ui-icon-btn {
+    flex: 1 1 30% !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    padding: 4px 6px !important;
+    border-radius: 7px !important;
+  }
+  .map-rail-quick .map-rail-quick-btn.ui-icon-btn .ui-icon {
+    width: 18px !important; height: 18px !important;
+  }
+
+  /* Tile / compass / events / legend — tighten paddings. */
+  .map-bg .map-rail-tile,
+  .map-bg .map-rail-compass,
+  .map-bg .map-rail-events,
+  .map-bg .map-rail-meta {
+    padding: 4px 6px !important;
+    margin-bottom: 4px !important;
+    border-radius: 7px !important;
+  }
+  .map-bg .map-rail-tile-name { font-size: 12px !important; line-height: 1.15 !important; }
+  .map-bg .map-rail-tile-type { font-size: 9px !important; }
+  .map-bg .map-rail-tile-coords { font-size: 10px !important; }
+  .map-bg .mrc-row { font-size: 10px !important; line-height: 1.25 !important; }
+  .map-bg .mre-head { font-size: 9px !important; padding: 2px 4px !important; }
+  .map-bg .mre-pill { font-size: 10px !important; padding: 3px 6px !important; }
+
+  .map-bg .veil-quick-open-btn {
+    min-height: 32px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .map-bg .map-legend-details,
+  .map-bg .map-rail-help-btn {
+    font-size: 10px !important;
+    padding: 4px 8px !important;
+    min-height: 28px !important;
+  }
+  .map-bg .map-legend-toggle { font-size: 10px !important; padding: 3px 5px !important; }
+
+  /* Side rail itself — keep within reasonable height. */
+  .map-bg .map-side-rail {
+    padding: 6px !important;
+    gap: 2px !important;
+  }
+}
+
+/* On the narrowest phones, drop quick-button labels (icon only) to
+   keep the rail tight while the icons remain unambiguous. */
+@media (max-width: 380px) {
+  .map-rail-quick .map-rail-quick-btn .ui-icon-tip { display: none !important; }
 }
