@@ -37,6 +37,15 @@ export default function ArenaBoard({
   moveMode = false,       // when true, clicking a valid tile commits a move.
   onTileSelect = null,    // (tile) => void — fires only on tiles inside move range.
   moveModeHint = null,    // optional banner text shown above the grid in move mode.
+  // Pass 4 — Skill targeting integration (visual + soft enforcement only).
+  targetingMode = false,  // when true, clicking a valid target tile commits the action.
+  validTargetKeys = null, // Set<"x,y"> — highlightable target tiles.
+  affectedKeys = null,    // Set<"x,y"> — preview area for the currently hovered/selected target.
+  losBlockedKeys = null,  // Set<"x,y"> — tiles in range but blocked by line of sight.
+  selectedTargetKey = null, // "x,y" — confirmed target tile (currently aimed-at).
+  onTargetSelect = null,  // (tile) => void — fires when player clicks a valid target tile.
+  onTargetHover = null,   // (tile|null) => void — for live area preview while aiming.
+  targetingHint = null,   // optional banner text shown above the grid in targeting mode.
 }) {
   const [hover, setHover] = useState(null);
 
@@ -102,6 +111,7 @@ export default function ArenaBoard({
           {field && <span className="sv-arena-tag sv-arena-tag-field">{field.name || "Veilbreak Field"}</span>}
           {veilbreakReady && !field && <span className="sv-arena-tag sv-arena-tag-primed">Veilbreak primed</span>}
           {moveMode && <span className="sv-arena-tag sv-arena-tag-move">Select destination</span>}
+          {targetingMode && <span className="sv-arena-tag sv-arena-tag-target">Select target</span>}
           {onToggleCollapsed && (
             <button type="button" className="sv-arena-toggle" onClick={onToggleCollapsed}>
               {collapsed ? "Show" : "Hide"}
@@ -114,8 +124,11 @@ export default function ArenaBoard({
           {moveMode && moveModeHint && (
             <div className="sv-arena-movemode-banner">{moveModeHint}</div>
           )}
+          {targetingMode && targetingHint && (
+            <div className="sv-arena-targeting-banner">{targetingHint}</div>
+          )}
           <div
-            className={"sv-arena-grid" + (moveMode ? " sv-arena-movement-mode" : "")}
+            className={"sv-arena-grid" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "")}
             style={{
               gridTemplateColumns: `repeat(${arena.cols}, ${tileSize}px)`,
               gridAutoRows: `${tileSize}px`,
@@ -137,6 +150,11 @@ export default function ArenaBoard({
                 const isHover = hover && hover.x === x && hover.y === y;
                 const isOccupied = tileUnits.length > 0;
                 const isMoveValid = moveMode && inMove && !isOccupied;
+                const isTargetValid    = targetingMode && validTargetKeys ? validTargetKeys.has(k) : false;
+                const isTargetSelected = targetingMode && selectedTargetKey === k;
+                const isTargetAffected = targetingMode && affectedKeys ? affectedKeys.has(k) : false;
+                const isLosBlocked     = targetingMode && losBlockedKeys ? losBlockedKeys.has(k) : false;
+                const isOutOfRange     = targetingMode && !isTargetValid && !isTargetAffected && !isLosBlocked;
                 const cls = [
                   "sv-arena-tile",
                   terrain.cls,
@@ -144,6 +162,12 @@ export default function ArenaBoard({
                   inMove && !moveMode ? "is-in-move" : "",
                   isMoveValid ? "sv-arena-tile-move-valid" : "",
                   moveMode && isOccupied ? "sv-arena-tile-occupied" : "",
+                  isTargetValid    ? "sv-arena-tile-target-valid" : "",
+                  isTargetSelected ? "sv-arena-tile-target-selected" : "",
+                  isTargetAffected ? "sv-arena-tile-area-preview" : "",
+                  isLosBlocked     ? "sv-arena-tile-los-blocked" : "",
+                  isOutOfRange     ? "sv-arena-tile-out-of-range" : "",
+                  targetingMode && objs.length ? "sv-arena-tile-has-object" : "",
                   inField ? "sv-arena-field-overlay" : "",
                   isHover ? "is-hover" : "",
                 ].filter(Boolean).join(" ");
@@ -152,13 +176,23 @@ export default function ArenaBoard({
                     onTileSelect({ x, y });
                     return;
                   }
+                  if (targetingMode && isTargetValid && typeof onTargetSelect === "function") {
+                    onTargetSelect({ x, y });
+                    return;
+                  }
                   setHover(h => h && h.x === x && h.y === y ? null : { x, y });
+                };
+                const handleEnterCombined = () => {
+                  handleEnter(x, y);
+                  if (targetingMode && isTargetValid && typeof onTargetHover === "function") {
+                    onTargetHover({ x, y });
+                  }
                 };
                 return (
                   <div
                     key={k}
                     className={cls}
-                    onMouseEnter={() => handleEnter(x, y)}
+                    onMouseEnter={handleEnterCombined}
                     onClick={handleTileClick}
                   >
                     {objs.map(o => {

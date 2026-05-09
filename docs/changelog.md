@@ -325,3 +325,57 @@ The arena layer goes from preview to live. A real `{x,y}` position is initialize
 - Splitting movement and main action into distinct phases.
 - Terrain bonus triggers and Veilbreak field movement effects.
 - Boss-arena specific mechanics (canyon edges, bridges).
+
+## v78 — Battle Rework Pass 4 (Skill targeting + range/area layer)
+
+Adds the arena targeting layer that finally connects the visual battlefield to combat actions. Strictly additive — damage math, save shape, character creation, world map, towns, succession, chat, and the backend are all untouched. The existing flow (lane positions, `actionRange`, `bAct`) keeps running unchanged; the new layer is a soft visual + click-to-aim wrapper on top.
+
+**New file: `artifacts/shattered-veil/src/battle/arena/arenaTargeting.js`**
+
+- Pure module — no React, no Game.jsx coupling.
+- `getActionMeta({ act, skill, weapon, ult, copied, actor })` resolves any battle action to a metadata shape `{ range, shape, radius, targetType, requiresLineOfSight, canTargetObjects, terrainInteraction, needsTarget }`.
+- `getSkillMeta(skill)` infers safe defaults from existing fields (`t`, `el`, `aoe`, `n`) — no skill data was rewritten in this pass. Heuristic shape sniff: `nova/ring/wave/pulse` → burst; `lance/beam/line/bolt/pierce/arrow/bullet/ray` → line; `cone/fan/gust/spray/breath/sweep/cleave` → cone. Heal/buff with `aura/mantle/hymn/aegis` lift to aura; otherwise self.
+- Geometry primitives: `getTilesInRange`, `getBurstTiles`, `getLineTiles`, `getConeTiles`, `getAuraTiles`, `getGlobalTiles`.
+- `hasLineOfSight(origin, target, arena)` — Bresenham raycast. A tile blocks LoS when its `objectMap` entry maps to an `OBJECTS` def with `blocksLineOfSight: true`.
+- `getValidTargetTiles(caster, meta, arenaState)` — returns the click-eligible tiles for an aim, filtered by range, target type, LoS, and presence of the right unit class.
+- `getAffectedTiles(caster, target, meta, arenaState)` — projects the chosen aim through the action's shape (single, burst, line, cone, aura, zone, global, self).
+- `getUnitsOnAffectedTiles`, `getLosBlockedTiles`, `describeShape`, `describeTarget` for HUD use.
+- Per-action defaults (when no skill metadata exists): single-target elemental skills R5 with LoS; physical strike R1 no LoS; AoE damage burst R4 radius 1 (radius 2 for ring-named skills); cone R3; line R5 with LoS; heals R4 single ally (or self-burst when AoE); self/buff/guard/mend → no aim required.
+
+**ArenaBoard**
+
+- New optional props `targetingMode`, `validTargetKeys`, `affectedKeys`, `losBlockedKeys`, `selectedTargetKey`, `onTargetSelect`, `onTargetHover`, `targetingHint`. Mutually compatible with Pass 3 `moveMode`.
+- Tile classes added: `sv-arena-tile-target-valid`, `sv-arena-tile-target-selected`, `sv-arena-tile-area-preview`, `sv-arena-tile-out-of-range`, `sv-arena-tile-los-blocked`, `sv-arena-tile-has-object`. The grid grows `sv-arena-targeting-mode` and a `Select target` meta tag while aiming.
+- Click on a valid target tile fires `onTargetSelect({x,y})`. Hover fires `onTargetHover({x,y})` so the affected-area preview updates live.
+
+**Game.jsx wiring**
+
+- New imports from `./battle/arena/arenaTargeting.js`. New state `arenaTargeting = { act, idx, hover } | null` (reset on `startBattle`).
+- `arenaActionMetaFor(act, idx)` resolves the current action to metadata using the equipped skill list and weapon.
+- `tryAimAction(act, idx, fallbackFire)` is the new click wrapper: if the arena is missing, the player has no `units.player`, or the action does not need a target, it calls `fallbackFire()` immediately (which keeps the existing `bAct` behaviour). Otherwise it opens aim mode. Clicking the same action again toggles aim off.
+- `confirmArenaTarget(tile)` reads the tile, sets `btlTarget` to the enemy on that tile (when applicable), and defers `bAct` to the next tick so the target update commits first.
+- Action button handlers wrapped: Veil Magic skill, Strike (w1), Off-hand (w2), and Copy now route through `tryAimAction(...)` before falling back to `bAct(...)`. Mend, Guard, Veilbreak, Tactical Step, Items, and Aux actions remain direct (self/global/no-target).
+- Each Veil Magic card now carries small range/shape/target/LoS badges (`R<n>`, `Burst 2`, `Enemy`, `LoS`) computed from the metadata helper. The aimed skill card title gets a 🎯 marker while aim is active.
+- Targeting visuals computed on the fly inside the ArenaBoard mount block (valid keys, affected keys, LoS blocked keys, selected key, hint string).
+
+**CSS**
+
+- Appended Pass 4 block: `sv-arena-tag-target`, `sv-arena-targeting-banner`, `sv-arena-grid.sv-arena-targeting-mode`, the five new tile state classes, `sv-arena-card-badges` + `.is-range/.is-shape/.is-target/.is-los`, `sv-arena-confirm-target`, `sv-arena-cancel-target`, two new keyframes (`sv-arena-target-pulse`, `sv-arena-target-tile-pulse`).
+- LoS-blocked tiles paint a 45° red hash overlay; out-of-range tiles dim and desaturate; valid target tiles pulse warm-orange; affected tiles glow soft amber under the target.
+
+**Soft enforcement & safety**
+
+- Out-of-range / LoS-blocked tiles are visual-only — they do not click. Clicking still routes through `bAct`, which keeps the v40 lane-based range gate as the actual combat enforcement.
+- Every entry point is guarded so any failure (no arena, missing skill, geometry throw) silently falls back to the existing `bAct` flow. Battle never gets stuck behind the new layer.
+- All skill data is unchanged — metadata is inferred. Future passes can author explicit `range`/`shape` fields on each skill in `mkSkills` and the inference will be bypassed.
+
+**Intentionally not yet built (TODOs in code)**
+
+- Per-skill explicit metadata authored on each entry in `mkSkills`.
+- Hard range enforcement that refuses out-of-range attacks even when targeting is cancelled.
+- True enemy AI on the arena layer (movement + range selection).
+- Destructible object damage resolution + `onDestroy` triggers.
+- Terrain bonus triggers when a skill lands on rare terrain.
+- Veilbreak field area control + Field Clash territory split.
+- Movement-affecting status effects (root, knockback) integrated into targeting.
+- Boss-specific arena mechanics (canyon edges, phase walls, bridges).

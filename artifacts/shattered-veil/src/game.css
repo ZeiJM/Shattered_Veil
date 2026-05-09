@@ -6231,3 +6231,120 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.78; }
 }
+
+/* ── BIG ARENA FOUNDATION — Pass 4 (Skill targeting layer) ─────────────── */
+.sv-arena-tag-target {
+  background: rgba(255,140,80,0.22);
+  color: #ffd2a8;
+  border: 1px solid rgba(255,140,80,0.55);
+  animation: sv-arena-target-pulse 1.4s ease-in-out infinite;
+}
+.sv-arena-targeting-banner {
+  margin: 4px 6px 6px;
+  padding: 4px 8px;
+  background: linear-gradient(90deg, rgba(255,140,80,0.18), rgba(255,140,80,0.06));
+  border: 1px solid rgba(255,140,80,0.45);
+  border-radius: 4px;
+  color: #ffd9b8;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+.sv-arena-grid.sv-arena-targeting-mode {
+  outline: 1px dashed rgba(255,140,80,0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Affected area preview (under everything, soft fill). */
+.sv-arena-tile.sv-arena-tile-area-preview {
+  background-image: radial-gradient(circle at center, rgba(255,200,120,0.32) 0%, rgba(255,200,120,0.08) 70%);
+  box-shadow: 0 0 0 1px rgba(255,200,120,0.45) inset;
+  position: relative;
+  z-index: 1;
+}
+/* Valid target tiles (clickable to commit). */
+.sv-arena-tile.sv-arena-tile-target-valid {
+  cursor: crosshair;
+  box-shadow: 0 0 0 1px rgba(255,120,80,0.85) inset, 0 0 8px rgba(255,120,80,0.5);
+  background-image: radial-gradient(circle at center, rgba(255,140,80,0.42) 0%, rgba(255,140,80,0.08) 70%);
+  animation: sv-arena-target-tile-pulse 1.5s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+.sv-arena-tile.sv-arena-tile-target-valid:hover {
+  box-shadow: 0 0 0 2px #ffd2a8 inset, 0 0 14px rgba(255,140,80,0.7);
+  background-image: radial-gradient(circle at center, rgba(255,140,80,0.65) 0%, rgba(255,140,80,0.18) 70%);
+}
+/* Selected/aimed tile (locked-in target). */
+.sv-arena-tile.sv-arena-tile-target-selected {
+  box-shadow: 0 0 0 2px #ffe79b inset, 0 0 14px rgba(255,216,107,0.85);
+  z-index: 3;
+}
+/* Out-of-range dim. */
+.sv-arena-grid.sv-arena-targeting-mode .sv-arena-tile.sv-arena-tile-out-of-range {
+  filter: brightness(0.62) saturate(0.7);
+  opacity: 0.78;
+}
+/* LoS-blocked tiles get a red hash overlay to signal "can't see". */
+.sv-arena-tile.sv-arena-tile-los-blocked {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,80,80,0.28) 0 4px, transparent 4px 8px),
+    radial-gradient(circle at center, rgba(255,80,80,0.18) 0%, rgba(255,80,80,0.04) 70%);
+  box-shadow: 0 0 0 1px rgba(255,80,80,0.45) inset;
+  cursor: not-allowed;
+}
+/* Object hint when targeting (objects are valid collateral). */
+.sv-arena-tile.sv-arena-tile-has-object.sv-arena-tile-target-valid {
+  outline: 1px dashed rgba(255,200,120,0.6);
+}
+/* Confirm/cancel chips on the action button when an aim is active. */
+.sv-arena-confirm-target {
+  outline: 1px solid rgba(255,140,80,0.7) !important;
+  box-shadow: 0 0 8px rgba(255,140,80,0.6) !important;
+  animation: sv-arena-target-pulse 1.4s ease-in-out infinite;
+}
+/* Range/shape badges on action cards. */
+.sv-arena-card-badges {
+  display: flex; gap: 3px; flex-wrap: wrap;
+  justify-content: center; margin-top: 2px;
+}
+.sv-arena-card-badge {
+  font-size: 7px;
+  padding: 1px 5px;
+  border-radius: 7px;
+  background: rgba(110,180,255,0.14);
+  color: #cfe5ff;
+  border: 1px solid rgba(110,180,255,0.32);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+.sv-arena-card-badge.is-range { background: rgba(110,210,255,0.16); color: #b8e6ff; border-color: rgba(110,210,255,0.32); }
+.sv-arena-card-badge.is-shape { background: rgba(255,180,120,0.16); color: #ffd2a8; border-color: rgba(255,180,120,0.32); }
+.sv-arena-card-badge.is-target { background: rgba(180,230,180,0.14); color: #c8e8c2; border-color: rgba(180,230,180,0.32); }
+.sv-arena-card-badge.is-los { background: rgba(220,150,255,0.14); color: #e2c8ff; border-color: rgba(220,150,255,0.32); }
+.sv-arena-cancel-target-row {
+  display: flex; justify-content: center; margin: 4px 0 0;
+}
+.sv-arena-cancel-target {
+  font-size: 9px; padding: 3px 9px; border-radius: 4px;
+  background: rgba(255,140,80,0.18);
+  color: #ffd2a8;
+  border: 1px solid rgba(255,140,80,0.5);
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.sv-arena-cancel-target:hover {
+  background: rgba(255,140,80,0.32);
+  color: #fff1e3;
+}
+@keyframes sv-arena-target-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.78; }
+}
+@keyframes sv-arena-target-tile-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,120,80,0.7) inset, 0 0 6px rgba(255,140,80,0.35); }
+  50%      { box-shadow: 0 0 0 1px rgba(255,140,80,0.95) inset, 0 0 12px rgba(255,140,80,0.65); }
+}

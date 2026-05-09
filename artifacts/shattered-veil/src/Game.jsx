@@ -4,6 +4,14 @@ import './game.css';
 // Mounted inside the battle screen as a non-destructive preview panel.
 import ArenaBoard from './battle/arena/ArenaBoard.jsx';
 import { createInitialArenaState, getMovementRange as arenaGetMovementRange, getTerrainAt as arenaGetTerrainAt, getUnitMoveRange as arenaGetUnitMoveRange } from './battle/arena/arenaEngine.js';
+import {
+  getActionMeta as arenaGetActionMeta,
+  getValidTargetTiles as arenaGetValidTargets,
+  getAffectedTiles as arenaGetAffected,
+  getLosBlockedTiles as arenaGetLosBlocked,
+  describeShape as arenaDescribeShape,
+  describeTarget as arenaDescribeTarget,
+} from './battle/arena/arenaTargeting.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -3386,6 +3394,10 @@ function Game() {
   const [arenaCollapsed, setArenaCollapsed] = useState(false);
   // Pass 3 — Tactical Step movement mode (player picks a destination tile on the arena).
   const [arenaMoveMode, setArenaMoveMode] = useState(false);
+  // Pass 4 — Skill targeting mode: { act, idx, hover:{x,y}|null } | null.
+  // Soft-enforced: if the aim flow ever fails or arena is missing, we fall
+  // back to bAct() with the existing btlTarget so battle never gets stuck.
+  const [arenaTargeting, setArenaTargeting] = useState(null);
   const [spellHelpOpen, setSpellHelpOpen] = useState(false);
   const [battleBonus, setBattleBonus] = useState(null);
   const [ults, setUlts] = useState([]);
@@ -3475,6 +3487,10 @@ function Game() {
   const [beastZoneCDs, setBeastZoneCDs] = useState({}); // beast zone cooldowns
   const [popup, setPopup] = useState(null); // universal popup {text, onClose}
   const popupJustOpenedRef = useRef(false);
+  // Pass 4 — when targeting confirms, this carries the resolved enemy id
+  // into bAct's *current* closure so the click reliably fires at the aimed
+  // target instead of relying on stale `btlTarget` state in a captured bAct.
+  const arenaAimedTargetRef = useRef(null);
   // Timers
   const [timerStart, setTimerStart] = useState(() => Date.now());
   const [timerNow, setTimerNow] = useState(Date.now());
@@ -4648,6 +4664,7 @@ function Game() {
     }
     setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, arena: arenaInit, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
     setArenaMoveMode(false);
+    setArenaTargeting(null);
     setBattleBonus(null);
     setBtlPanel(null);
     setBtlTarget(prep.enemies.find(e => e.hp > 0)?.id || null);
@@ -4756,10 +4773,91 @@ function Game() {
     setLog(l => [...l, "PLAYER|› " + nm + " shifted across the arena to (" + tile.x + "," + tile.y + ") — " + terrainLabel + "."]);
   }, [btl, pl, effSt, pet, ally]);
 
+  // ── Pass 4 — Skill targeting helpers (visual + soft enforcement) ─────────
+  // These NEVER block bAct: they wrap the click flow with an arena aim step
+  // and then call bAct() with the chosen target. If anything goes wrong, the
+  // fallback paths in bAct (existing btlTarget) take over so battle keeps
+  // working even when the new layer is incomplete or disabled.
+  const arenaActionMetaFor = useCallback((act, idx) => {
+    try {
+      const list = pl ? pl.skills.filter(s => s.equipped && s.unlocked) : [];
+      const skill = act === "skill" ? list[idx] : null;
+      const weapon = act === "w2" ? eq.w2 : (eq.w1 || eq.w2);
+      return arenaGetActionMeta({ act, skill, weapon, ult: pl?.ult, copied, actor: pl });
+    } catch (e) {
+      return null;
+    }
+  }, [pl, eq, copied]);
+
+  const tryAimAction = useCallback((act, idx, fallbackFire) => {
+    // If anything is missing, just fire the fallback (existing behaviour).
+    const arena = btl?.arena;
+    if (!arena || !arena.units?.player) { fallbackFire(); return; }
+    const meta = arenaActionMetaFor(act, idx);
+    if (!meta || !meta.needsTarget) { fallbackFire(); return; }
+    // Toggle: clicking the same action again cancels aim.
+    if (arenaTargeting && arenaTargeting.act === act && arenaTargeting.idx === idx) {
+      setArenaTargeting(null);
+      return;
+    }
+    setArenaCollapsed(false);
+    setArenaMoveMode(false);
+    setArenaTargeting({ act, idx, hover: null });
+  }, [btl, arenaTargeting, arenaActionMetaFor]);
+
+  const cancelArenaTargeting = useCallback(() => setArenaTargeting(null), []);
+
+  const confirmArenaTarget = useCallback((tile) => {
+    const t = arenaTargeting;
+    if (!t || !btl?.arena) { setArenaTargeting(null); return; }
+    // If a real enemy stands on the target tile, lift its id into the
+    // aim-override ref. bAct reads this ref synchronously at the top of
+    // its body so closures don't need to see the latest btlTarget state.
+    const enemiesById = btl.arena.units?.enemies || {};
+    let pickedEnemyId = null;
+    Object.entries(enemiesById).forEach(([id, p]) => {
+      if (!p || pickedEnemyId) return;
+      if (p.x === tile.x && p.y === tile.y) {
+        const live = (btl.en || []).find(e => String(e.id) === String(id) && (e.hp || 0) > 0);
+        if (live) pickedEnemyId = live.id;
+      }
+    });
+    if (pickedEnemyId != null) {
+      arenaAimedTargetRef.current = pickedEnemyId;
+      setBtlTarget(pickedEnemyId);
+    }
+    setArenaTargeting(null);
+    try { bAct(t.act, t.idx); } catch (e) { arenaAimedTargetRef.current = null; }
+  // bAct is captured by closure here; ref override + same-render call keep it correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arenaTargeting, btl]);
+
+  // Live area preview while hovering over valid target tiles in aim mode.
+  const previewArenaTarget = useCallback((tile) => {
+    setArenaTargeting(prev => prev ? { ...prev, hover: tile } : prev);
+  }, []);
+
+  // Pass 4 — clear targeting + aim-override ref on turn flips and on battle
+  // end / start. Without this, stale aim state can leak from the player's
+  // previous turn into the next one and (in rare cases) into the next battle.
+  useEffect(() => {
+    if (!btl || btl.turn !== "p") {
+      arenaAimedTargetRef.current = null;
+      setArenaTargeting(prev => prev ? null : prev);
+    }
+  }, [btl]);
+
+
   const bAct = useCallback((act, idx) => {
     if (!btl || btl.turn !== "p") return;
     let np = { ...pl }, en = btl.en.map(e => ({ ...e, efx: [...e.efx] }));
-    const st = effSt(np), tgt = (btlTarget ? en.find(e => e.id === btlTarget && e.hp > 0) : null) || en.find(e => e.hp > 0);
+    // Pass 4 — if an aim has just been confirmed, prefer that target over
+    // the stale btlTarget that the closure may still hold. Ref is consumed
+    // exactly once per bAct call.
+    const aimOverrideId = arenaAimedTargetRef.current;
+    if (aimOverrideId != null) arenaAimedTargetRef.current = null;
+    const effectiveTargetId = aimOverrideId != null ? aimOverrideId : btlTarget;
+    const st = effSt(np), tgt = (effectiveTargetId != null ? en.find(e => e.id === effectiveTargetId && e.hp > 0) : null) || en.find(e => e.hp > 0);
     if (!tgt) return;
     // ── v40 positional combat: range gate + distance damage modifier ──
     if (["strike","w2","skill","copy","ult"].includes(act) && tgt) {
@@ -8449,6 +8547,32 @@ const buildGroupedBattleLog = (entries) => {
               });
             } catch (e) { previewMove = 3; }
             const moveModeActive = !!(arenaMoveMode && isPT && !btl?.moved && !usedFallback && aUnits.player);
+            // Pass 4 — compute targeting visuals when an aim is active.
+            let targetingActive = false;
+            let validTargetKeys = null;
+            let affectedKeys = null;
+            let losBlockedKeys = null;
+            let selectedTargetKey = null;
+            let targetingHint = null;
+            if (arenaTargeting && isPT && aUnits.player) {
+              try {
+                const meta = arenaActionMetaFor(arenaTargeting.act, arenaTargeting.idx);
+                if (meta) {
+                  targetingActive = true;
+                  const valid = arenaGetValidTargets(aUnits.player, meta, arena) || [];
+                  validTargetKeys = new Set(valid.map(t => t.x + "," + t.y));
+                  const losBlocked = arenaGetLosBlocked(aUnits.player, meta, arena) || [];
+                  losBlockedKeys = new Set(losBlocked.map(t => t.x + "," + t.y));
+                  const aimAt = arenaTargeting.hover || (valid[0] ? { x: valid[0].x, y: valid[0].y } : aUnits.player);
+                  selectedTargetKey = arenaTargeting.hover ? (aimAt.x + "," + aimAt.y) : null;
+                  const affected = arenaGetAffected(aUnits.player, aimAt, meta, arena) || [];
+                  affectedKeys = new Set(affected.map(t => t.x + "," + t.y));
+                  const shapeLbl = arenaDescribeShape(meta);
+                  const tgtLbl = arenaDescribeTarget(meta);
+                  targetingHint = "Aim — " + shapeLbl + " · " + tgtLbl + (meta.requiresLineOfSight ? " · needs line of sight" : "");
+                }
+              } catch (e) { targetingActive = false; }
+            }
             return (
               <ArenaBoard
                 arena={arena}
@@ -8463,6 +8587,14 @@ const buildGroupedBattleLog = (entries) => {
                 moveMode={moveModeActive}
                 moveModeHint={moveModeActive ? ("Tactical Step — choose a tile within " + previewMove + ".") : null}
                 onTileSelect={moveModeActive ? bTacticalStep : null}
+                targetingMode={targetingActive}
+                validTargetKeys={validTargetKeys}
+                affectedKeys={affectedKeys}
+                losBlockedKeys={losBlockedKeys}
+                selectedTargetKey={selectedTargetKey}
+                onTargetSelect={targetingActive ? confirmArenaTarget : null}
+                onTargetHover={targetingActive ? previewArenaTarget : null}
+                targetingHint={targetingHint}
               />
             );
           } catch (err) {
@@ -8504,11 +8636,19 @@ const buildGroupedBattleLog = (entries) => {
                     const attackLines = attackSummaryLines(sk.el, 2);
                     const effectBits = battleEffectBundleText(sk);
                     return <div key={sk.id} className="battle-action-card-wrap">
-                      <button className="bt battle-action-btn" disabled={!isPT || pl.cmp < sk.mp || isSilenced} style={{ background: (ELC[sk.el]||T.ac) + "12", border: "1px solid " + (ELC[sk.el]||T.ac) + "33", color: T.tx, textAlign: "center", paddingLeft: "6px", paddingRight: "6px", paddingBottom: "6px", fontSize: 10, opacity: (pl.cmp >= sk.mp && !isSilenced) ? 1 : 0.3, width: "100%" }} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); return; } bAct("skill", i); }}>
-                        <div style={{ fontWeight: 700, fontSize: 10, marginBottom: 1 }}>{sk.n}</div>
+                      <button className="bt battle-action-btn" disabled={!isPT || pl.cmp < sk.mp || isSilenced} style={{ background: (ELC[sk.el]||T.ac) + "12", border: "1px solid " + (ELC[sk.el]||T.ac) + "33", color: T.tx, textAlign: "center", paddingLeft: "6px", paddingRight: "6px", paddingBottom: "6px", fontSize: 10, opacity: (pl.cmp >= sk.mp && !isSilenced) ? 1 : 0.3, width: "100%" }} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); return; } tryAimAction("skill", i, () => bAct("skill", i)); }}>
+                        <div style={{ fontWeight: 700, fontSize: 10, marginBottom: 1 }}>{sk.n}{arenaTargeting && arenaTargeting.act === "skill" && arenaTargeting.idx === i ? " 🎯" : ""}</div>
                         <div style={{ fontSize: 7, color: T.dm }}>{typeLabel} · <span style={{ color: ELC[sk.el]||"#999", fontWeight: 700 }}>{sk.el}</span></div>
                         <div style={{ fontSize: 7, color: T.tx }}>{sk.t === "damage" ? ("Dmg " + (estimateBattleSkillDamage(sk, pl, btl.en.find(e => e.hp > 0) || { def: 0 }, encounterProfile.playerDamage) || (sk.pow || 0))) : (sk.t === "heal" ? ("Power: " + (sk.pow || 0)) : (sk.t === "buff" || sk.t === "debuff" || sk.t === "copy" ? "Buff/Debuff" : "—"))} · Cost: {sk.mp} MP</div>
                         {effectBits && <div style={{ fontSize: 7, color: T.dm }}><span style={{ color: "#66bb6a", fontWeight: 700 }}>Additional Effect:</span> {effectBits}</div>}
+                        {(() => { const m = arenaActionMetaFor("skill", i); if (!m) return null; return (
+                          <div className="sv-arena-card-badges">
+                            <span className="sv-arena-card-badge is-range">R{m.range}</span>
+                            <span className="sv-arena-card-badge is-shape">{arenaDescribeShape(m)}</span>
+                            <span className="sv-arena-card-badge is-target">{arenaDescribeTarget(m)}</span>
+                            {m.requiresLineOfSight && <span className="sv-arena-card-badge is-los">LoS</span>}
+                          </div>
+                        ); })()}
                       </button>
                       <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); }}>?</button>
                     </div>;
@@ -8519,7 +8659,7 @@ const buildGroupedBattleLog = (entries) => {
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span></div>
                 <div className="battle-action-grid">
                   <div className="battle-action-card-wrap">
-                    <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } bAct("strike"); }}>
+                    <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } tryAimAction("strike", undefined, () => bAct("strike")); }}>
                       <div style={{ fontWeight: 700 }}>🗡️ {eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")}</div>
                       <div style={{ fontSize: 7, color: T.dm }}>{((eq.w1||eq.w2)?.isShield ? "Shield Utility" : "Attack")} · <span style={{ color: ELC[((eq.w1||eq.w2)?.el)||"Null"]||"#999", fontWeight: 700 }}>{((eq.w1||eq.w2)?.el)||"Null"}</span></div>
                       <div style={{ fontSize: 7, color: T.tx }}>{`${(eq.w1||eq.w2)?.isShield ? "Power: 0" : ("Dmg " + (estimateBattleWeaponDamage((eq.w1||eq.w2), pl, btl.en.find(e => e.hp > 0) || { def: 0 }, encounterProfile.playerDamage) ?? 0))} · Cost: 0 · Dur. ${eq.w1 ? ((eq.w1.dur ?? eq.w1.maxDur ?? "∞") + "/" + (eq.w1.maxDur ?? eq.w1.dur ?? "∞")) : (eq.w2 ? ((eq.w2.dur ?? eq.w2.maxDur ?? "∞") + "/" + (eq.w2.maxDur ?? eq.w2.dur ?? "∞")) : "∞")}`}</div>
@@ -8528,7 +8668,7 @@ const buildGroupedBattleLog = (entries) => {
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); }}>?</button>
                   </div>
                   {eq.w2 && <div className="battle-action-card-wrap">
-                    <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.w2.name, eq.w2.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.w2.name, eq.w2.el), fullscreen: true }); return; } bAct("w2"); }}>
+                    <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.w2.name, eq.w2.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.w2.name, eq.w2.el), fullscreen: true }); return; } tryAimAction("w2", undefined, () => bAct("w2")); }}>
                       <div style={{ fontWeight: 700 }}>⚔️ {eq.w2.name}</div>
                       <div style={{ fontSize: 7, color: T.dm }}>{eq.w2.isShield ? "Shield Utility" : "Attack"} · <span style={{ color: ELC[eq.w2.el || "Null"]||"#999", fontWeight: 700 }}>{eq.w2.el || "Null"}</span></div>
                       <div style={{ fontSize: 7, color: T.tx }}>{`${eq.w2.isShield ? "Power: 0" : ("Dmg " + (estimateBattleWeaponDamage(eq.w2, pl, btl.en.find(e => e.hp > 0) || { def: 0 }, encounterProfile.playerDamage) ?? 0))} · Cost: 0 · Dur. ${(eq.w2.dur ?? eq.w2.maxDur ?? "∞") + "/" + (eq.w2.maxDur ?? eq.w2.dur ?? "∞")}`}</div>
@@ -8552,6 +8692,7 @@ const buildGroupedBattleLog = (entries) => {
                       onClick={() => {
                         if (!isPT || btl?.moved) return;
                         setArenaCollapsed(false);
+                        setArenaTargeting(null);
                         setArenaMoveMode(v => !v);
                       }}
                     >
@@ -8572,7 +8713,7 @@ const buildGroupedBattleLog = (entries) => {
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Mend", "Null"), fullscreen: true }); }}>?</button>
                   </div>
                   {copied && copyN > 0 && <div className="battle-action-card-wrap">
-                    <button className="bt battle-action-btn" style={{ background: "#26c6da22", border: "1px solid #26c6da55", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT || pl.cmp < Math.max(0, Math.ceil(((copied.copiedBaseMp != null ? copied.copiedBaseMp : copied.mp || 0) * 0.5)))} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(copied.n, copied.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(copied.n, copied.el), fullscreen: true }); return; } bAct("copy"); }}>
+                    <button className="bt battle-action-btn" style={{ background: "#26c6da22", border: "1px solid #26c6da55", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT || pl.cmp < Math.max(0, Math.ceil(((copied.copiedBaseMp != null ? copied.copiedBaseMp : copied.mp || 0) * 0.5)))} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(copied.n, copied.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(copied.n, copied.el), fullscreen: true }); return; } tryAimAction("copy", undefined, () => bAct("copy")); }}>
                       <div style={{ fontWeight: 700 }}>🪞 {copied.n}</div>
                       <div style={{ fontSize: 7, color: T.dm }}>Copied Skill · <span style={{ color: ELC[copied.el || "Null"]||"#999", fontWeight: 700 }}>{copied.el || "Copied"}</span></div>
                       <div style={{ fontSize: 7, color: T.tx }}>{copied.t === "damage" ? ("Dmg " + (estimateBattleSkillDamage(copied, pl, btl.en.find(e => e.hp > 0) || { def: 0 }, encounterProfile.playerDamage) || (copied.pow || 0))) : ("Power: " + (copied.pow || 0))} · Cost: {Math.max(0, Math.ceil(((copied.copiedBaseMp != null ? copied.copiedBaseMp : copied.mp || 0) * 0.5)))} MP</div>
