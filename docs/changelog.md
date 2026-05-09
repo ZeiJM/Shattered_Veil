@@ -979,3 +979,15 @@ User-requested visual rework of the battle action cards (Veil Magic, Combat, Ite
 - **No regression risk to other tabs**: `.sv-tactical-grid` selector blocks the hide rules for the Tactical tab; aux-row buttons (Flee/End Turn) live outside `.battle-action-grid` and are untouched. `.battle-element-summary`, info-strip, hex-board CSS are all untouched.
 
 - **No JSX edits**: every existing `onClick`, `disabled`, `tryAimAction`, `bAct(...)` call site is unchanged. The matchup-popup-on-touch-top-18px hack each card already had still works (touch lands on the now-larger help chip).
+
+## v90.1 — Hex board backdrop transparency
+
+Quick polish so the painted `battle-arena.png` / `battle-rift.png` / `battle-forest.png` backdrop shows THROUGH the hex grid (was being fully obscured by the opaque navy gradient on `.sv-arena-grid-hex`). Replaced the opaque linear-gradient with a multi-layer transparent vignette:
+
+- Top: warm gold glow (16% rgba) fading to transparent at 55%.
+- Bottom: crimson glow (20% rgba) fading to transparent at 60%.
+- Center→edges: subtle dark vignette (transparent center → 55% void at edges).
+- Added gold border (1px rgba(212,173,64,0.22)), soft inset shadow, mild backdrop-filter blur(1px) for atmospheric depth.
+- `::before` overlay now layers a faint diagonal repeating-line texture (rgba(212,173,64,0.025)) at 45° for subtle "battle map" weave, in `mix-blend-mode: overlay`.
+
+Net effect: the painted top-down arena art is now visible through the hex grid, matching the NinjaRPG screenshot reference. Tile glow/hover/move/target rings still pop because each tile keeps its own backgrounds and box-shadow rings.
