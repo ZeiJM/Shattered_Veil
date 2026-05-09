@@ -379,3 +379,50 @@ Adds the arena targeting layer that finally connects the visual battlefield to c
 - Veilbreak field area control + Field Clash territory split.
 - Movement-affecting status effects (root, knockback) integrated into targeting.
 - Boss-specific arena mechanics (canyon edges, phase walls, bridges).
+
+## v79 — Big Arena Pass 6 (terrain bonuses go live)
+
+Pass 6 is the first round where rare terrain tiles **actually do something** in combat. All bonuses are deliberately small (5–10%) and additive on top of the existing damage/heal flow — nothing in the base damage math, save shape, character creation, world map, towns, succession, chat, or backend changed.
+
+### New pure module
+
+- `src/battle/arena/arenaTerrain.js` — caster-side terrain bonus catalogue + helpers. Pure data, no React. Each entry carries a flavor name (Ember Vein, Verdant Pulse, Storm Sigil, …), a tagline, log-flavor + log-result lines, the trigger gate, and a clamp-protected bonus value. Helpers: `getTerrainKeyAt`, `getTerrainBonusForUnit`, `getActiveTerrainBonusesFor`, `describeActionFromSkill/Strike`, `applyTerrainBonusPreview`, `applyTerrainBonusToAction`, `clampBonusValue`, `describeTerrainBonus`.
+
+### Bonus catalogue (all caster-side this pass)
+
+- **Ember Vein** (scorched) — Fire skills +8% damage.
+- **Verdant Pulse** (forest) — Heal/support skills +8% healing.
+- **Stillwater Mirror** (water) — Lightning skills +6% damage.
+- **Runed Flagstone** (stone) — Earth/Metal skills +6% damage.
+- **Moonlit Crest** (highGround) — Ranged (range ≥ 4) skills +5% damage.
+- **Broken Veil Font** (brokenVeil) — Veil Magic chain +1 step on cast (capped at full chain).
+- **Hallowed Ring** (hallowed) — Heal/support skills +8% healing.
+- **Shadowed Seal** (shadowed) — Dark/Void/Curse skills +8% damage.
+- **Storm Sigil** (stormcharged) — Lightning/Sound skills +6% crit chance (independent roll, stacks softly with luck crit).
+- **Bloodstone Scar** (bloodstone) — Physical strikes +8% damage but caster pays 2 HP (clamped — never kills self).
+- **Gravity Well** (gravityWell) — tooltip-only this pass; movement reluctance already enforced upstream.
+
+### Wired into `bAct`
+
+- Terrain key for the caster's tile is read once per action, with a `_terrainBonusLogged` guard so AoE skills only log the trigger flavor + mechanical line once.
+- Sites touched: weapon strike (after luck crit), skill damage `base` (post crit roll), skill heal `h` (post devotion), Mend's regen-per-turn `regenEf.v`, and the Veilbreak chain progress block (Broken Veil Font extra step).
+- All bonus values pass through `clampBonusValue` (per-type clamps: dmg/heal 0.85–1.20, crit add ≤ 12%, veil extra 0–1, hp cost 0–8) so future data tweaks can't accidentally break combat.
+- Defeated/missing units, missing arena state, and missing player position all early-out cleanly.
+
+### Visuals & readability
+
+- **Action-card hint** — Veil Magic skill cards now show a gold "✦ <flavor>" badge when the player's current tile would buff that skill. Fully guarded — no badge if no arena, no terrain, or no match.
+- **Tooltip polish** — `ArenaBoard` tooltip drops the "Future bonus:" prefix (bonuses are real now). Each rare-tile `bonusHint` in `arenaMaps.js` now reads as a self-contained line: flavor name + concrete effect.
+- **CSS** — new `.sv-arena-card-badge.is-terrain` (gold pulse), promoted `.sv-arena-tooltip-bonus` (gold left-rule), and `.sv-arena-tile-rare-bonus::after` glow hook for tiles with implemented bonuses.
+
+### Future work (queued, not built)
+
+- Enemy AI seeking terrain advantage tiles.
+- Boss-specific arenas with scripted rare tiles.
+- Veilbreak ult activation creating temporary terrain zones.
+- Field Clash splitting arena terrain by ownership.
+- Full class-affinity matrix per class (currently coarse buckets).
+- Element-reaction matrix (Fire+Water synergies, etc.).
+- Status-effect interactions on rare tiles (e.g. Bloodstone amplifies Bleed).
+- Destructible-object → terrain transitions (e.g. shattered Pillar leaves Bloodstone).
+- Codex / tutorial page documenting all terrain bonuses.

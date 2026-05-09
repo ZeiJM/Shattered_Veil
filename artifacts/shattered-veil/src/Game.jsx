@@ -12,6 +12,13 @@ import {
   describeShape as arenaDescribeShape,
   describeTarget as arenaDescribeTarget,
 } from './battle/arena/arenaTargeting.js';
+import {
+  getTerrainKeyAt as arenaGetTerrainKeyAt,
+  getTerrainBonusForUnit as arenaGetTerrainBonusForUnit,
+  describeActionFromSkill as arenaActionFromSkill,
+  describeActionFromStrike as arenaActionFromStrike,
+  clampBonusValue as arenaClampBonusValue,
+} from './battle/arena/arenaTerrain.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -4887,6 +4894,35 @@ function Game() {
       else if (_r >= 4 && _d >= 3) { _distMult = 1.12; lg.push("🎯 Long-shot +12%"); }
       encounterProfile.playerDamage = encounterProfile.playerDamage * _distMult;
     }
+    // ── Pass 6 — terrain bonus context (caster-side only) ──
+    // Look up the tile under the player and prepare a single-trigger
+    // helper. Bonuses only fire for matching action types and are guarded
+    // against double-logging when AoE skills hit multiple targets.
+    const _arenaState = btl && btl.arena ? btl.arena : null;
+    const _arenaPlayerPos = _arenaState && _arenaState.units ? _arenaState.units.player : null;
+    const _playerTerrainKey = _arenaPlayerPos
+      ? arenaGetTerrainKeyAt(_arenaState, _arenaPlayerPos.x, _arenaPlayerPos.y)
+      : null;
+    let _terrainBonusLogged = false;
+    const consumeTerrainBonus = (bonusDef) => {
+      if (!bonusDef || _terrainBonusLogged) return;
+      _terrainBonusLogged = true;
+      try {
+        const who = np.nm || np.name || "You";
+        if (typeof bonusDef.logFlavor === "function") {
+          const flavor = bonusDef.logFlavor(who);
+          if (flavor) lg.push(flavor);
+        }
+        if (bonusDef.logResult) lg.push("✦ Terrain — " + bonusDef.logResult);
+      } catch (e) { /* never let log helpers crash combat */ }
+    };
+    const getStrikeTerrainBonus = (weapon) => _playerTerrainKey
+      ? arenaGetTerrainBonusForUnit(np, _playerTerrainKey, arenaActionFromStrike(weapon))
+      : null;
+    const getSkillTerrainBonus = (sk, opts) => _playerTerrainKey
+      ? arenaGetTerrainBonusForUnit(np, _playerTerrainKey, arenaActionFromSkill(sk, opts || {}))
+      : null;
+
     let nextInteractionState = { ...(btl.interactionState || {}) };
     if (!Array.isArray(nextInteractionState.freezeAppliedIds)) nextInteractionState.freezeAppliedIds = [];
     if (!Array.isArray(nextInteractionState.usedElements)) nextInteractionState.usedElements = [];
@@ -4985,6 +5021,21 @@ function Game() {
       const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
       const isLuckCrit = !isShieldWeapon && Math.random() < luckCritChance;
       if (isLuckCrit) { const critMult = 1.5 + armorCritDmgBoost; d = Math.floor(d * critMult); logInfo("💥 Critical hit! ×" + critMult.toFixed(2)); try { musicRef.current.playSfx("crit"); } catch {} }
+      // Pass 6 — terrain bonus on weapon strike (e.g. Bloodstone Scar).
+      if (!isShieldWeapon) {
+        const _strikeBonus = getStrikeTerrainBonus(w);
+        if (_strikeBonus) {
+          if (_strikeBonus.bonusType === "dmgMult") {
+            const _v = arenaClampBonusValue(_strikeBonus.bonusType, _strikeBonus.bonusValue);
+            d = Math.max(1, Math.floor(d * _v));
+          }
+          if (_playerTerrainKey === "bloodstone") {
+            // Bloodstone risk: caster pays 2 HP, never killing self.
+            np.chp = Math.max(1, (np.chp || 0) - 2);
+          }
+          consumeTerrainBonus(_strikeBonus);
+        }
+      }
       const kagamiCanAttune = !!(w && pl.cid === "shouei" && /kagami/i.test(w.name||"") && tgt.el && !(np.kagamiAttunedEnemyIds||[]).includes(tgt.id));
       let totalDamage = 0;
       for (let hi = 0; hi < hits; hi++) {
@@ -5114,6 +5165,16 @@ function Game() {
       nextInteractionState.healUses = (nextInteractionState.healUses || 0) + 1;
       trackSkillName("Mend");
       const regenEf = { ...FX("regen"), tl: 3, v: Math.floor(6 + st.mag * 0.15) };
+      // Pass 6 — terrain heal bonus also boosts Mend's regen-per-turn.
+      {
+        const _mendBonus = _playerTerrainKey
+          ? arenaGetTerrainBonusForUnit(np, _playerTerrainKey, { kind: "heal", el: "Null", skillType: "heal", range: 1 })
+          : null;
+        if (_mendBonus && _mendBonus.bonusType === "healMult") {
+          regenEf.v = Math.max(1, Math.floor(regenEf.v * arenaClampBonusValue(_mendBonus.bonusType, _mendBonus.bonusValue)));
+          consumeTerrainBonus(_mendBonus);
+        }
+      }
       np.efx = [...(np.efx || []), regenEf];
       if (hasSpecificAssignedInteraction("devotion") && !nextInteractionState.devotionUnlocked && (nextInteractionState.healUses || 0) >= 3) {
         nextInteractionState.devotionUnlocked = true;
@@ -5177,6 +5238,25 @@ function Game() {
         const luckCritChance = Math.min(0.25, (st.lck || 0) * 0.012);
         const skillIsCrit = Math.random() < luckCritChance;
         if (skillIsCrit) { const critMult = 1.5 + armorCritDmgBoost; base *= critMult; logInfo("💥 Critical hit! ×" + critMult.toFixed(2)); try { musicRef.current.playSfx("crit"); } catch {} }
+        // Pass 6 — terrain damage bonus for skills (Ember Vein, Stillwater Mirror, Storm Sigil, etc.).
+        {
+          const _skillBonus = getSkillTerrainBonus(sk, { range: actionRange("skill", idx) });
+          if (_skillBonus) {
+            if (_skillBonus.bonusType === "dmgMult") {
+              base *= arenaClampBonusValue(_skillBonus.bonusType, _skillBonus.bonusValue);
+              consumeTerrainBonus(_skillBonus);
+            } else if (_skillBonus.bonusType === "critAdd" && !skillIsCrit) {
+              const _add = arenaClampBonusValue(_skillBonus.bonusType, _skillBonus.bonusValue);
+              if (Math.random() < _add) {
+                const critMult = 1.5 + armorCritDmgBoost;
+                base *= critMult;
+                logInfo("⚡ Terrain critical! ×" + critMult.toFixed(2));
+                try { musicRef.current.playSfx("crit"); } catch {}
+              }
+              consumeTerrainBonus(_skillBonus);
+            }
+          }
+        }
         const targets = sk.aoe ? en.filter(e => e.hp > 0) : [tgt];
         const levelScale = skillLevelScale(sk);
         const statusChance = skillEffectChance(sk);
@@ -5214,6 +5294,14 @@ function Game() {
         if (nextInteractionState.devotionUnlocked || hasSpecificAssignedInteraction("devotion") && (nextInteractionState.healUses || 0) >= 3) {
           nextInteractionState.devotionUnlocked = true;
           h = Math.floor(h * 1.10);
+        }
+        // Pass 6 — terrain heal bonus (Verdant Pulse, Hallowed Ring).
+        {
+          const _healBonus = getSkillTerrainBonus(sk);
+          if (_healBonus && _healBonus.bonusType === "healMult") {
+            h = Math.max(1, Math.floor(h * arenaClampBonusValue(_healBonus.bonusType, _healBonus.bonusValue)));
+            consumeTerrainBonus(_healBonus);
+          }
         }
         np.chp = Math.min(st.hp, np.chp + h);
         if (hasSpecificAssignedInteraction("overheal_shield") && wasFullBeforeHeal) {
@@ -5415,6 +5503,18 @@ function Game() {
       } else {
         nextProg = lastAction === np.ult.combo[0] ? 1 : 0;
         // No log message - chain highlighting handles the visual feedback
+      }
+      // Pass 6 — Broken Veil Font grants an extra chain step on Veil Magic casts.
+      if (act === "skill" && _playerTerrainKey && nextProg < np.ult.chain) {
+        const _veilBonus = arenaGetTerrainBonusForUnit(np, _playerTerrainKey, { kind: "skill", el: "Null", skillType: "veil", range: 1 });
+        if (_veilBonus && _veilBonus.bonusType === "veilExtra") {
+          const _extra = arenaClampBonusValue(_veilBonus.bonusType, _veilBonus.bonusValue);
+          if (_extra > 0) {
+            nextProg = Math.min(np.ult.chain, nextProg + _extra);
+            if (nextProg >= np.ult.chain) { np.ult = { ...np.ult, ready: true }; lg.push("Event: Veil Break — " + np.ult.name + " is charged and your Motto is ready to be spoken."); lg.push("🌟 VEIL BREAK CHARGED!"); }
+            consumeTerrainBonus(_veilBonus);
+          }
+        }
       }
     }
 
@@ -8641,12 +8741,26 @@ const buildGroupedBattleLog = (entries) => {
                         <div style={{ fontSize: 7, color: T.dm }}>{typeLabel} · <span style={{ color: ELC[sk.el]||"#999", fontWeight: 700 }}>{sk.el}</span></div>
                         <div style={{ fontSize: 7, color: T.tx }}>{sk.t === "damage" ? ("Dmg " + (estimateBattleSkillDamage(sk, pl, btl.en.find(e => e.hp > 0) || { def: 0 }, encounterProfile.playerDamage) || (sk.pow || 0))) : (sk.t === "heal" ? ("Power: " + (sk.pow || 0)) : (sk.t === "buff" || sk.t === "debuff" || sk.t === "copy" ? "Buff/Debuff" : "—"))} · Cost: {sk.mp} MP</div>
                         {effectBits && <div style={{ fontSize: 7, color: T.dm }}><span style={{ color: "#66bb6a", fontWeight: 700 }}>Additional Effect:</span> {effectBits}</div>}
-                        {(() => { const m = arenaActionMetaFor("skill", i); if (!m) return null; return (
+                        {(() => { const m = arenaActionMetaFor("skill", i); if (!m) return null;
+                          // Pass 6 — show a terrain bonus hint when the player's tile would buff this skill.
+                          let terrainBadge = null;
+                          try {
+                            const _ap = btl?.arena?.units?.player;
+                            if (_ap) {
+                              const _tk = arenaGetTerrainKeyAt(btl.arena, _ap.x, _ap.y);
+                              if (_tk && _tk !== "normal") {
+                                const _b = arenaGetTerrainBonusForUnit(pl, _tk, arenaActionFromSkill(sk, { range: m.range }));
+                                if (_b) terrainBadge = <span className="sv-arena-card-badge is-terrain" title={_b.flavor + " — " + (_b.tagline || "")}>✦ {_b.flavor}</span>;
+                              }
+                            }
+                          } catch (e) { terrainBadge = null; }
+                          return (
                           <div className="sv-arena-card-badges">
                             <span className="sv-arena-card-badge is-range">R{m.range}</span>
                             <span className="sv-arena-card-badge is-shape">{arenaDescribeShape(m)}</span>
                             <span className="sv-arena-card-badge is-target">{arenaDescribeTarget(m)}</span>
                             {m.requiresLineOfSight && <span className="sv-arena-card-badge is-los">LoS</span>}
+                            {terrainBadge}
                           </div>
                         ); })()}
                       </button>

@@ -238,7 +238,7 @@ export default function ArenaBoard({
                   {hoverIsField && <span className="sv-arena-tooltip-pill is-field">in Veilbreak field</span>}
                 </div>
                 {hoverTerrain?.ds && <div className="sv-arena-tooltip-line">{hoverTerrain.ds}</div>}
-                {hoverTerrain?.bonusHint && <div className="sv-arena-tooltip-bonus">Future bonus: {hoverTerrain.bonusHint}</div>}
+                {hoverTerrain?.bonusHint && <div className="sv-arena-tooltip-bonus">{hoverTerrain.bonusHint}</div>}
                 {hoverObjects.map(o => (
                   <div key={o.id} className="sv-arena-tooltip-line">
                     <b>{o.def?.nm}</b> — HP {o.hp}{o.def?.blocksMovement ? " · blocks movement" : ""}{o.def?.blocksLineOfSight ? " · blocks sight" : ""}.
