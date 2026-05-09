@@ -8697,7 +8697,7 @@ const buildGroupedBattleLog = (entries) => {
       </div>}
       {sub === "manual" && <div style={{ display: "grid", gap: 6, maxHeight: "58vh", overflowY: "auto", paddingRight: 2 }}>
         <div className="sb-panel">
-          <div className="sb-title">The Veil, the Expansions, and the End of Time</div>
+          <div className="sb-title">The Veil, the Unfolded Territories, and the End of Time</div>
           <div className="sb-kv sb-muted">Reality has a membrane. The covenants call it the Veil — a thin layer of will and meaning resting between the world humans walk and the silent, hostile geometry beneath it. Trained sorcerers can briefly unfold their own territory through the Veil and impose its rules on whoever stands inside. Most cannot. The unstable few who can, but who cannot fully close their domain again, become the figures the archives call Fractured. And somewhere beneath all of it, the Dream Devourer is pressing upward, eating memory and time as it climbs.</div>
         </div>
         <div className="sb-grid">
@@ -8716,7 +8716,7 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">What Kind of Game This Is</div>
-          <div className="sb-kv sb-muted">Shattered Veil is a fantasy lineage-RPG. You explore a living world, gather equipment and resources, fight with layered tactical choices, age across a short but meaningful lifespan, and eventually pass your legacy to an heir. A single hero matters. A bloodline matters more.</div>
+          <div className="sb-kv sb-muted">Shattered Veil is a fantasy lineage-RPG. You explore a living world, gather equipment and resources, fight on a hex arena with layered tactical choices, and — when you choose to bond a companion — eventually pass your legacy to an heir. A single hero matters. A bloodline matters more.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
@@ -8744,12 +8744,12 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">Combat at a Glance</div>
-          <div className="sb-kv sb-muted">Combat is built around tempo, pressure, and layered utility. Raw damage matters, but so do control effects, guards, heals, item timing, and the exact moment you cash in a Veilbreak. The system is meant to feel readable enough for any player to understand while still rewarding smarter sequencing.</div>
+          <div className="sb-kv sb-muted">Combat plays out on a hex arena. Each unit has a portrait, a position, and a movement budget. Range and area shapes are previewed before you commit. Raw damage matters, but so do positioning, control effects, guards, heals, terrain, fields, and the exact moment you cash in a Veilbreak. The system is meant to feel readable enough for any player to grasp while rewarding smarter sequencing.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
             <div className="sb-title">Battle Options</div>
-            <div className="sb-kv sb-muted">• Veil Magic: your primary tactical toolkit.<br/>• Basic Actions: strike, guard, mend, copied skill, and on-hand gear.<br/>• Battle Items: fast support, cleansing, burst utility, control tools.<br/>• Auxiliary Actions: swap and management actions when the moment calls for it.<br/>• Veilbreak: your signature climax, charged by exact chain inputs.</div>
+            <div className="sb-kv sb-muted">• <b>Combat</b>: Steady Strike (free, ATK×0.6), Flurry Strike (free, 2–6 quick hits at ATK×0.3 each), Guard, copied skill, and on-hand gear.<br/>• <b>Veil Magic</b>: your class spell toolkit — damage, control, support, debuffs.<br/>• <b>Tactical</b>: Veil Anchor, Field Sever, Brace, Overchannel I/II/III, Focus Breath. Field-management and damage-amplifying setup actions.<br/>• <b>Items</b>: equipped consumables — fast support, cleansing, control.<br/>• <b>Veilbreak</b>: your signature climax, charged when its requirements are met (in any order).<br/>• <b>Veilflare Impact</b>: a 15% per-action chance on Steady/Flurry to detonate bonus damage and gain Veilflare Focus (3 turns: +crit, +Field Attunement, +20% next Veil Magic or Veilbreak).</div>
           </div>
           <div className="sb-panel">
             <div className="sb-title">Why Non-Damage Actions Matter</div>
@@ -8762,7 +8762,7 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">Veil Magic and Veilbreaks</div>
-          <div className="sb-kv sb-muted">Veil Magic defines your class rhythm. Damage, healing, status, control, and setup are all balanced against effect burden. Veilbreaks are stronger, rarer declarations of intent. They are charged by exact chain orders, then released with your Motto spoken as the identity of your line. Inheritance can eventually widen your Veilbreak choices beyond your class baseline.</div>
+          <div className="sb-kv sb-muted">Veil Magic defines your class rhythm. Damage, healing, status, control, and setup are all balanced against effect burden. Veilbreaks are stronger, rarer declarations of intent. Their requirements (Veil Magic uses, item plays, guards, copied skills, tactical actions, etc.) may be completed in any order — the chain primes when every requirement is satisfied, and is released with your Motto spoken as the identity of your line. Each Veilbreak also unfolds a temporary Field that pressures the enemy until it expires, and may Clash with an enemy field when both are active. Inheritance can eventually widen your Veilbreak choices beyond your class baseline.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
@@ -9510,7 +9510,7 @@ const buildGroupedBattleLog = (entries) => {
                 <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "" : "Await enemy actions."}</span>
               </div>
               {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [
-                { id: "combat", ic: "⚔",   nm: "Combat Actions", ct: null },
+                { id: "combat", ic: "⚔",   nm: "Combat", ct: null },
                 { id: "veil",   ic: "✦",   nm: "Veil Magic",     ct: null },
                 { id: "tactical", ic: "⚓", nm: "Tactical", ct: ((btl?.tacticalBuffs?.anchorBonus || 0) > 0 || (btl?.tacticalBuffs?.overchannelMult || 1) > 1 || (btl?.tacticalBuffs?.braceTurns || 0) > 0) ? "•" : null },
                 ...(hasItems ? [{ id: "items", ic: "🧪", nm: "Items", ct: (eq.c1 ? 1 : 0) + (eq.c2 ? 1 : 0) }] : []),
@@ -9570,7 +9570,7 @@ const buildGroupedBattleLog = (entries) => {
                 </div>
               </div>
               <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "combat") === "combat" ? "block" : "none" }}>
-                <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span></div>
+                <div className="battle-section-title"><span style={{ color: T.gd }}>Combat</span></div>
                 <div className="battle-action-grid">
                   <div className="battle-action-card-wrap">
                     <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } tryAimAction("strike", undefined, () => bAct("strike")); }}>

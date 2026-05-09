@@ -910,3 +910,29 @@ Three coupled changes. Strictly additive — combat engine, hex grid, towns, cla
   - Stats tab "Age Curve" panel replaced with a Heir Prestige timer panel (shows `X/30 days` + declines used, or "Unbonded — your career has no fixed end" when single).
   - Manual entries for Bloodmarks (now lists all 20) and Aging/Death (rewritten to describe the marriage-driven succession) updated.
 - **No CSS changes** — all updates inline / use existing classes.
+
+## v88 — Pass 14: Final Battle Integration, Manual Updates, Mobile QA, Safe Bug Fixes
+
+Final integration / QA pass for the entire battle rework (Passes 1–13). Strictly additive — no engine changes, no save-shape changes, no rebalance. Three architect-flagged bugs fixed; manual sections rewritten where they contradicted shipped systems; mobile CSS safeguards added; consolidated QA report written.
+
+- **Forced succession is now truly forced** — when `startSuccession` is called with `reason === "heir_prestige"` and `pl.heirDeclines >= 2` (or for `"age"` / `"death"` reasons), the legacy-transition popup omits the "Return to world" escape so the line cannot be deferred indefinitely. Popup body adds a closing line ("The covenants will not allow further delay — the line passes now.") for context.
+- **Heir-offer popup hardened** — the v87 effect now also gates on `scr === "battle"`, `btl`, and any active popup. The offer cannot interrupt mid-battle or clobber an unrelated dialog; it simply re-checks on the next tick.
+- **Save migration for pre-v87 bonded saves** — old saves with `spouse` set but no `marriedAt`/`heirDeclines` would otherwise never trigger the heir timer. The effect now seeds `{ marriedAt: timerNow, heirDeclines: 0 }` once when it first sees that shape (non-destructive, skipped if either field is already present). The 30-day clock starts from the seeding point — no retroactive forced succession.
+- **Manual rewrites** (`Game.jsx`, `sub === "manual"` block):
+  - "The Veil, the **Expansions**, and the End of Time" → "The Veil, the **Unfolded Territories**, and the End of Time" (kills the old Veil-Expansion echo).
+  - "What Kind of Game This Is" — removed "age across a short but meaningful lifespan"; replaced with bond → heir framing.
+  - "Combat at a Glance" — rewritten to describe the hex arena, positioning, and field play.
+  - "Battle Options" — refreshed bullet list now mentions Combat (Steady/Flurry/Guard), Veil Magic, Tactical (Veil Anchor / Field Sever / Brace / Overchannel I-III / Focus Breath), Items, Veilbreak (unordered requirements), and Veilflare Impact.
+  - "Veil Magic and Veilbreaks" — old "exact chain orders" text replaced with the unordered-requirement explanation, plus the field-on-cast and Field Clash flow.
+- **Battle tab label** — `"Combat Actions"` shortened to `"Combat"` for visual parity with `Veil Magic` / `Tactical` / `Items`. The `ct` count badge is `null` for Combat & Veil Magic (no number); Tactical shows a `•` indicator only when buffs are active; Items shows the equipped-consumable count. No pointless numbers anywhere.
+- **Mobile / responsive CSS safeguards** (`game.css`, additive block scoped to `.battle-bg`):
+  - `.battle-actions-card` — `max-height: 52vh; overflow-y: auto` (46vh ≤720px).
+  - `.battle-log` — `max-height: 38vh; overflow-y: auto` (30vh ≤720px).
+  - `.sv-combat-profile-strip` — wraps cleanly on narrow viewports.
+  - `@media (max-width: 720px)` — action grid `minmax(132px, 1fr)`; smaller tab/profile fonts; tactile tab `min-height: 30px`.
+  - `@media (max-width: 480px)` — action grid `minmax(112px, 1fr)`; tab labels hide (icons only); tab `min-width: 36px`.
+  - Popup `max-width: min(96vw, 560px)` so dialogs never overflow.
+- **`docs/BATTLE_REWORK_QA_REPORT.md`** — new consolidated audit covering Passes 1–14: the per-system status table, what was tested, what could not be tested, known issues, recommended Pass 15 micro-cleanup, and notes for future multiplayer-readiness.
+- **Three known orphans documented**: `ageCurvePopupText`, `ageGraphRows`, and the internal name `veilExpansionDetailText` are deliberately left in place to keep the diff surgical. Each has a player-facing surface that is already correct.
+
+No combat-engine, hex-grid, classes/skills, towns, Veilcourt, or save-shape changes.

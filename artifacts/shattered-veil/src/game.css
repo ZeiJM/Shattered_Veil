@@ -7225,3 +7225,77 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 .battle-bg .battle-lower-grid { gap: 6px !important; }
 .battle-bg .battle-actions-card { max-height: 52vh; overflow-y: auto !important; padding: 8px !important; }
 .battle-bg .battle-log-card { max-height: 52vh; overflow-y: auto; }
+
+/* ============================================================
+ * Pass 14 (v88) — Mobile + readability safeguards.
+ * Additive only. Scoped to .battle-bg so the parchment screens
+ * are untouched. Targets card spacing, scroll containment, and
+ * tap-target size on narrow viewports.
+ * ============================================================ */
+
+.battle-bg .battle-actions-card {
+  /* keep action grid scrollable instead of overflowing on short viewports */
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.battle-bg .battle-log {
+  /* battle log should always scroll, never push other panels off-screen */
+  max-height: 38vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.battle-bg .battle-log-row { line-height: 1.45; }
+.battle-bg .battle-log-row + .battle-log-row { margin-top: 2px; }
+
+.battle-bg .sv-combat-profile-strip {
+  /* combat profile pills wrap cleanly instead of overflowing on narrow viewports */
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.battle-bg .sv-combat-profile-pill {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .battle-bg .battle-actions-card {
+    max-height: 46vh;
+    padding: 6px;
+  }
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .battle-bg .battle-log {
+    max-height: 30vh;
+    font-size: 10px;
+  }
+  .battle-bg .battle-tab.v66 {
+    /* keep tap targets reasonable on phones */
+    min-height: 30px;
+    padding: 5px 6px;
+  }
+  .battle-bg .battle-tab-nm { font-size: 9.5px; }
+  .battle-bg .sv-combat-profile-strip { font-size: 9px; }
+  .battle-bg .sv-combat-profile-pill { padding: 2px 6px; }
+}
+
+@media (max-width: 480px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)) !important;
+  }
+  .battle-bg .battle-tab.v66 .battle-tab-nm {
+    /* on the smallest screens, icons-only tabs save horizontal space */
+    display: none;
+  }
+  .battle-bg .battle-tab.v66 { padding: 6px 4px; min-width: 36px; }
+}
+
+/* ensure tooltips/popups never overflow narrow viewports */
+.battle-bg .popup, .battle-bg .popup-inner {
+  max-width: min(96vw, 560px);
+  word-wrap: break-word;
+}
