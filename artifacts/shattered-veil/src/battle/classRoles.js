@@ -50,11 +50,11 @@ export const ROLE_META = {
 // the skill itself does not declare a range. Skill type (heal/buff/aoe) and
 // element can shift this — see inferSkillRange below.
 export const RANGE_TIER = {
-  melee:    { min: 1, max: 2, label: "Melee" },
-  short:    { min: 2, max: 3, label: "Short" },
-  medium:   { min: 3, max: 5, label: "Medium" },
-  long:     { min: 5, max: 7, label: "Long" },
-  global:   { min: 99, max: 99, label: "Global" }, // Veilbreak / ult only
+  melee:    { min: 1, max: 2, label: "Close Range" },
+  short:    { min: 2, max: 3, label: "Close Range" },
+  medium:   { min: 3, max: 5, label: "Mid Range" },
+  long:     { min: 5, max: 7, label: "Long Range" },
+  global:   { min: 99, max: 99, label: "Arena-Wide" }, // Veilbreak / ult only
 };
 
 // ---- Per-class identity table --------------------------------------------
@@ -414,16 +414,33 @@ export function stampSkillListCombatMeta(skills, classId) {
 }
 
 // Short human label for a skill range — used by skill cards/tooltips.
+// v94 — Standardized to Shattered Veil's player-facing range language:
+// Self · Close Range · Mid Range · Long Range · Arena-Wide.
 export function rangeLabel(skill) {
   if (!skill) return "";
   const r = Number.isFinite(skill.range) ? skill.range : null;
   if (r === null) return "";
   if (r === 0) return "Self";
-  if (r === 1) return "Melee";
-  if (r <= 3) return "Short " + r;
-  if (r <= 5) return "Med " + r;
-  if (r <= 7) return "Long " + r;
-  return "Global";
+  if (r <= 1) return "Close Range";
+  if (r <= 4) return "Mid Range";
+  if (r <= 7) return "Long Range";
+  return "Arena-Wide";
+}
+
+// v94 — Public display helper for any skill/action object. Mirrors
+// rangeLabel() but accepts a plain `range` number too. Use this in any
+// new UI surface so player-facing range tags stay consistent.
+export function getDisplayRangeTag(skillOrRange) {
+  if (skillOrRange == null) return "";
+  const r = typeof skillOrRange === "number"
+    ? skillOrRange
+    : (Number.isFinite(skillOrRange.range) ? skillOrRange.range : null);
+  if (r === null) return "";
+  if (r === 0) return "Self";
+  if (r <= 1) return "Close Range";
+  if (r <= 4) return "Mid Range";
+  if (r <= 7) return "Long Range";
+  return "Arena-Wide";
 }
 
 // Short human label for a shape — used by skill cards/tooltips.

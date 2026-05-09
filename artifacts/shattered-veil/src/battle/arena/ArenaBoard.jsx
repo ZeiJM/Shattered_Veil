@@ -95,12 +95,14 @@ export default function ArenaBoard({
     return m;
   }, [units]);
 
-  // Pass 13 — bigger hex tiles (was square 22-36px). Hex rendering uses
-  // odd-row offset + clip-path; tile size drives both width and height.
+  // v94 (Pass 20) — Square tactical tiles. The Pass 13 hex visual is
+  // disabled here in favor of a clean square grid — coords were already
+  // cartesian (movement, range, LoS, AoE), so this is a render-only
+  // change. Hex CSS is preserved at game.css L6981+ for fallback.
   const tileSize = isMobile
-    ? clamp(Math.floor(380 / arena.cols), 26, 38)
-    : clamp(Math.floor(820 / arena.cols), 42, 64);
-  const rowOverlap = Math.round(tileSize * 0.25); // Pass 15 — true honeycomb tessellation (was 0.18, looked staggered)
+    ? clamp(Math.floor(380 / arena.cols), 26, 40)
+    : clamp(Math.floor(820 / arena.cols), 44, 64);
+  const rowOverlap = 0; // square layout — no row tessellation overlap.
 
   const handleEnter = useCallback((x, y) => setHover({ x, y }), []);
   const handleLeave = useCallback(() => setHover(null), []);
@@ -142,7 +144,7 @@ export default function ArenaBoard({
             <div className="sv-arena-targeting-banner">{targetingHint}</div>
           )}
           <div
-            className={"sv-arena-grid sv-arena-grid-hex" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "") + (bgUrl ? " sv-arena-grid-has-bg" : "")}
+            className={"sv-arena-grid sv-arena-grid-sq" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "") + (bgUrl ? " sv-arena-grid-has-bg" : "")}
             style={{
               "--svh-tile": tileSize + "px",
               "--svh-offset": Math.round(tileSize * 0.5) + "px",

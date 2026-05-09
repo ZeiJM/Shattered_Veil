@@ -55,6 +55,7 @@ import {
   deriveSkillCombatMeta,
   rangeLabel as crRangeLabel,
   shapeLabel as crShapeLabel,
+  RANGE_TIER,
 } from './battle/classRoles.js';
 // Pass 12 — Enemy/Boss identity layer (intro + phase narration, boss
 // fields routed through Field Clash, per-boss arena preference).
@@ -5121,7 +5122,7 @@ function Game() {
       const _r = actionRange(act, idx);
       const _d = Math.abs((btl.plPos ?? 1) - (tgt.pos ?? 3));
       if (_r < _d && (act === "strike" || act === "w2" || act === "skill" || act === "steady" || act === "flurry")) {
-        setLog(l => [...l, "PLAYER|› Out of range — move closer or use a ranged ability."]);
+        setLog(l => [...l, "PLAYER|› Out of range — move closer or use a Long Range ability."]);
         return;
       }
     }
@@ -8186,7 +8187,7 @@ const buildGroupedBattleLog = (entries) => {
             </div>
             {_cr && _rm && <div className="sv-role-badge-row" style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 4 }}>
               <span className="sv-role-badge" title={_cr.roleSummary} style={{ background: _rm.color + "26", color: _rm.color, border: "1px solid " + _rm.color + "55" }}>{_rm.ic} {_rm.label}</span>
-              <span className="sv-role-range-pill" title={"Preferred range: " + _cr.rangeIdentity}>{_cr.rangeIdentity.toUpperCase()}</span>
+              <span className="sv-role-range-pill" title={"Preferred range: " + _cr.rangeIdentity}>{(RANGE_TIER[_cr.rangeIdentity]?.label || "Mid Range")}</span>
             </div>}
             <div style={{ fontSize: 9, color: "#cfd6ee", lineHeight: 1.4, marginBottom: 4 }}>{c.ds}</div>
             {_cr && <div style={{ fontSize: 9, color: "#bcc6e6", lineHeight: 1.45, marginBottom: 4, fontStyle: "italic" }}>{_cr.roleSummary}</div>}

@@ -1089,3 +1089,47 @@ Strict layout/responsiveness/usability pass. **No engine, balance, save shape, c
 - arenaEngine.js, arenaTargeting.js, veilbreakChain.js: untouched.
 - All combat helpers (`bAct`, `chooseEnemySkill`, `applyBossPhasePressure`, `vbGetAttunement`, etc.): untouched.
 - Save shape: unchanged. No new persisted fields.
+
+## v94 — World Map Polish + Square Tactical Arena + Command Dock + Range Tag Standardization
+
+Surgical UI rework pass. **Save shape unchanged. Combat math, Veilbreak, Field Clash, marriage/heirs, world-gen, chat all untouched.**
+
+### Range Tag Standardization (Section D)
+- `RANGE_TIER` labels rewritten in `battle/classRoles.js` — old "Melee/Short/Medium/Long/Global" → "Close Range / Close Range / Mid Range / Long Range / Arena-Wide". Internal keys (`melee/short/medium/long/global`) preserved so all callers in `inferSkillRange`, `stampSkillCombatMeta`, etc. keep working.
+- `rangeLabel(skill)` now returns: `Self` (r=0), `Close Range` (r≤1), `Mid Range` (r≤4), `Long Range` (r≤7), `Arena-Wide` (otherwise).
+- New `getDisplayRangeTag(skillOrRange)` helper exported for any new UI surface.
+- `Game.jsx` `sv-role-range-pill` (class pick card) now renders `RANGE_TIER[…].label` instead of upper-cased raw key.
+- Battle log "Out of range — use a ranged ability" fixed → "use a Long Range ability".
+
+### Square Tactical Arena (Section B)
+- `ArenaBoard.jsx` switched from `sv-arena-grid-hex` → `sv-arena-grid-sq`. `rowOverlap = 0` (no honeycomb tessellation). Mobile tile clamp bumped slightly (26→26-40, desktop 42-64 → 44-64) for cleaner readability.
+- Hex CSS at `game.css` L6981+ preserved unchanged for safe fallback.
+- Coords were already cartesian per Pass 13, so this is render-only — no movement, range, LoS, AoE, targeting, or unit-placement math touched.
+- New `.sv-arena-grid-sq` CSS block in `game.css`: clean square tiles (4px radius, framed), CSS-grid containment, tile state classes for `move-valid` / `target-valid` / `target-selected` / `area-preview` / `void` / `out-of-range` / `occupied` / `los-blocked`. Unit tokens are circular framed portraits with HP bar. Field overlays render as soft radial wash. Background art clipped properly inside arena frame. Mobile clamp `clamp(24px, 8.6vw, 36px)`.
+
+### Battle Command Dock Polish (Section C)
+- Existing `.battle-tabs.v66` (Combat / Veil Magic / Tactical / Items) styled as a proper command dock — gradient background, 44px tap targets, gold active state with glow + underline, count badges in top-right, hover lift. Mobile-tighter at ≤480px (40px height).
+- No JSX rewrite — tabs & action sheet structure already present.
+- Long-press action details (existing onTouchStart popup at L9622) untouched.
+
+### World Map (Section A — additive over v92/v93)
+- Mobile world ribbon further tightened: 32px buttons, 24px stat-pills, 4px gaps. Map appears even higher on the page on phones.
+- v93 long-press tile inspector + auto-center on mobile retained as-is.
+
+### Files modified
+- `artifacts/shattered-veil/src/battle/classRoles.js` (RANGE_TIER labels, rangeLabel rewrite, new getDisplayRangeTag export)
+- `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx` (hex → square modifier class, rowOverlap=0, tileSize floor bumped)
+- `artifacts/shattered-veil/src/Game.jsx` (RANGE_TIER import, range-pill label, log message)
+- `artifacts/shattered-veil/src/game.css` (large appended Pass 20 block: square arena, command dock, range chip wrap, ribbon tightening)
+- `docs/changelog.md` (this entry)
+
+### Validation
+- Workflow restarted clean. No console errors. Title screen renders.
+- Pre-existing TS7016 (Game.jsx has no .d.ts) unchanged from prior passes.
+- Architect/code-review pass: no severe issues. Confirmed (a) no remaining player-facing "Melee/Short/Med/Long/Global" range strings in UI surfaces, (b) hex CSS at L6981+ remains for safe fallback, (c) `!important` is appropriate to override pre-existing hex modifier specificity, (d) clamp() scaling keeps tiles inside narrow viewports.
+
+### Known gaps / not done in this pass
+- Did not refactor world map into discrete React components (`WorldTopRibbon`, `WorldMapViewport`, etc.) — Game.jsx is intentionally single-component per replit.md architecture decision; existing v92/v93 in-place compaction is sufficient.
+- Did not rebuild battle status header into a separate `BattleStatusHeader` component — same reason.
+- `arenaTargeting.js` internal "Global" string is purely a shape-key — never surfaced to player; left alone.
+- `replit.md` is >800 lines and starting to bloat — flag for user to decide on trim/reorg.
