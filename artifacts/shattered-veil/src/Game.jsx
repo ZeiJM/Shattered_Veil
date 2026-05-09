@@ -376,6 +376,10 @@ function FX(id) { return FXS.find(f => f.id === id); }
 // BLOODMARKS — generic ancestral lineages chosen at character creation.
 // v72: ancestral lineages give 2–3 balanced stat traits and NO passive special
 // effect. Class-innate bloodmarks (CLASS_INNATES) give 0 stats but a passive.
+// v87: pool expanded to 20 ancestral lineages — character creation samples 4 of
+// these per class+seed (see step 1). All 8 original ids preserved for save
+// compatibility. Some new lines carry mild tradeoffs (negative stat values)
+// to widen identity without changing the underlying stat-application loop.
 const BLOODMARKS = [
   { id:"veilvein",   nm:"Veil-Veined",  ic:"✦",  cl:"#c688ff", stat:{mag:3,mp:20},        ds:"An ancestral lineage carried in the marrow — your veins run a touch closer to the Veil, lending an arcane edge to whatever skill you bring." },
   { id:"stoneheart", nm:"Stoneheart",   ic:"🪨",  cl:"#9e8e78", stat:{def:3,hp:25},        ds:"A bloodline of mountain-keeps. Your bones set heavier than your kin's, and you weather what would buckle them." },
@@ -385,6 +389,18 @@ const BLOODMARKS = [
   { id:"voidtouched",nm:"Void-Touched", ic:"🌑",  cl:"#ce93d8", stat:{mag:3,lck:2,mp:15}, ds:"A rare ancestral imprint. Something on the far side of the Veil noticed your line once, and a thread of that silence has stayed in your eyes." },
   { id:"goldensoul", nm:"Golden-Soul",  ic:"✨",  cl:"#f2c45c", stat:{lck:3,hp:15,mp:10}, ds:"A charmed bloodline. Probability bends a little around your hands — coins land your way, doors stick on the right side." },
   { id:"tidesbrood", nm:"Tides-Brood",  ic:"🌊",  cl:"#4dd0e1", stat:{mp:25,def:1,spd:2}, ds:"A cyclical ancestry tuned to deep currents. Your reserves move with the pull of unseen tides." },
+  { id:"ironblooded",nm:"Iron-Blooded", ic:"⛓",  cl:"#a89978", stat:{atk:4,def:2,spd:-1}, ds:"A line of forge-keepers. Heavy hands, heavier bearing — what you swing lands, but the swing is never quick." },
+  { id:"wraithkin",  nm:"Wraith-Kin",   ic:"👻",  cl:"#9fb8d4", stat:{spd:4,lck:2,hp:-10}, ds:"An old, half-translucent ancestry. Your line learned to be elsewhere first; what's left of you is lighter for it." },
+  { id:"moonborn",   nm:"Moon-Born",    ic:"🌙",  cl:"#a3b4ff", stat:{mag:4,mp:25,def:-1}, ds:"A line birthed under high silver — the Veil's reflection, never its substance. Brilliant. Brittle." },
+  { id:"emberheart", nm:"Ember-Heart",  ic:"❤️‍🔥", cl:"#ff8a65", stat:{atk:3,hp:20,mag:1},  ds:"A coal-bright ancestry. The body burns warmer than other people's, and longer past the point a strike should have ended it." },
+  { id:"ashenlung",  nm:"Ashen-Lung",   ic:"🌫",  cl:"#bfb5a3", stat:{mp:30,mag:2,atk:-1}, ds:"A line whose breath was tempered in shrine-smoke. You hold more arcane current than your kin — but your blows carry less weight behind them." },
+  { id:"duskblooded",nm:"Dusk-Blooded", ic:"🜨",  cl:"#b39ddb", stat:{atk:2,mag:2,lck:2},  ds:"A perfectly balanced ancestry. Nothing exceptional, nothing wanting — the line that quietly outlasts every other." },
+  { id:"sageblooded",nm:"Sage-Blooded", ic:"📜",  cl:"#90caf9", stat:{mag:3,mp:20,lck:2},  ds:"An academic lineage. The library of every ancestor sits a half-thought behind your hands." },
+  { id:"wolfborn",   nm:"Wolf-Born",    ic:"🐺",  cl:"#9c9082", stat:{atk:4,spd:2,def:-1}, ds:"A line that ran in packs through colder centuries. You strike first, often, and at the cost of standing your ground." },
+  { id:"clayheart",  nm:"Clay-Heart",   ic:"🏺",  cl:"#b48457", stat:{def:5,hp:30,spd:-2}, ds:"A potter-line. The body is shaped slower, fired harder. Nothing breaks you cheaply, and nothing about you is quick." },
+  { id:"silverveined",nm:"Silver-Veined",ic:"💠", cl:"#cfd8dc", stat:{lck:4,mag:2,mp:15},  ds:"A rare ancestry traced to lost mints and dissolved noble houses. The luck of forgotten coins still moves in your veins." },
+  { id:"ravenkin",   nm:"Raven-Kin",    ic:"🪶",  cl:"#7e8aa3", stat:{spd:3,lck:3,mp:10},  ds:"A scavenger-line. Your blood inherited the cleverness of carrion-watchers — you read the field before the field knows you." },
+  { id:"boundless",  nm:"Boundless",    ic:"♾",  cl:"#e1bee7", stat:{hp:25,mp:25},        ds:"A diffuse, unfocused ancestry — no specialty, only reservoir. Your body and your reserves both run deeper than your kin's." },
 ];
 // PNG icon path for bloodmarks (filenames match bm.id)
 const BM_ICON_PATH = (id) => (import.meta.env.BASE_URL || "/") + "bm/" + id + ".png";
@@ -1594,12 +1610,17 @@ function renderMatchupInline(input, accent, variant) {
     </div>
   );
 }
+// v87: aging stat-drift removed. Phases retained as flavor-only chapter labels
+// (some legacy UI still reads `ageInfo.nm` for display); all stat multipliers
+// neutralized to 1.0 so projectedEffStatsFor leaves base stats untouched. Heir
+// succession is now driven by the marriage→heir prestige timer (see useEffect
+// below), not by reaching day 31.
 const AGE_PHASES = [
-  { key:"bloom", min:1, max:8, nm:"Early Bloom", ds:"Youthful vigor leans physical and swift.", mult:{ hp:1.03, mp:0.97, atk:1.12, def:1.03, spd:1.1, mag:0.93, lck:1.0 } },
-  { key:"prime", min:9, max:18, nm:"Prime", ds:"Body and magic settle into balance.", mult:{ hp:1.06, mp:1.04, atk:1.06, def:1.05, spd:1.04, mag:1.06, lck:1.03 } },
-  { key:"wisdom", min:19, max:24, nm:"Veil Wisdom", ds:"Strength softens while control and magic deepen.", mult:{ hp:1.0, mp:1.12, atk:0.98, def:1.03, spd:0.97, mag:1.16, lck:1.08 } },
-  { key:"elder", min:25, max:30, nm:"Elder Veil", ds:"Arcane insight peaks as the body begins to fade.", mult:{ hp:0.95, mp:1.2, atk:0.9, def:1.0, spd:0.9, mag:1.24, lck:1.12 } },
-  { key:"twilight", min:31, max:99, nm:"Twilight", ds:"A final day stands between legacy and silence.", mult:{ hp:0.9, mp:1.22, atk:0.86, def:0.96, spd:0.86, mag:1.28, lck:1.14 } },
+  { key:"bloom",    min:1,  max:8,  nm:"First Chapter",  ds:"The early road of a sorcerer's career.",      mult:{ hp:1, mp:1, atk:1, def:1, spd:1, mag:1, lck:1 } },
+  { key:"prime",    min:9,  max:18, nm:"Prime Chapter",  ds:"The years a covenant assesses you in.",       mult:{ hp:1, mp:1, atk:1, def:1, spd:1, mag:1, lck:1 } },
+  { key:"wisdom",   min:19, max:24, nm:"Veil Chapter",   ds:"The work that earns you grade and tomes.",    mult:{ hp:1, mp:1, atk:1, def:1, spd:1, mag:1, lck:1 } },
+  { key:"elder",    min:25, max:30, nm:"Elder Chapter",  ds:"The work that earns you a school of your own.",mult:{ hp:1, mp:1, atk:1, def:1, spd:1, mag:1, lck:1 } },
+  { key:"twilight", min:31, max:99, nm:"Long Chapter",   ds:"A working sorcerer's late career.",            mult:{ hp:1, mp:1, atk:1, def:1, spd:1, mag:1, lck:1 } },
 ];
 function ageProfile(day) {
   const d = Math.max(1, day || 1);
@@ -1922,6 +1943,12 @@ function projectedEffStatsFor(player, equipmentSet, dayValue) {
   if (player.bloodmark) {
     const bm = getBM(player.bloodmark);
     if (bm && bm.stat) Object.entries(bm.stat).forEach(([k,v]) => { if (s[k] != null) s[k] = Math.max(1, s[k] + v); });
+  } else {
+    // v87: Unbound Soul — hidden benefit for choosing no bloodmark at creation.
+    // No HUD tag; the trade is freedom from a fixed lineage in exchange for a
+    // small generalist stat seam and (in succession) a higher mutation chance.
+    if (s.lck != null) s.lck = Math.max(1, s.lck + 2);
+    if (s.mp  != null) s.mp  = Math.max(1, s.mp  + 8);
   }
   if (player.covenant) {
     const cv = COVENANTS.find(c => c.id === player.covenant);
@@ -3653,9 +3680,15 @@ function Game() {
     return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }, [timerNow]);
 
-  const ageDay = useMemo(() => Math.min(31, Math.floor(Math.max(0, timerNow - lifeStartTime) / 86400000) + 1), [timerNow, lifeStartTime]);
+  // v87: ageDay is no longer capped at 31 (no forced succession) and no longer
+  // drives stat drift — kept for save/world systems that key off "day count"
+  // (companion offers, dynasty seeds, dayKey rolls, etc).
+  const ageDay = useMemo(() => Math.max(1, Math.floor(Math.max(0, timerNow - lifeStartTime) / 86400000) + 1), [timerNow, lifeStartTime]);
   const ageInfo = useMemo(() => ageProfile(ageDay), [ageDay]);
-  const ageSummary = ageInfo.nm + " · Day " + ageDay + "/31";
+  const heirPrestigeDays = useMemo(() => (pl?.marriedAt ? Math.floor(Math.max(0, timerNow - pl.marriedAt) / 86400000) : null), [timerNow, pl?.marriedAt]);
+  const ageSummary = (heirPrestigeDays != null)
+    ? ("Heir prestige · " + Math.min(30, heirPrestigeDays) + "/30")
+    : (ageInfo.nm + " · Day " + ageDay);
   const townCompanionKey = useMemo(() => ((lastTown?.x ?? 38) + "_" + (lastTown?.y ?? 38)), [lastTown]);
   const currentTownLabel = useMemo(() => {
     if (!mData || !lastTown) return "This tavern";
@@ -3977,10 +4010,13 @@ function Game() {
     if (partner?.boonStat && nextStats[partner.boonStat] != null) nextStats[partner.boonStat] = Math.floor(nextStats[partner.boonStat] * (partner.boonMult || 1.04));
     const geneticBoon = rollGeneticBoon(pl, partner, (pl.generation || 1) + ageDay + (partner?.cycle || 0) * 3);
     const bmSeed = (pl.generation || 1) + ageDay;
+    // v87: Unbound Soul perk — heirs of an unmarked parent have a markedly
+    // higher chance of expressing a fresh ancestral lineage (1-in-3 vs 1-in-7).
+    const mutationDenom = pl.bloodmark ? 7 : 3;
     const inheritedBloodmark = pl.bloodmark
-      ? (bmSeed % 7 === 0 ? BLOODMARKS[bmSeed % BLOODMARKS.length].id : pl.bloodmark)
-      : null;
-    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true, bloodmark: inheritedBloodmark, covenant: null, rank: "Wanderer", restStreak: 0, lastRestDay: null };
+      ? (bmSeed % mutationDenom === 0 ? BLOODMARKS[bmSeed % BLOODMARKS.length].id : pl.bloodmark)
+      : (bmSeed % mutationDenom === 0 ? BLOODMARKS[bmSeed % BLOODMARKS.length].id : null);
+    let nextPlayer = { ...pl, name: heirName, sex: childSex, generation: (pl.generation || 1) + 1, lineage: pl.lineage || (pl.name + " Line"), legacyTrait: heirTrait, quote: "Legacy carries forward.", st: nextStats, chp: nextStats.hp, cmp: nextStats.mp, efx: [], tempBattleEl: null, tempBattleEl2: null, tempBonusEls: [], kagamiAttunedEnemyIds: [], freshStart: true, capSyncPending: true, bloodmark: inheritedBloodmark, covenant: null, rank: "Wanderer", restStreak: 0, lastRestDay: null, marriedAt: null, heirDeclines: 0 };
     nextPlayer = applyGeneticBoonToPlayer(nextPlayer, geneticBoon);
     const heirCaps = projectedEffStatsFor(nextPlayer, eq, ageDay);
     nextPlayer.chp = heirCaps.hp;
@@ -3988,16 +4024,61 @@ function Game() {
     nextPlayer.freshStartCaps = { hp: heirCaps.hp, mp: heirCaps.mp };
     const inheritedUlt = pl.ult ? { ...pl.ult, ready:false } : null;
     const partnerText = partner ? (partner.nm + " · " + companionElementLabel(partner) + " · " + partner.nature) : "No bonded companion — a ward inherits the estate in your stead.";
-    setPopup({ type:"succession", text: "🕯 Legacy Transition\n\n" + (pl.name + " reached Day 31 and passed the torch.") + "\n\nPartner: " + partnerText + "\nHeir: " + heirName + " · Generation " + (((pl.generation || 1) + 1)) + "\nTrait: " + heirTrait.nm + " — " + heirTrait.ds + "\nGenetic Boon: " + (geneticBoon?.nm || "Dormant") + (geneticBoon?.ds ? (" — " + geneticBoon.ds) : "") + "\nWill: " + willGold + "G carried forward.", choices:[
+    // v87: when this is a forced 3rd-offer succession (declines >= 2 from the
+    // marriage→heir prestige timer) or a death/age legacy transition, the
+    // "Return to world" escape hatch is suppressed so the line cannot be
+    // indefinitely deferred. Death/age reasons were forced before v87 too.
+    const forcedSuccession = (reason === "heir_prestige" && (pl.heirDeclines || 0) >= 2) || reason === "age" || reason === "death";
+    const choices = [
       { label:"Continue as heir", action: () => { setPl(nextPlayer); setUlts(prev => { const pool = [...(prev || [])]; if (inheritedUlt && !pool.some(u => u.name === inheritedUlt.name)) pool.push(inheritedUlt); if (geneticBoon?.kind === "ult" && geneticBoon.ult && !pool.some(u => u.name === geneticBoon.ult.name)) pool.push({ ...geneticBoon.ult, ready:false }); return pool; }); setGold(willGold); setBank(willBank); setLifeStartTime(timerNow); setCopied(null); setCopyN(0); setBattleBonus(null); setBtl(null); setScr("map"); setSub(null); setAlly(null); setSpouse(null); setCompanionSeekLocked(false); setBondSwapUsed(false); successionRef.current = false; setPopup(null); notify("Generation " + nextPlayer.generation + " rises: " + nextPlayer.name); } },
-      { label:"Return to world", action: () => { successionRef.current = false; setPopup(null); setBtl(null); setScr("map"); } }
-    ]});
+    ];
+    if (!forcedSuccession) {
+      choices.push({ label:"Return to world", action: () => { successionRef.current = false; setPopup(null); setBtl(null); setScr("map"); } });
+    }
+    setPopup({ type:"succession", text: "🕯 Legacy Transition\n\n" + (pl.name + " has passed the mark to the next of the line.") + "\n\nPartner: " + partnerText + "\nHeir: " + heirName + " · Generation " + (((pl.generation || 1) + 1)) + "\nTrait: " + heirTrait.nm + " — " + heirTrait.ds + "\nGenetic Boon: " + (geneticBoon?.nm || "Dormant") + (geneticBoon?.ds ? (" — " + geneticBoon.ds) : "") + "\nWill: " + willGold + "G carried forward." + (forcedSuccession ? "\n\nThe covenants will not allow further delay — the line passes now." : ""), choices });
   }, [pl, spouse, ageDay, gold, bank, timerNow, notify]);
 
+  // v87: forced day-31 succession removed. Succession is now triggered by the
+  // marriage→heir prestige timer below — bond a companion at a tavern, then 30
+  // days later the heir is offered. The first two offers may be declined; the
+  // third is forced. Old saves with a missing pl.marriedAt simply never trigger
+  // until the player bonds (or rebonds) a companion.
   useEffect(() => {
-    if (!pl || ageDay < 31 || popup?.type === "succession") return;
-    startSuccession("age");
-  }, [pl, ageDay, popup, startSuccession]);
+    if (!pl || !spouse) return;
+    if (successionRef.current) return;
+    // v87 hardening: never interrupt battle, succession popups, or any other
+    // active modal. The offer simply re-checks on the next tick.
+    if (scr === "battle" || btl) return;
+    if (popup) return;
+    // v87 save migration: an old save bonded before v87 has `spouse` set but
+    // no `marriedAt` field. Seed it now so the timer starts ticking from this
+    // point forward (rather than retroactively forcing succession).
+    if (pl.marriedAt == null && pl.heirDeclines == null) {
+      setPl(p => (p && p.marriedAt == null && p.heirDeclines == null) ? ({ ...p, marriedAt: timerNow, heirDeclines: 0 }) : p);
+      return;
+    }
+    const marriedAt = pl.marriedAt;
+    if (!marriedAt) return;
+    const daysBonded = Math.floor(Math.max(0, timerNow - marriedAt) / 86400000);
+    if (daysBonded < 30) return;
+    const declines = pl.heirDeclines || 0;
+    const forced = declines >= 2;
+    const heirName = (((spouse?.sex || ((pl.generation || 1) % 2 === 0 ? "male" : "female")) === "male") ? COMPANION_NAMES.male : COMPANION_NAMES.female)[Math.abs((pl.generation || 1) * 5 + daysBonded * 3) % COMPANION_NAMES.male.length];
+    const intro = "🕯 The Line Calls\n\n" + pl.name + " has been bonded with " + spouse.nm + " for " + daysBonded + " days.\n\nA child of the line — " + heirName + " — is ready to take up the mark and continue the work.\n\n" + (forced
+      ? "You have already turned the line away twice. The covenants will not allow a third refusal — succession proceeds now."
+      : "You may continue with this hero a while longer; if you do, the line will offer the next heir thirty days from now. (" + (2 - declines) + " refusal" + (2 - declines === 1 ? "" : "s") + " remain.)");
+    const choices = [
+      { label: "Pass the mark — continue as " + heirName, action: () => { setPopup(null); startSuccession("heir_prestige"); } },
+    ];
+    if (!forced) {
+      choices.push({ label: "Stay this generation (declines this offer)", action: () => {
+        setPl(p => p ? ({ ...p, marriedAt: timerNow, heirDeclines: (p.heirDeclines || 0) + 1 }) : p);
+        setPopup(null);
+        notify("The line will return in 30 days.");
+      }});
+    }
+    setPopup({ type: "heir_offer", text: intro, choices });
+  }, [pl, spouse, timerNow, popup, notify, startSuccession, scr, btl]);
 
   // Save/Load
   const saveGame = (slot) => { setSaves(s => { const n = [...s]; n[slot] = {
@@ -7894,7 +7975,7 @@ const buildGroupedBattleLog = (entries) => {
     const bmLive = pl.bloodmark ? getBM(pl.bloodmark) : null;
     const cvLive = pl.covenant ? getCV(pl.covenant) : null;
     const elDisplay = cls ? (cls.multiEl ? "4 random elements" : (cls.el2 ? cls.el + " / " + cls.el2 : cls.el)) : "—";
-    const heroSummary = "⚔ " + pl.name + "\n\nA " + (cls?.nm || "sorcerer") + " of generation " + (pl.generation || 1) + ", currently " + ageInfo.nm.toLowerCase() + " on day " + ageDay + " of their span.";
+    const heroSummary = "⚔ " + pl.name + "\n\nA " + (cls?.nm || "sorcerer") + " of generation " + (pl.generation || 1) + ", currently in their " + ageInfo.nm.toLowerCase() + " (day " + ageDay + " of work).";
     const openFishPopup = () => setPopup({
       title: "🐟 Fish Caught — " + fishCount,
       node: fishLedger.length > 0 ? <div className="hud-fish-ledger-popup">{fishLedger.map(f => <div key={f.nm} className="hud-fish-row"><span className="hud-fish-nm">{f.nm}</span><span className="hud-fish-qty">×{f.qty}</span></div>)}</div> : <div style={{ fontSize: 12, color: "#bcc6e6", textAlign: "center", padding: 14, lineHeight: 1.5 }}>No fish caught yet — visit a coast or stand in water and tap the Fish quick-button on the map.</div>,
@@ -7921,7 +8002,9 @@ const buildGroupedBattleLog = (entries) => {
                   <span className="hud-sub-sep"> · </span>
                   <span className="hud-clickable" title="Generation — click for details" onClick={() => setPopup({ text: "🩸 Generation " + (pl.generation || 1) + "\n\nEach time your hero dies, the bloodline continues through their heir — inheriting your bloodmark (with a rare chance of mutation), legacy traits, and a starting boon.\n\nA single hero matters. A bloodline matters more." })}>Gen.{pl.generation || 1}</span>
                   <span className="hud-sub-sep"> · </span>
-                  <span className="hud-clickable" title="Stage of life · day — click for details" onClick={() => setPopup({ text: "🌱 " + ageInfo.nm + " — Day " + ageDay + " of 31\n\nA hero's lifespan is short but meaningful. Age shapes your effective stats: youth boosts speed, prime boosts power, elders trade physicality for wisdom.\n\nWhen your days run out, the mark passes to your heir." })}>{ageSummary}</span>
+                  <span className="hud-clickable" title={heirPrestigeDays != null ? "Heir prestige timer — click for details" : "Career chapter — click for details"} onClick={() => setPopup({ text: heirPrestigeDays != null
+                    ? ("🕯 Heir Prestige · " + Math.min(30, heirPrestigeDays) + "/30 days\n\n" + (spouse ? ("Bonded to " + spouse.nm + ".") : "Bonded.") + "\n\nThirty days after a bond, the line offers your heir. You may decline twice — the third offer is forced.\n\nDeclines used: " + (pl.heirDeclines || 0) + "/2\n\nAge no longer drains your stats — the line passes when the line decides.")
+                    : ("🌱 " + ageInfo.nm + " · Day " + ageDay + "\n\nWith Pass 13 Phase 2, age no longer drives stat drift or forced death. Your career stretches as long as you stay unbonded; once you bond a companion at a tavern, the heir-prestige timer begins.") })}>{ageSummary}</span>
                 </div>
                 <div className="hud-char-tags">
                   <span className="hud-tag hud-clickable" style={{ background: rk.cl + "22", borderColor: rk.cl + "55", color: rk.cl }} title="Rank — click for details" onClick={() => setPopup({ text: rk.ic + " " + rk.nm + "\n\n" + rk.ds + (Object.keys(rk.bonus || {}).length > 0 ? "\n\nRank bonus: " + Object.entries(rk.bonus).map(([k,v]) => "+" + v + " " + k.toUpperCase()).join(" · ") : "") + "\n\nLevel " + pl.level + (nextRk ? "  ·  Next grade at Lv." + nextRk : "  ·  Max grade") })}>{rk.ic} {rk.nm}</span>
@@ -8508,7 +8591,7 @@ const buildGroupedBattleLog = (entries) => {
       </div>}
       {sub === "stats" && <div className="stats-page">
         <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>{Object.entries(st).map(([k, v]) => <div key={k} style={{ background: T.c2, borderRadius: 5, padding: "4px 2px", textAlign: "center", cursor: "pointer" }} onClick={() => setPopup({ text: statInfoText(k) })}><div style={{ fontSize: 8, color: T.dm, textTransform: "uppercase" }}>{k}</div><div style={{ fontSize: 13, fontWeight: 700, color: T.gd }}>{v}</div></div>)}</div>
-        <div style={{ fontSize: 9, color: T.dm, marginTop: 5, lineHeight: 1.4 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · {ageInfo.nm} Day {ageDay}/31 · Mode: {mode}</div>
+        <div style={{ fontSize: 9, color: T.dm, marginTop: 5, lineHeight: 1.4 }}>Class: <span style={{ color: cls?.cl }}>{cls?.nm}</span> · Elements: <span style={{ color: ELC[entityBattleElements(pl)[0] || pl.el] }}>{entityBattleElements(pl).join(" / ") || (pl.tempBattleEl || pl.elDisplay || pl.el)}</span> · {pl.sex === "male" ? "Male" : "Female"} · Kills: {kills} · {ageSummary} · Mode: {mode}</div>
 
         {/* APPEARANCE — custom portrait URL (PNG/JPG/GIF) */}
         <div style={{ marginTop: 8, padding: 8, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
@@ -8579,15 +8662,12 @@ const buildGroupedBattleLog = (entries) => {
             <div style={{ marginTop: 4, fontSize: 9, fontStyle: "italic", color: T.gd, textAlign: "center", borderTop: "1px solid " + T.bd, paddingTop: 3 }}>"{pl.quote || "..."}"</div>
           </div>
 
-          {/* AGE CURVE */}
+          {/* HEIR PRESTIGE TIMER (v87 — replaces aging stat curve) */}
           <div style={{ padding: 7, background: T.c2, borderRadius: 7, border: "1px solid " + T.bd }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 5 }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>{ageInfo.nm} · Day {ageDay}/31</div>
-                <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.3 }}>{ageInfo.ds}</div>
-              </div>
-              <button className="bt bs" style={{ background: T.c1, fontSize: 8 }} onClick={() => setPopup({ text: ageCurvePopupText(pl.st) })}>Curve</button>
-            </div>
+            <div style={{ fontSize: 10, color: T.gd, fontWeight: 700 }}>{heirPrestigeDays != null ? ("🕯 Heir Prestige · " + Math.min(30, heirPrestigeDays) + "/30 days") : ("📜 " + ageInfo.nm + " · Day " + ageDay)}</div>
+            <div style={{ fontSize: 8, color: T.dm, marginTop: 1, lineHeight: 1.35 }}>{heirPrestigeDays != null
+              ? ("Bonded to " + (spouse?.nm || "your companion") + ". The line will offer the next heir at day 30. Refusals used: " + (pl.heirDeclines || 0) + "/2 (third offer is forced).")
+              : "Unbonded — your career has no fixed end. Bond a companion at a tavern to begin the heir-prestige cycle."}</div>
           </div>
 
           {/* BOND + LEGACY */}
@@ -8623,7 +8703,7 @@ const buildGroupedBattleLog = (entries) => {
         <div className="sb-grid">
           <div className="sb-panel">
             <div className="sb-title">✦ Bloodmarks</div>
-            <div className="sb-kv sb-muted">A Bloodmark is what your bloodline carries with it into the moment you draw your first breath. There are two kinds. <b>Class-innate bloodmarks</b> are an inherited technique tied to your sorcerer line — they grant a unique passive ability (no raw stats), like Hexblade's Cursed Edge or Phoenix's Rebirth Pulse. <b>Generic ancestral lineages</b> (Veil-Veined, Stoneheart, Storm-Born, Ashblood, Frost-Mere, Void-Touched, Golden-Soul, Tides-Brood) are older, broader heritages — they grant 2–3 balanced stat traits but no special passive. You may also choose neither and walk in unmarked. Bloodmarks pass to your heirs along the family line, with a rare chance of mutation each generation.</div>
+            <div className="sb-kv sb-muted">A Bloodmark is what your bloodline carries with it into the moment you draw your first breath. There are two kinds. <b>Class-innate bloodmarks</b> are an inherited technique tied to your sorcerer line — your class ships four such marks, each granting a unique passive ability (no raw stats). <b>Generic ancestral lineages</b> are older, broader heritages — twenty exist in the world (Veil-Veined, Stoneheart, Storm-Born, Ashblood, Frost-Mere, Void-Touched, Golden-Soul, Tides-Brood, Iron-Blooded, Wraith-Kin, Moon-Born, Ember-Heart, Ashen-Lung, Dusk-Blooded, Sage-Blooded, Wolf-Born, Clay-Heart, Silver-Veined, Raven-Kin, Boundless), and four are offered to you at character creation. They grant 2–3 stat traits (some carry a tradeoff) but no special passive. You may also walk in unmarked — the Unbound Soul carries no fixed lineage but a quiet seam of luck and reserve, and its heirs express new lineages far more readily. Bloodmarks pass to your heirs along the family line, with a rare chance of mutation each generation.</div>
           </div>
           <div className="sb-panel">
             <div className="sb-title">🏛 Covenants</div>
@@ -8700,7 +8780,7 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">Aging, the Stat Curve, and Death</div>
-          <div className="sb-kv sb-muted">Your hero does not level in the usual endless way. Instead, life moves. Early days favor vigor. Prime years balance physical power and magical control. Late life leans harder into insight, reserves, and arcane force. At Day 31, the generation ends. If you die sooner, the same hero is dragged back to the nearest refuge. Only the natural end of Day 31 passes the torch to an heir. The Stats page tracks this with your age information and curve preview.</div>
+          <div className="sb-kv sb-muted">Your hero levels normally and works as long as you keep them in the field. There is no forced lifespan and no aging stat-drift. The generation ends only when you choose to bond a companion at a tavern and the line offers an heir — thirty days after the bond. The first two heir offers may be declined; the third is forced. If your hero dies in combat, they are dragged back to the nearest refuge — death does not end the generation. The Stats page tracks the heir-prestige timer instead of an age curve.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
@@ -10036,11 +10116,11 @@ const buildGroupedBattleLog = (entries) => {
                         <button className="bt bs" disabled={!canRebond} style={{ background: isBonded ? T.ok : (canRebond ? T.gd : "#333") }} onClick={() => {
                           if (isBonded) { notify(c.nm + " is already your bonded companion."); return; }
                           if (!spouse) {
-                            setPopup({ text: "Bond with " + c.nm + "?\n\nThis will shape your legacy line, inheritance chances, and future heir outcomes.", choices:[{ label:"Confirm Bond", action: () => { setSpouse(c); setPopup(null); notify(c.nm + " is now your bonded companion."); } }, { label:"Cancel", action: () => setPopup(null) }] });
+                            setPopup({ text: "Bond with " + c.nm + "?\n\nThis will shape your legacy line, inheritance chances, and future heir outcomes.\n\nThirty days after bonding, the line will offer your first heir; you may decline twice before succession is forced.", choices:[{ label:"Confirm Bond", action: () => { setSpouse(c); setPl(p => p ? ({ ...p, marriedAt: timerNow, heirDeclines: 0 }) : p); setPopup(null); notify(c.nm + " is now your bonded companion."); } }, { label:"Cancel", action: () => setPopup(null) }] });
                             return;
                           }
                           if (bondSwapUsed) { notify("You already changed your bond once this generation."); return; }
-                          setPopup({ text: "Rebond to " + c.nm + "?\n\nWarning: changing companions consumes your one allowed bond change for this generation.", choices:[{ label:"Confirm Final Rebond", action: () => { setSpouse(c); setBondSwapUsed(true); setPopup(null); notify("Final bond set: " + c.nm); } }, { label:"Keep Current Bond", action: () => setPopup(null) }] });
+                          setPopup({ text: "Rebond to " + c.nm + "?\n\nWarning: changing companions consumes your one allowed bond change for this generation.\n\nThe heir-prestige timer resets — you have 30 days from this rebond before the line offers the next heir.", choices:[{ label:"Confirm Final Rebond", action: () => { setSpouse(c); setBondSwapUsed(true); setPl(p => p ? ({ ...p, marriedAt: timerNow, heirDeclines: 0 }) : p); setPopup(null); notify("Final bond set: " + c.nm); } }, { label:"Keep Current Bond", action: () => setPopup(null) }] });
                         }}>{isBonded ? "Bonded" : (spouse ? (bondSwapUsed ? "Locked" : "Rebond") : "Bond")}</button>
                       </div>
                     </div>;

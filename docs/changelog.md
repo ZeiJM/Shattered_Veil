@@ -895,3 +895,18 @@ range identity defaults.
   - Defensive `.battle-bg .battle-lane { display: none !important }` in case the lane HUD is rendered elsewhere.
 - **Additive only** — no changes to combat math, save shape, or arena coordinate system. Cartesian (x,y) coords still drive all engine math (movement range, LoS, AoE shapes); only the visual layer is hex.
 - **Phase 1 of Pass 13** — does NOT include AI-generated arena background images, full hex distance/AoE math overhaul, or per-class action card colour overhaul. Those are queued for Pass 13 Phase 2.
+
+## v87 — Pass 13 Phase 2: 20-Bloodmark Pool, Aging Removed, Heir Prestige Timer
+
+Three coupled changes. Strictly additive — combat engine, hex grid, towns, classes/skills, Veilcourt, and Pass 8–12 systems untouched. Save shape unchanged (only optional `pl.marriedAt` and `pl.heirDeclines` fields added; absent on old saves means no heir offers until a fresh bond).
+
+- **Bloodmark pool expanded 8 → 20** (`Game.jsx` `BLOODMARKS` array). All 8 original ids preserved (`veilvein`, `stoneheart`, `stormborn`, `ashblood`, `frostmere`, `voidtouched`, `goldensoul`, `tidesbrood`). 12 new lineages added: `ironblooded`, `wraithkin`, `moonborn`, `emberheart`, `ashenlung`, `duskblooded`, `sageblooded`, `wolfborn`, `clayheart`, `silverveined`, `ravenkin`, `boundless`. Some carry mild stat tradeoffs (negative values) for identity. Character creation already samples 4 from a stable shuffled order — works automatically with the larger pool. Class-innate marks unchanged (84 entries, still 0 raw stats).
+- **Unbound Soul** (hidden benefit for skipping bloodmark): `+2 LCK` and `+8 MP` baked into `projectedEffStatsFor`'s `else` branch, plus a higher heir-mutation chance in `startSuccession` (1-in-3 vs 1-in-7 for marked parents — and an unmarked heir of an unmarked parent can spontaneously *gain* a fresh lineage). No HUD tag; the trade is freedom from a fixed lineage in exchange for a small generalist seam.
+- **Aging stat-drift removed**: `AGE_PHASES` multipliers all neutralized to `1.0`. Phase names rebranded as career chapters (`First Chapter`, `Prime Chapter`, `Veil Chapter`, `Elder Chapter`, `Long Chapter`) — kept only because legacy UI still reads `ageInfo.nm` for display. `ageDay` is no longer capped at 31 (still keyed off `lifeStartTime` for companion-offer / dynasty-seed / dayKey rolls). `ageCurvePopupText` and `ageGraphRows` are now orphaned helpers — left in place to keep the diff surgical.
+- **Forced day-31 succession removed.** Old `useEffect` that fired `startSuccession("age")` on `ageDay >= 31` deleted. Replaced with a marriage-triggered effect: bond a companion at a tavern → `pl.marriedAt = timerNow` → 30 days later (real-time scale, same as `ageDay`) the line offers an heir. Player may decline twice (`pl.heirDeclines` 0 → 2); third offer is forced (no decline button). Decline resets `marriedAt` to `timerNow` and increments the counter. Rebonding (one allowed per generation) also resets the timer.
+- **`startSuccession` cleanups**: clears `marriedAt: null` and `heirDeclines: 0` on the heir; succession popup wording switched from "reached Day 31" to "passed the mark to the next of the line."
+- **HUD/Stats/Manual UI updates**:
+  - HUD `ageSummary` chip auto-switches to `Heir prestige · X/30` when bonded; tooltip explains the timer + remaining declines.
+  - Stats tab "Age Curve" panel replaced with a Heir Prestige timer panel (shows `X/30 days` + declines used, or "Unbonded — your career has no fixed end" when single).
+  - Manual entries for Bloodmarks (now lists all 20) and Aging/Death (rewritten to describe the marriage-driven succession) updated.
+- **No CSS changes** — all updates inline / use existing classes.

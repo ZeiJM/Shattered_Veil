@@ -102,6 +102,16 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Pass 13 Phase 2 (v87) — 20-Bloodmark Pool, Aging Removed, Heir Prestige Timer
+
+Three coupled, additive changes. Save shape preserved (only optional `pl.marriedAt` + `pl.heirDeclines` fields added). Combat engine, hex grid, classes/skills, Veilcourt, and all Pass 8–12 systems untouched. Full per-bullet rationale in `docs/changelog.md` (v87).
+
+- **`BLOODMARKS` expanded 8 → 20** (`Game.jsx`). All 8 original ids preserved for save compat; 12 new lineages added (some with mild stat tradeoffs). Character-creation step already samples 4 of `BLOODMARKS` from a stable shuffled order — picks 4 of 20 automatically. Class-innate marks unchanged (84 entries, 0 stats, passive only).
+- **Unbound Soul** (hidden benefit, no HUD tag): when `pl.bloodmark` is `null`, `projectedEffStatsFor` adds `+2 LCK` and `+8 MP`. In `startSuccession`, unmarked parents have a higher mutation chance (1-in-3 vs 1-in-7) and unmarked heirs may spontaneously gain a fresh lineage.
+- **Aging stat-drift fully removed**: `AGE_PHASES` mults all `1.0`; phase names rebranded as career chapters; `ageDay` no longer capped at 31. `ageCurvePopupText` and `ageGraphRows` are now orphan helpers (left in place — diff stays surgical).
+- **Forced day-31 succession deleted.** Replaced with a marriage→heir prestige timer: bond at a tavern → `pl.marriedAt = timerNow` → 30 days later the line offers an heir; first 2 may be declined (resets `marriedAt`, increments `pl.heirDeclines`); 3rd is forced. `startSuccession` clears both fields on the heir.
+- **HUD/Stats/Manual UI**: HUD chip switches to `Heir prestige · X/30` when bonded; Stats tab "Age Curve" panel replaced with a Heir Prestige panel; manual entries rewritten.
+
 ## Battle Rework Pass 13 (v86) — Hex Arena Grid + Portraits on Tiles + UI Polish (Phase 1)
 
 Massive battle UI redesign — visual hex grid (offset rows + clip-path), portraits on tiles, removal of the top 5-lane HUD strip, larger arena tiles, layout overflow fixes, and cleaner action button chrome. **Additive only** — no save shape change, no engine math changes, no rebalance. Cartesian `(x,y)` coordinates still drive all combat (movement range, LoS, AoE); only the rendering layer is hex.
