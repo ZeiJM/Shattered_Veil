@@ -182,13 +182,15 @@ export const OBJECTS = {
   },
 };
 
-// ── Background themes (visual class only) ──
+// ── Background themes (visual class + painted background image) ──
+// Pass 17 (v91) — bgImage key resolves to /battle/<file>.jpg via BASE_URL.
+// CSS reads `--sv-arena-bg-img` set inline by ArenaBoard.
 export const ARENA_THEMES = {
-  courtyard: { cls: "sv-arena-theme-courtyard", label: "Ruined Courtyard" },
-  rift:      { cls: "sv-arena-theme-rift",      label: "Rift Crater" },
-  forest:    { cls: "sv-arena-theme-forest",    label: "Moonlit Forest" },
-  shrine:    { cls: "sv-arena-theme-shrine",    label: "Broken Shrine" },
-  abyss:     { cls: "sv-arena-theme-abyss",     label: "Abyssal Expanse" },
+  courtyard: { cls: "sv-arena-theme-courtyard", label: "Ruined Courtyard",  bgImage: "battle/bg_courtyard.jpg" },
+  rift:      { cls: "sv-arena-theme-rift",      label: "Rift Crater",       bgImage: "battle/bg_rift.jpg" },
+  forest:    { cls: "sv-arena-theme-forest",    label: "Moonlit Forest",    bgImage: "battle/bg_forest.jpg" },
+  shrine:    { cls: "sv-arena-theme-shrine",    label: "Broken Shrine",     bgImage: "battle/bg_courtyard.jpg" },
+  abyss:     { cls: "sv-arena-theme-abyss",     label: "Abyssal Expanse",   bgImage: "battle/bg_abyss.jpg" },
 };
 
 // ── Helpers used by templates ──
@@ -332,6 +334,106 @@ export const ARENA_TEMPLATES = [
   },
 ];
 
+// Pass 17 (v91) — irregular battlefield shapes for visual variety. These
+// use programmatic shape masks so each arena feels like a real place, not
+// a rectangle. All gameplay (movement BFS, LoS, AoE) already respects the
+// 0/1 shape mask, so no engine changes are needed.
+ARENA_TEMPLATES.push(
+  {
+    id: "circle_grove",
+    name: "Sacred Grove Circle",
+    ds: "An ancient ring of stones and moss. The battle is bound by the circle.",
+    cols: 13,
+    rows: 11,
+    theme: "forest",
+    shape: (() => {
+      // Carve a soft elliptical/round mask.
+      const cols = 13, rows = 11;
+      const m = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0));
+      const cx = (cols - 1) / 2, cy = (rows - 1) / 2;
+      const rx = cols / 2 - 0.4, ry = rows / 2 - 0.4;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const dx = (x - cx) / rx, dy = (y - cy) / ry;
+          if (dx * dx + dy * dy <= 1) m[y][x] = 1;
+        }
+      }
+      return m;
+    })(),
+    playerSpawns: [{ x: 2, y: 5 }, { x: 2, y: 4 }, { x: 2, y: 6 }],
+    enemySpawns:  [{ x: 10, y: 5 }, { x: 10, y: 4 }, { x: 10, y: 6 }, { x: 9, y: 3 }, { x: 9, y: 7 }],
+    terrain: [
+      tile(6, 5, "hallowed"), tile(6, 4, "hallowed"), tile(6, 6, "hallowed"),
+      tile(4, 2, "forest"), tile(8, 8, "forest"),
+      tile(5, 8, "water"),
+    ],
+    destructibles: [
+      obj(3, 3, "shrineLantern"), obj(9, 7, "shrineLantern"),
+      obj(6, 1, "brokenStatue"),
+    ],
+  },
+  {
+    id: "hourglass_pass",
+    name: "Hourglass Pass",
+    ds: "Two open chambers joined by a narrow chokepoint. Position is everything.",
+    cols: 14,
+    rows: 9,
+    theme: "shrine",
+    shape: (() => {
+      const cols = 14, rows = 9;
+      const m = rect(cols, rows);
+      // Pinch the middle: at x=6 and x=7, only rows 3,4,5 are valid.
+      for (let y = 0; y < rows; y++) {
+        for (const x of [6, 7]) {
+          if (y < 3 || y > 5) m[y][x] = 0;
+        }
+      }
+      // Trim outer corners for a softer silhouette.
+      [[0,0],[13,0],[0,8],[13,8]].forEach(([x,y]) => { m[y][x] = 0; });
+      return m;
+    })(),
+    playerSpawns: [{ x: 1, y: 4 }, { x: 1, y: 3 }, { x: 1, y: 5 }],
+    enemySpawns:  [{ x: 12, y: 4 }, { x: 12, y: 3 }, { x: 12, y: 5 }, { x: 11, y: 2 }, { x: 11, y: 6 }],
+    terrain: [
+      tile(6, 4, "stone"), tile(7, 4, "stone"),
+      tile(3, 4, "highGround"), tile(10, 4, "highGround"),
+      tile(2, 7, "shadowed"), tile(11, 1, "shadowed"),
+    ],
+    destructibles: [
+      obj(6, 3, "stoneWall"), obj(7, 5, "stoneWall"),
+      obj(4, 2, "crackedPillar"), obj(9, 6, "crackedPillar"),
+    ],
+  },
+  {
+    id: "shattered_cross",
+    name: "Shattered Crossroads",
+    ds: "Four broken arms meet at a fractured altar. Cover is scarce at the center.",
+    cols: 13,
+    rows: 11,
+    theme: "abyss",
+    shape: (() => {
+      const cols = 13, rows = 11;
+      const m = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0));
+      // Vertical arm
+      for (let y = 0; y < rows; y++) for (let x = 4; x <= 8; x++) m[y][x] = 1;
+      // Horizontal arm
+      for (let y = 3; y <= 7; y++) for (let x = 0; x < cols; x++) m[y][x] = 1;
+      return m;
+    })(),
+    playerSpawns: [{ x: 1, y: 5 }, { x: 1, y: 4 }, { x: 1, y: 6 }],
+    enemySpawns:  [{ x: 11, y: 5 }, { x: 11, y: 4 }, { x: 11, y: 6 }, { x: 6, y: 1 }, { x: 6, y: 9 }],
+    terrain: [
+      tile(6, 5, "brokenVeil"),
+      tile(6, 4, "stone"), tile(6, 6, "stone"),
+      tile(2, 5, "highGround"), tile(10, 5, "highGround"),
+    ],
+    destructibles: [
+      obj(5, 5, "crackedPillar"), obj(7, 5, "crackedPillar"),
+      obj(6, 2, "brokenStatue"), obj(6, 8, "brokenStatue"),
+    ],
+  },
+);
+
 export const ARENA_BY_ID = ARENA_TEMPLATES.reduce((acc, t) => { acc[t.id] = t; return acc; }, {});
 
 // Pass 12 — per-boss preferred arena overrides. Kept inline (instead of
@@ -370,8 +472,15 @@ export function pickArenaTemplate(ctx = {}) {
   const biome = String(ctx.biomeHint || "").toLowerCase();
   if (biome.includes("forest") || biome.includes("wood") || biome.includes("grove")) return ARENA_BY_ID.moonlit_forest_hollow;
   if (biome.includes("shrine") || biome.includes("temple") || biome.includes("ruin")) return ARENA_BY_ID.broken_shrine;
-  // default rotates through the two "normal" templates by seed for a bit of variety.
-  const fallback = [ARENA_BY_ID.ruined_courtyard, ARENA_BY_ID.broken_shrine];
+  // Pass 17 (v91) — default rotation now includes the irregular shapes so
+  // every fight isn't a rectangle. Boss/biome routes above still win.
+  const fallback = [
+    ARENA_BY_ID.ruined_courtyard,
+    ARENA_BY_ID.broken_shrine,
+    ARENA_BY_ID.circle_grove,
+    ARENA_BY_ID.hourglass_pass,
+    ARENA_BY_ID.shattered_cross,
+  ].filter(Boolean);
   return fallback[Math.abs(seed) % fallback.length];
 }
 

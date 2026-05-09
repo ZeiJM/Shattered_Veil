@@ -1092,6 +1092,30 @@ uri = "file://artifacts/shattered-veil/public/poi/dev.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "LOCGk22PZ_kfMpbP34iho"
+uri = "file://attached_assets/generated_images/top_down_painted_fantasy_d9e4.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "PLtFtzrhL90YlrDE7AbO3"
+uri = "file://attached_assets/generated_images/top_down_painted_fantasy_1595.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tWWrIdNEiPhMyUAN3cKa9"
+uri = "file://attached_assets/generated_images/top_down_painted_fantasy_17a0.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "t_AHFB-blhOwcVUnJ3xgy"
+uri = "file://attached_assets/generated_images/top_down_painted_fantasy_935a.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "oHcuzrzx3IvN4lj_022nD"
 uri = "file://GAME_REVIEW_PACK.zip"

@@ -55,8 +55,12 @@ export default function ArenaBoard({
   const [hover, setHover] = useState(null);
 
   if (!arena) return null;
-  const themeCls = ARENA_THEMES[arena.template?.theme]?.cls || "sv-arena-theme-courtyard";
-  const themeLabel = ARENA_THEMES[arena.template?.theme]?.label || arena.template?.name || "Battlefield";
+  const themeMeta = ARENA_THEMES[arena.template?.theme] || ARENA_THEMES.courtyard;
+  const themeCls = themeMeta?.cls || "sv-arena-theme-courtyard";
+  const themeLabel = themeMeta?.label || arena.template?.name || "Battlefield";
+  // Pass 17 (v91) — paint the actual battlefield background through to CSS.
+  const baseUrl = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL) || "/";
+  const bgUrl = themeMeta?.bgImage ? `url('${baseUrl}${themeMeta.bgImage}')` : null;
 
   const player = units.find(u => u.kind === "player") || null;
   const occupied = units.filter(u => u && u.pos).map(u => u.pos);
@@ -138,11 +142,12 @@ export default function ArenaBoard({
             <div className="sv-arena-targeting-banner">{targetingHint}</div>
           )}
           <div
-            className={"sv-arena-grid sv-arena-grid-hex" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "")}
+            className={"sv-arena-grid sv-arena-grid-hex" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "") + (bgUrl ? " sv-arena-grid-has-bg" : "")}
             style={{
               "--svh-tile": tileSize + "px",
               "--svh-offset": Math.round(tileSize * 0.5) + "px",
               "--svh-overlap": rowOverlap + "px",
+              "--sv-arena-bg-img": bgUrl || "none",
             }}
             onMouseLeave={handleLeave}
           >
@@ -196,12 +201,16 @@ export default function ArenaBoard({
                   isHover ? "is-hover" : "",
                 ].filter(Boolean).join(" ");
                 const handleTileClick = () => {
-                  if (moveMode && isMoveValid && typeof onTileSelect === "function") {
-                    onTileSelect({ x, y });
-                    return;
-                  }
+                  // Pass 17 (v91) — tap-to-move is always-on. Clicking any
+                  // empty in-range tile commits a move (no need to first tap
+                  // a "Move" button). Targeting-mode and explicit moveMode
+                  // still work as before.
                   if (targetingMode && isTargetValid && typeof onTargetSelect === "function") {
                     onTargetSelect({ x, y });
+                    return;
+                  }
+                  if (!targetingMode && inMove && !isOccupied && typeof onTileSelect === "function") {
+                    onTileSelect({ x, y });
                     return;
                   }
                   setHover(h => h && h.x === x && h.y === y ? null : { x, y });

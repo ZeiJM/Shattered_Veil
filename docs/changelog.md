@@ -1013,3 +1013,17 @@ Then the v90.1-style fixes:
 Browser support note: `:has()` is required for the body-scroll override (Safari 15.4+, Chrome 105+). All target mobile browsers ship it.
 
 No JSX changes. No engine, save shape, or other systems touched.
+
+## v91 (Pass 17) — Battle visual + tap-to-move + class movement balance + irregular arenas
+
+User feedback: "battle screen is bad and not optimized size wise, hexes weirdly placed, map shape shouldn't be a rectangle always, looks weird color wise, lots of random crap, allow tap to move on the map, spaces depend on class, want backgrounds in battle." All addressed in this pass — additive only, no engine math change, no save shape change.
+
+- **Painted backgrounds for the hex board**: 4 new AI-generated 16:9 paintings in `public/battle/` (bg_courtyard.jpg, bg_rift.jpg, bg_forest.jpg, bg_abyss.jpg). `ARENA_THEMES` entries gain a `bgImage` field. `ArenaBoard.jsx` reads it and writes `--sv-arena-bg-img` inline; CSS paints it as the hex grid background with a vignette overlay so it looks deliberate, not slapped on. Translucent normal tiles let the painting read through.
+- **Tap-to-move always on**: `ArenaBoard.jsx` `handleTileClick` now commits a move whenever the player taps an in-range, unoccupied tile (no need to first toggle Tactical Step mode). `Game.jsx` passes `onTileSelect={bTacticalStep}` whenever it's the player's turn and they haven't moved yet — gating happens inside ArenaBoard. Targeting-mode and the explicit Tactical Step button still work exactly as before. Visual hint: in-range tiles now show a soft cyan outline + brightness bump on hover.
+- **Class-driven movement balance** (`battle/arena/arenaEngine.js` `getUnitMoveRange`): added a `CLASS_BASE_MOVE` table (assassin/ninja/scout/ranger=5, monk/warrior/samurai/duelist/berserker/hunter=4, mage/healer/witch/druid/summoner/bard=3, knight/paladin=3, gravity/rune/golem=2). SPD is now a small ±1 nudge instead of being the dominant lever. Bosses still get +1 and pets still get -1 (min 2). Capped to [1,7].
+- **Three new irregular battlefield shapes** (`battle/arena/arenaMaps.js`): Sacred Grove Circle (elliptical mask), Hourglass Pass (pinched chokepoint at the middle two columns + clipped corners), Shattered Crossroads (cross-shaped mask). All use the existing 0/1 shape mask so movement BFS, line of sight, AoE, etc. require no engine changes. They join the default `pickArenaTemplate` rotation so non-boss/non-rift fights pull from the irregular pool.
+- **Action card text wrap fix**: the user's screenshot showed labels breaking mid-syllable ("Stea dy Strike", "Nightsha de Fang"). Replaced the action grid columns with `repeat(auto-fill, minmax(132px, 1fr))`, bumped per-card min-height + padding, set `word-break: normal; overflow-wrap: break-word; hyphens: none; white-space: normal`. Two-column at ≤720px, tighter padding at ≤420px.
+- **Color cleanup**: muted the split-field fractured-tile sprinkle (was painting confetti on top of the painted bg), softened the rare-tile glow assumption and added a subtle border on themed boards.
+- **Vite HMR**: all changes are CSS / pure-data / one prop wiring — picked up live. No new packages.
+
+Files: `artifacts/shattered-veil/src/battle/arena/arenaMaps.js`, `artifacts/shattered-veil/src/battle/arena/arenaEngine.js`, `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx`, `artifacts/shattered-veil/src/Game.jsx` (one-line onTileSelect tweak), `artifacts/shattered-veil/src/game.css` (Pass 17 block ~L7450), `artifacts/shattered-veil/public/battle/bg_*.jpg`.

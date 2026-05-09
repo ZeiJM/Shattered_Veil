@@ -169,18 +169,33 @@ export function getAreaShapeTiles(origin, shape, radius, arena, opts = {}) {
 // Derived movement stat for an arena unit.
 // Pass 3 — temporary formula. Future passes can replace this with a real
 // `mv` field on player/enemies and rebalance per class.
+// Pass 17 (v91) — class-driven movement balance. Each class has a base
+// movement that reflects its role identity (assassins/scouts step far,
+// tanks/casters root in place). SPD only nudges ±1; class baseline is the
+// real lever. Keep numbers small so the hex board stays tactical.
+// Canonical 17-class roster (mirrors keys in battle/classRoles.js CLASS_ROLES).
+// Movement reflects role identity: skirmishers stride far, rooted casters
+// hold ground, supports/tanks sit in the middle.
+const CLASS_BASE_MOVE = {
+  // Mobile strikers / scouts — long stride
+  assassin: 5, ranger: 5, shouei: 5, monk: 5, gambler: 5,
+  // Balanced melee + tempo / adaptive
+  koen: 4, chrono: 4, dream: 4, phoenix: 4, tide: 4, hexblade: 4, primal: 4,
+  // Casters / supports / tanks — moderate
+  paladin: 3, priest: 3, sorcerer: 3, voidmage: 3, bard: 3, sound: 3, puppet: 3,
+  // Heavy / rooted long-range
+  gravity: 2, rune: 2,
+};
 export function getUnitMoveRange({ spd = 0, classId = "", isBoss = false, kind = "player" } = {}) {
-  let mv = 3;
+  const cid = String(classId || "").toLowerCase();
+  let mv = CLASS_BASE_MOVE[cid] != null ? CLASS_BASE_MOVE[cid] : 3;
   if (Number.isFinite(spd)) {
-    if (spd >= 19) mv += 2;
-    else if (spd >= 14) mv += 1;
+    if (spd >= 18) mv += 1;
     else if (spd <= 8) mv -= 1;
   }
-  // Slow tank classes cap at 2 for now.
-  if (["gravity", "monk", "rune"].includes(classId)) mv = Math.min(mv, 2);
   if (isBoss) mv += 1;
   if (kind === "pet") mv = Math.max(2, mv - 1);
-  return Math.max(1, mv);
+  return Math.max(1, Math.min(7, mv));
 }
 
 // Convenience: assign units to spawn slots without overlap.

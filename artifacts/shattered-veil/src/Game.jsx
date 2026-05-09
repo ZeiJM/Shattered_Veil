@@ -9480,7 +9480,10 @@ const buildGroupedBattleLog = (entries) => {
                 isMobile={typeof window !== "undefined" && window.innerWidth < 720}
                 moveMode={moveModeActive}
                 moveModeHint={moveModeActive ? ("Tactical Step — choose a tile within " + previewMove + ".") : null}
-                onTileSelect={moveModeActive ? bTacticalStep : null}
+                /* Pass 17 (v91) — always pass the move handler so tap-to-move
+                   works without first toggling movement mode. ArenaBoard gates
+                   the call to in-range, unoccupied, non-targeting taps. */
+                onTileSelect={(isPT && !btl?.moved && !usedFallback && aUnits.player) ? bTacticalStep : null}
                 targetingMode={targetingActive}
                 validTargetKeys={validTargetKeys}
                 affectedKeys={affectedKeys}
