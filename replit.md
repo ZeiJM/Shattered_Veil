@@ -102,6 +102,16 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 9 (v82) — Steady Strike, Flurry Strike, Veilflare Impact
+
+- **Steady Strike** (`bAct("steady")`) — free 0 MP basic attack, range 1, ATK×0.6, one crit + one Veilflare roll.
+- **Flurry Strike** (`bAct("flurry")`) — free 2–6 quick hits, ATK×0.3 each, crit per hit, ONE Veilflare roll per action.
+- **Veilflare Impact** — original perfect-impact mechanic (NOT "Black Flash"). 15% per Steady/Flurry action; +50% damage; applies/refreshes Veilflare Focus.
+- **Veilflare Focus** — battle buff in `np.efx` (`id:"veilflare_focus"`, dur 3): +10% crit, +Field Attunement, +20% next Veil Magic OR Veilbreak (consumed once). Battle-only — no save shape change.
+- **Tactical tab final**: Veil Anchor, Field Sever, Brace, Overchannel I/II/III (×1.5 / ×2.0 / ×2.5 — III gated to >50% HP), Focus Breath (3 MP → Veilflare Focus 2 turns). All share `btl.tacticalBuffs.overchannelMult` (one active at a time).
+- Crit helpers (`getCritChance`, `getCritDamageMultiplier`, `rollCrit`) live inline in `bAct` — temporary; full rebalance is Pass 10.
+- New CSS classes: `sv-action-card-steady-strike`, `sv-action-card-flurry-strike`, `sv-action-card-veilflare-ready` (gold pulse), `sv-action-card-overchannel`, `sv-action-card-focus`, `sv-action-card-risk`, `sv-action-card-disabled-reason`.
+
 ## Battle Rework Pass 8 (v81) — Field Attunement, Field Clash, Tactical Actions
 
 - **Field Attunement** — derived stat `MAG×0.6 + LCK×0.3 + level×0.5 + ctx bonuses`; pill strip in battle HUD.
@@ -116,7 +126,10 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - Per-skill `range` overrides (finer than the current el-based heuristic).
 - Veilcourt covenant sub-channels + WebSocket upgrade.
 - A11y on new clickable HUD spans (Enter/Space + `tabIndex`).
-- Real enemy/boss field activation AI; per-class Field Attunement affinity table; Overchannel II/III; brace mechanical effect on enemy field DoT; fractured-tile gameplay (per-tile DoT + Veil Magic gain).
+- Real enemy/boss field activation AI; per-class Field Attunement affinity table; brace mechanical effect on enemy field DoT; fractured-tile gameplay (per-tile DoT + Veil Magic gain).
+- Full action economy split (movement / action / minor action) — Focus Breath currently still consumes the player's main action.
+- Full crit stat rebalance (Monk crit specialization, Flurry scaling with speed/crit, gear/passive crit rework).
+- Enemy use of tactical actions; boss counters to Overchannel; tactical cooldowns.
 
 ## Pointers
 

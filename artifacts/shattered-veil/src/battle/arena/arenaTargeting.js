@@ -163,6 +163,10 @@ export function getStrikeMeta(weapon) {
 export function getActionMeta(ctx = {}) {
   const { act, skill, weapon, ult, copied, actor } = ctx;
   if (act === "strike" || act === "w2") return getStrikeMeta(weapon);
+  // Pass 9 — Steady/Flurry are explicitly melee (range 1) regardless of weapon
+  // element. Avoids UI letting the player aim at distant enemies that bAct's
+  // range-gate would then reject as out-of-range.
+  if (act === "steady" || act === "flurry") return { ...DEFAULT_SKILL_META, range: 1, shape: "single", radius: 0, targetType: "enemy", requiresLineOfSight: false, canTargetObjects: false, needsTarget: true };
   if (act === "skill") return getSkillMeta(skill, actor);
   if (act === "copy") return getSkillMeta(copied || { t: "copy" }, actor);
   if (act === "ult") return getUltMeta(ult);

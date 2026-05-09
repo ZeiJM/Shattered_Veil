@@ -6697,3 +6697,67 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   box-shadow: 0 0 16px rgba(255, 216, 107, 0.32) inset;
 }
 .battle-action-btn.sv-tactical-card:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ─── Pass 9 — Steady / Flurry / Veilflare action cards ─────────────── */
+.sv-action-card-steady-strike,
+.sv-action-card-flurry-strike {
+  position: relative;
+  transition: filter 0.18s, box-shadow 0.18s, transform 0.08s;
+}
+.sv-action-card-steady-strike:hover:not(:disabled),
+.sv-action-card-flurry-strike:hover:not(:disabled) {
+  filter: brightness(1.12);
+  box-shadow: 0 0 12px rgba(150, 180, 255, 0.35);
+}
+.sv-action-card-flurry-strike:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgba(255, 180, 120, 0.4);
+}
+.sv-action-card-veilflare-ready {
+  box-shadow: 0 0 14px rgba(255, 216, 107, 0.55), inset 0 0 0 1px rgba(255, 216, 107, 0.55) !important;
+  animation: sv-veilflare-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sv-veilflare-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 216, 107, 0.45), inset 0 0 0 1px rgba(255, 216, 107, 0.45); }
+  50%      { box-shadow: 0 0 18px rgba(255, 216, 107, 0.75), inset 0 0 0 1px rgba(255, 216, 107, 0.65); }
+}
+.sv-veilflare-impact-flash {
+  animation: sv-veilflare-flash 0.6s ease-out 1;
+}
+@keyframes sv-veilflare-flash {
+  0%   { background: rgba(255, 216, 107, 0.55); }
+  100% { background: transparent; }
+}
+.sv-veilflare-focus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  background: linear-gradient(180deg, rgba(255,216,107,0.22), rgba(255,216,107,0.10));
+  border: 1px solid rgba(255,216,107,0.55);
+  color: var(--gold-5);
+  text-shadow: 0 0 6px rgba(255,216,107,0.5);
+}
+/* Tactical card categories */
+.sv-action-card-overchannel {
+  border-color: rgba(255, 120, 120, 0.55) !important;
+  background: rgba(255, 120, 120, 0.10) !important;
+}
+.sv-action-card-overchannel.sv-action-card-risk {
+  border-color: rgba(255, 80, 80, 0.75) !important;
+  background: rgba(180, 40, 40, 0.16) !important;
+  box-shadow: inset 0 0 10px rgba(180, 40, 40, 0.20);
+}
+.sv-action-card-focus {
+  border-color: rgba(180, 220, 255, 0.55) !important;
+  background: rgba(180, 220, 255, 0.10) !important;
+}
+.sv-action-card-field-control {
+  border-color: rgba(216, 184, 107, 0.55) !important;
+}
+.sv-action-card-disabled-reason {
+  font-style: italic;
+  opacity: 0.85;
+}

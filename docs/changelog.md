@@ -545,3 +545,102 @@ matching the shape of a player Veilbreak field.
 - Real boss/enemy field activation AI, per-class field affinity tables,
   fractured-tile gameplay (per-tile DoT + Veil Magic gain), Overchannel II/III,
   per-rare-terrain interactions, brace mechanical effect on enemy field DoT.
+
+## v82 — Pass 9: Steady Strike, Flurry Strike, Veilflare Impact, Tactical kit cleanup
+
+Goal: give the player satisfying baseline combat options when MP, cooldowns,
+or Veil Magic are limited; add the original Veilflare perfect-impact mechanic;
+finalize the Tactical tab from Pass 8.
+
+### Steady Strike (`steady`)
+- Free, reliable basic attack — 0 MP, 0 Veil Magic, range 1, single-target.
+- Damage ≈ `ATK × 0.6 - DEF × 0.28`, modest vs class skills.
+- Rolls one crit (shared helper) and one Veilflare Impact check (15%).
+
+### Flurry Strike (`flurry`)
+- 0 MP multi-hit; rolls 2–6 hits via `2 + floor(rand × 5)`.
+- Damage per hit ≈ `ATK × 0.3 - DEF × 0.18`, crit per hit.
+- One Veilflare Impact roll for the whole action (applied to last landed hit).
+- Loop breaks when target falls — no log spam, no negative damage.
+
+### Veilflare Impact (the original "perfect-impact" mechanic — NOT "Black Flash")
+- 15% per Steady or per Flurry action (fixed for now). +50% bonus damage.
+- Applies / refreshes Veilflare Focus on the player.
+- Dramatic two-line battle log: "The strike landed at the exact fracture-point
+  of the Veil." → "Veilflare Impact erupted through the battlefield (+50% damage)."
+- Single trigger per action — guarded by `_vfState.triggered`.
+
+### Veilflare Focus (battle buff)
+- Stored as a `np.efx` entry: `{ id:"veilflare_focus", nm, ic:"✦", type:"buff",
+  dur:3, tl:3, justApplied }` — battle-only, cleaned with the rest of `efx`
+  on victory. **No save shape change.**
+- Effects: +10% crit (helper), +Field Attunement (auto via existing efx-buff
+  attunement code path), +20% next damaging Veil Magic OR Veilbreak (consumed
+  once in either path).
+- Refreshes on Veilflare Impact and on Focus Breath; never stacks.
+
+### Tactical tab — final layout (7 actions, all wired)
+| Action | Cost | Effect |
+|---|---|---|
+| Veil Anchor | 6 MP | +6 Field Attunement & +1 dur on next clash. |
+| Field Sever | 8 MP | -1 enemy-field duration (gated on enemy field). |
+| Brace Against Field | 2 MP | Halves incoming field tick next round. |
+| Overchannel I | 8 HP | ×1.5 next Veil Magic / Veilbreak. |
+| Overchannel II | 16 HP | ×2.0 next Veil Magic / Veilbreak. |
+| Overchannel III | 28 HP | ×2.5 next; **gated to >50% HP**. Card carries `sv-action-card-risk`. |
+| Focus Breath | 3 MP | Apply Veilflare Focus (2 turns). |
+
+- All Overchannel tiers share the same `tacticalBuffs.overchannelMult` slot
+  (one active at a time — UI shows "Already active" if you try to stack).
+- All Overchannel branches share one `bAct` body (`tact_overchannel` |
+  `_2` | `_3`) reading `mult` + `hpCost` from the catalogue.
+- Cannot reduce the player below 1 HP (`np.chp = max(1, ...)`).
+
+### Crit helpers (temporary — full rebalance deferred to Pass 10)
+- `getCritChance()` — `clamp(0, 0.6, 0.05 + LCK×0.012 + armorCritChance + (Veilflare Focus ? 0.10 : 0))`.
+- `getCritDamageMultiplier()` — `1.5 + armorCritDmgBoost`.
+- `rollCrit()` — single per-call probability test.
+- Lives inline in `bAct` so it shares the per-call armor crit values already
+  computed at line ~4934. No global state.
+
+### Range / arena targeting
+- `actionRange("steady"/"flurry")` returns 1; range gate now blocks both with
+  the existing "Out of range — move closer..." message.
+- `arenaTargeting.getActionMeta` routes `steady`/`flurry` through `getStrikeMeta`,
+  so the existing aim/target overlay works unchanged.
+
+### UI / CSS
+- Two new combat cards in the Combat tab (Steady Strike / Flurry Strike) sit
+  right after the weapon cards; the existing weapon-strike card remains.
+- Cards add `sv-action-card-veilflare-ready` glow + pulse when Veilflare Focus
+  is active on the player.
+- Tactical cards now carry `sv-action-card-overchannel`,
+  `sv-action-card-focus`, `sv-action-card-field-control`,
+  `sv-action-card-risk`, `sv-action-card-disabled-reason`.
+
+### Save shape
+- Unchanged. Veilflare Focus rides on `np.efx` (battle-transient — cleared on
+  victory just like every other efx). Tactical buffs ride on `btl.tacticalBuffs`
+  which `saveGame` already does not serialize.
+
+### Files touched
+- `artifacts/shattered-veil/src/battle/arena/veilbreakChain.js` —
+  `TACTICAL_ACTIONS` extended with overchannel_2 / overchannel_3 / focus_breath
+  + new metadata fields (`overchannelMult`, `risk`, `requiresHpAbovePct`,
+  `grantsVeilflareFocus`) + Pass 10 TODO list.
+- `artifacts/shattered-veil/src/battle/arena/arenaTargeting.js` —
+  `getActionMeta` recognizes `steady` / `flurry`.
+- `artifacts/shattered-veil/src/Game.jsx` — crit + Veilflare helpers,
+  `bAct` branches for `steady` / `flurry` / `tact_overchannel_2` /
+  `tact_overchannel_3` / `tact_focus`, range-gate extension, Veil Magic
+  & Veilbreak Focus boost, tactical UI mapping update, two new combat cards.
+- `artifacts/shattered-veil/src/game.css` — Pass 9 card styles
+  (~70 lines, glow + pulse keyframes + tactical category colors).
+
+### Out of scope (future passes)
+- Full action economy split (movement / action / minor action) — Focus Breath
+  still consumes the player's main action.
+- Full crit stat rebalance (gear/passive crit rework, Monk crit specialization).
+- Flurry scaling with speed / crit stats.
+- Enemy use of tactical actions; boss counters to Overchannel.
+- Tactical cooldowns; full status-effect cleanup; manual/tutorial updates.

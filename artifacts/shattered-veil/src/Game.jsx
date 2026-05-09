@@ -4722,6 +4722,8 @@ function Game() {
       return (w && w.el && w.el !== "Null") ? 4 : 1;
     }
     if (act === "w2") return (eq.w2 && eq.w2.el && eq.w2.el !== "Null") ? 4 : 1;
+    // Pass 9 — Steady Strike & Flurry Strike: melee, range 1.
+    if (act === "steady" || act === "flurry") return 1;
     if (act === "skill") {
       const list = pl ? pl.skills.filter(s => s.equipped && s.unlocked) : [];
       const sk = list[idx];
@@ -4917,10 +4919,10 @@ function Game() {
     const st = effSt(np), tgt = (effectiveTargetId != null ? en.find(e => e.id === effectiveTargetId && e.hp > 0) : null) || en.find(e => e.hp > 0);
     if (!tgt) return;
     // ── v40 positional combat: range gate + distance damage modifier ──
-    if (["strike","w2","skill","copy","ult"].includes(act) && tgt) {
+    if (["strike","w2","skill","copy","ult","steady","flurry"].includes(act) && tgt) {
       const _r = actionRange(act, idx);
       const _d = Math.abs((btl.plPos ?? 1) - (tgt.pos ?? 3));
-      if (_r < _d && (act === "strike" || act === "w2" || act === "skill")) {
+      if (_r < _d && (act === "strike" || act === "w2" || act === "skill" || act === "steady" || act === "flurry")) {
         setLog(l => [...l, "PLAYER|› Out of range — move closer or use a ranged ability."]);
         return;
       }
@@ -5202,6 +5204,42 @@ function Game() {
       return true;
     };
 
+    // ── Pass 9 — Crit + Veilflare helpers (temporary, reused by steady/flurry).
+    // Reuses the same baselines as the inline weapon-strike crit at line ~5111
+    // (LCK×0.012 + armor crit), with a small +5% baseline floor and bonuses
+    // from the Veilflare Focus battle buff. TODO Pass 10: full crit rebalance.
+    const _hasVeilflareFocus = (np.efx || []).some(ef => ef.id === "veilflare_focus");
+    const _veilflareFocusCritBonus = _hasVeilflareFocus ? 0.10 : 0;
+    const getCritChance = () => {
+      const base = 0.05;
+      const luck = Math.min(0.25, (st.lck || 0) * 0.012);
+      return Math.max(0, Math.min(0.6, base + luck + armorCritChance + _veilflareFocusCritBonus));
+    };
+    const getCritDamageMultiplier = () => 1.5 + armorCritDmgBoost;
+    const rollCrit = () => Math.random() < getCritChance();
+    // Veilflare Impact: 15% per ACTION (not per hit). Returns bonus dmg multiplier.
+    // Pushes log lines and applies/refreshes the Veilflare Focus buff. Caller
+    // must apply the multiplier to its already-computed damage. Only one trigger
+    // per bAct invocation enforced via the flag below.
+    const _vfState = { triggered: false };
+    let _vfFocusConsumedThisCast = false;
+    const tryVeilflareImpact = (whoNm) => {
+      if (_vfState.triggered) return 1;
+      if (Math.random() >= 0.15) return 1;
+      _vfState.triggered = true;
+      try { musicRef.current.playSfx("crit"); } catch {}
+      lg.push("🌟 The strike landed at the exact fracture-point of the Veil.");
+      lg.push("✦ Veilflare Impact erupted through the battlefield (+50% damage).");
+      // Apply or refresh Veilflare Focus on the player (battle-only buff).
+      const dur = 3;
+      np.efx = [...(np.efx || []).filter(ef => ef.id !== "veilflare_focus"), {
+        id: "veilflare_focus", nm: "Veilflare Focus", ic: "✦", type: "buff", v: 0,
+        dur, tl: dur, justApplied: true,
+      }];
+      lg.push("✦ " + (whoNm || np.nm || np.name || "You") + " gained Veilflare Focus (" + dur + " turns: +crit, +Field Attunement, +next Veil Magic).");
+      return 1.5;
+    };
+
     if (act === "strike") {
       try { musicRef.current.playSfx("hit"); } catch {}
       nextInteractionState.consecutiveGuards = 0;
@@ -5210,6 +5248,56 @@ function Game() {
       trackElementUse((eq.w1 || eq.w2)?.el || "Null");
       trackSkillName((eq.w1 || eq.w2)?.name || "Strike");
       attackWithWeapon(eq.w1 || eq.w2, eq.w1 ? "w1" : (eq.w2 ? "w2" : null), 4, "Fists");
+    } else if (act === "steady") {
+      // Pass 9 — Steady Strike: free, reliable basic attack. ATK-scaled, modest
+      // damage, single Veilflare roll. Always available — no MP/Veil cost.
+      try { musicRef.current.playSfx("hit"); } catch {}
+      nextInteractionState.consecutiveGuards = 0;
+      nextInteractionState.strikeCount = (nextInteractionState.strikeCount || 0) + 1;
+      nextInteractionState.damageSkillUses = (nextInteractionState.damageSkillUses || 0) + 1;
+      trackElementUse("Null");
+      trackSkillName("Steady Strike");
+      const whoNm = np.nm || np.name || "You";
+      let d = Math.max(1, Math.floor(((st.atk * 0.60) + R(-1, 3) - tgt.def * 0.28) * encounterProfile.playerDamage));
+      let critLine = "";
+      if (rollCrit()) { const m = getCritDamageMultiplier(); d = Math.max(1, Math.floor(d * m)); critLine = " 💥 ×" + m.toFixed(2); try { musicRef.current.playSfx("crit"); } catch {} }
+      const vfMult = tryVeilflareImpact(whoNm);
+      if (vfMult > 1) d = Math.max(1, Math.floor(d * vfMult));
+      tgt.hp = Math.max(0, tgt.hp - d);
+      logDmg(whoNm + " — Steady Strike hit " + tgt.name + " for " + d + critLine);
+      lg.push("⚔ The blade found a steady path through the chaos.");
+      ch.push(4);
+    } else if (act === "flurry") {
+      // Pass 9 — Flurry Strike: 2–6 quick hits, low ATK scaling per hit, crit
+      // per hit, ONE Veilflare roll for the whole action. Loop breaks if target
+      // falls so we don't spam the log on a corpse.
+      try { musicRef.current.playSfx("hit"); } catch {}
+      nextInteractionState.consecutiveGuards = 0;
+      nextInteractionState.strikeCount = (nextInteractionState.strikeCount || 0) + 1;
+      nextInteractionState.damageSkillUses = (nextInteractionState.damageSkillUses || 0) + 1;
+      trackElementUse("Null");
+      trackSkillName("Flurry Strike");
+      const whoNm = np.nm || np.name || "You";
+      const hits = Math.max(2, Math.min(6, 2 + Math.floor(Math.random() * 5)));
+      let totalDmg = 0;
+      let critCount = 0;
+      let landed = 0;
+      // One Veilflare roll for the whole action — applied to the FIRST landed
+      // hit so it always actually lands even if the target falls mid-combo.
+      const vfMult = tryVeilflareImpact(whoNm);
+      let vfApplied = false;
+      for (let hi = 0; hi < hits; hi++) {
+        if (tgt.hp <= 0) break;
+        let dmg = Math.max(1, Math.floor(((st.atk * 0.30) + R(-1, 2) - tgt.def * 0.18) * encounterProfile.playerDamage));
+        if (rollCrit()) { const m = getCritDamageMultiplier(); dmg = Math.max(1, Math.floor(dmg * m)); critCount++; }
+        if (vfMult > 1 && !vfApplied) { dmg = Math.max(1, Math.floor(dmg * vfMult)); vfApplied = true; }
+        totalDmg += dmg;
+        landed++;
+        tgt.hp = Math.max(0, tgt.hp - dmg);
+      }
+      logDmg(whoNm + " — Flurry Strike unleashed " + landed + " quick blows on " + tgt.name + " for " + totalDmg + (critCount > 0 ? " (×" + critCount + " crit)" : ""));
+      lg.push("⚔ A flurry of quick strikes rang across the arena.");
+      ch.push(4);
     } else if (act === "w2" && eq.w2) {
       try { musicRef.current.playSfx("hit"); } catch {}
       nextInteractionState.consecutiveGuards = 0;
@@ -5314,20 +5402,43 @@ function Game() {
       lg.push("🛡 " + (np.nm || np.name || "You") + " braced against the hostile field pressure.");
       lg.push("✦ Incoming field effects reduced this round.");
       ch.push(-1);
-    } else if (act === "tact_overchannel") {
-      // Pass 8 — Overchannel I: spend 8 HP, next Veil Magic / Veilbreak ×1.5.
-      const tact = vbGetTactical("overchannel_1");
-      const hpCost = tact?.cost?.hp || 8;
+    } else if (act === "tact_overchannel" || act === "tact_overchannel_2" || act === "tact_overchannel_3") {
+      // Pass 8/9 — Overchannel I/II/III: spend HP, next Veil Magic / Veilbreak ×N.
+      const tactId = act === "tact_overchannel_3" ? "overchannel_3" : act === "tact_overchannel_2" ? "overchannel_2" : "overchannel_1";
+      const tact = vbGetTactical(tactId);
+      const hpCost = tact?.cost?.hp || (tactId === "overchannel_3" ? 28 : tactId === "overchannel_2" ? 16 : 8);
+      const mult = tact?.overchannelMult || (tactId === "overchannel_3" ? 2.5 : tactId === "overchannel_2" ? 2.0 : 1.5);
       // Floor: never reduce HP below 1 from Overchannel itself.
-      if ((np.chp || 0) <= hpCost) { notify("Not enough HP to safely Overchannel."); return; }
+      if ((np.chp || 0) <= hpCost) { notify("Not enough HP to safely " + (tact?.name || "Overchannel") + "."); return; }
+      // Pass 9 — Overchannel III is gated to >50% HP for safety.
+      if (tact?.requiresHpAbovePct) {
+        const maxHp = Math.max(1, st.hp || np.chp || 1);
+        if ((np.chp || 0) / maxHp <= tact.requiresHpAbovePct) { notify(tact.name + " requires above " + Math.round(tact.requiresHpAbovePct * 100) + "% HP."); return; }
+      }
       if ((_tacticalBuffsNext.overchannelMult || 1) > 1) { notify("Already overchannelled — cast first."); return; }
       try { musicRef.current.playSfx("hit"); } catch {}
       np.chp = Math.max(1, (np.chp || 1) - hpCost);
       _vbCtx.spentHP = (_vbCtx.spentHP || 0) + hpCost;
-      _tacticalBuffsNext = { ..._tacticalBuffsNext, overchannelMult: 1.5 };
+      _tacticalBuffsNext = { ..._tacticalBuffsNext, overchannelMult: mult };
       _vbCtx.tacticalStep = true;
-      lg.push("🩸 " + (np.nm || np.name || "You") + " overchannelled, trading blood for Veil output.");
-      lg.push("✦ Next Veil Magic output increased to ×1.5.");
+      lg.push("🩸 " + (np.nm || np.name || "You") + " " + (tact?.log || "overchannelled."));
+      lg.push("✦ Next Veil Magic output increased to ×" + mult + ".");
+      ch.push(-1);
+    } else if (act === "tact_focus") {
+      // Pass 9 — Focus Breath: 3 MP, applies Veilflare Focus (2 turns), no damage.
+      const tact = vbGetTactical("focus_breath");
+      const cost = tact?.cost?.mp || 3;
+      if (np.cmp < cost) { notify("Need " + cost + " MP!"); return; }
+      try { musicRef.current.playSfx("menu"); } catch {}
+      np.cmp -= cost;
+      const dur = tact?.grantsVeilflareFocus || 2;
+      np.efx = [...(np.efx || []).filter(ef => ef.id !== "veilflare_focus"), {
+        id: "veilflare_focus", nm: "Veilflare Focus", ic: "✦", type: "buff", v: 0,
+        dur, tl: dur, justApplied: true,
+      }];
+      _vbCtx.tacticalStep = true;
+      lg.push("🌬 " + (np.nm || np.name || "You") + " " + (tact?.log || "steadied his breathing."));
+      lg.push("✦ Veilflare Focus (" + dur + " turns) — +crit, +Field Attunement, +next Veil Magic output.");
       ch.push(-1);
     } else if (act === "tact_sim_enemy") {
       // Pass 8 — Test hook (training battles only): summon a placeholder enemy field
@@ -5372,6 +5483,8 @@ function Game() {
         if (passiveHas("first_spell_burst") && !btl.firstSpellUsed) { base *= 1.22; logBuff("Wild Flux! +22% power"); }
         // Pass 8 — Overchannel I: ×1.5 to next damaging Veil Magic. Consumed once.
         if (_overchannelMult > 1 && !_overchannelConsumed) { base *= _overchannelMult; lg.push("🩸 Overchannel released — ×" + _overchannelMult + " power."); _overchannelConsumed = true; }
+        // Pass 9 — Veilflare Focus: +20% next Veil Magic output (consumed once).
+        if (_hasVeilflareFocus && !_vfFocusConsumedThisCast) { base *= 1.20; lg.push("✦ Veilflare Focus channeled — +20% Veil Magic output."); _vfFocusConsumedThisCast = true; np.efx = (np.efx || []).filter(ef => ef.id !== "veilflare_focus"); }
         if (battleBonus && ((battleBonus.type === "sameEl" && sk.el === battleBonus.el) || battleBonus.type === "setup")) { base *= battleBonus.mult; logBuff(battleBonus.label); lg.push("Skill Interaction: " + battleBonus.label + " active — fires on " + sk.n + "."); setBattleBonus(null); }
         // Evaluate per-interaction bonuses for damage skills
         if (sk.el && sk.el !== "Null") {
@@ -5607,6 +5720,8 @@ function Game() {
       let pow = (ultBase * 0.72 + st.mag * 1.24 + st.atk * 0.34) * encounterProfile.playerDamage * 0.95;
       // Pass 8 — Overchannel I: ×1.5 to a Veilbreak cast as well. Consumed once.
       if (_overchannelMult > 1 && !_overchannelConsumed) { pow *= _overchannelMult; lg.push("🩸 Overchannel released — ×" + _overchannelMult + " Veilbreak power."); _overchannelConsumed = true; }
+      // Pass 9 — Veilflare Focus: +20% Veilbreak output too (consumed once).
+      if (_hasVeilflareFocus && !_vfFocusConsumedThisCast) { pow *= 1.20; lg.push("✦ Veilflare Focus channeled — +20% Veilbreak output."); _vfFocusConsumedThisCast = true; np.efx = (np.efx || []).filter(ef => ef.id !== "veilflare_focus"); }
       en.filter(e => e.hp > 0).forEach(e => { const d = Math.max(1, Math.floor(pow - e.def * 0.12)); e.hp = Math.max(0, e.hp - d); if (np.ult.fx) { const ef = FX(np.ult.fx); if (ef) e.efx.push({ ...ef, tl: Math.min(5, (np.ult.fxDur || ef.dur) + (np.ult.chain >= 6 ? 1 : 0)), justApplied:true }); } });
       if (np.quote && np.quote !== "...") lg.push("💬 \"" + np.quote + "\"");
       lg.push("🌟 VEILBREAK: " + np.ult.name + "!" + (np.ult.fx ? " [" + np.ult.fx + " " + formatTurns(Math.min(5, (np.ult.fxDur||2) + (np.ult.chain >= 6 ? 1 : 0))) + "]" : "")); np.ult = { ...np.ult, ready: false }; ch = [];
@@ -9212,6 +9327,24 @@ const buildGroupedBattleLog = (entries) => {
                     </button>
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(eq.w2.name, eq.w2.el), fullscreen: true }); }}>?</button>
                   </div>}
+                  {/* Pass 9 — Steady Strike: free reliable basic attack, range 1, can trigger Veilflare Impact. */}
+                  <div className="battle-action-card-wrap">
+                    <button className={"bt battle-action-btn sv-action-card-steady-strike" + ((pl.efx || []).some(e => e.id === "veilflare_focus") ? " sv-action-card-veilflare-ready" : "")} style={{ background: "rgba(150,180,255,0.12)", border: "1px solid rgba(150,180,255,0.45)", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onClick={() => { if(popupJustOpenedRef.current) return; tryAimAction("steady", undefined, () => bAct("steady")); }}>
+                      <div style={{ fontWeight: 700 }}>🗡 Steady Strike</div>
+                      <div style={{ fontSize: 7, color: T.dm }}>Basic Attack · Range 1 · Single</div>
+                      <div style={{ fontSize: 7, color: T.tx }}>Dmg ≈ ATK×0.6 · Cost: 0 · Reliable</div>
+                      <div style={{ fontSize: 7, color: T.dm }}>15% Veilflare Impact chance.</div>
+                    </button>
+                  </div>
+                  {/* Pass 9 — Flurry Strike: 2–6 quick low-damage hits, one Veilflare roll per action. */}
+                  <div className="battle-action-card-wrap">
+                    <button className={"bt battle-action-btn sv-action-card-flurry-strike" + ((pl.efx || []).some(e => e.id === "veilflare_focus") ? " sv-action-card-veilflare-ready" : "")} style={{ background: "rgba(255,180,120,0.12)", border: "1px solid rgba(255,180,120,0.45)", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onClick={() => { if(popupJustOpenedRef.current) return; tryAimAction("flurry", undefined, () => bAct("flurry")); }}>
+                      <div style={{ fontWeight: 700 }}>⚔ Flurry Strike</div>
+                      <div style={{ fontSize: 7, color: T.dm }}>Multi-Hit · Range 1 · Single</div>
+                      <div style={{ fontSize: 7, color: T.tx }}>2–6 hits · Dmg ≈ ATK×0.3 ea · Cost: 0</div>
+                      <div style={{ fontSize: 7, color: T.dm }}>Crit per hit · 15% Veilflare Impact (once).</div>
+                    </button>
+                  </div>
                   <div className="battle-action-card-wrap">
                     <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Guard", "Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Guard", "Null"), fullscreen: true }); return; } bAct("guard"); }}>
                       <div style={{ fontWeight: 700 }}>🛡️ Guard</div>
@@ -9280,24 +9413,35 @@ const buildGroupedBattleLog = (entries) => {
                     const lacksHp = hpCost > 0 && (pl.chp || 0) <= hpCost;
                     const needsField = !!t.requiresEnemyField;
                     const fieldMissing = needsField && !ef;
+                    // Pass 9 — Overchannel III safety gate (>50% HP).
+                    const _maxHp = Math.max(1, effSt(pl)?.hp || pl.chp || 1);
+                    const _hpPct = (pl.chp || 0) / _maxHp;
+                    const hpGated = !!t.requiresHpAbovePct && _hpPct <= t.requiresHpAbovePct;
+                    const isOverchannel = t.id === "overchannel_1" || t.id === "overchannel_2" || t.id === "overchannel_3";
                     const alreadyOn = (t.id === "veil_anchor" && (tBuffs.anchorBonus || 0) >= 6)
-                                   || (t.id === "overchannel_1" && (tBuffs.overchannelMult || 1) > 1)
-                                   || (t.id === "brace_field" && (tBuffs.braceTurns || 0) > 0);
-                    const disabled = !isPT || lacksMp || lacksHp || fieldMissing || alreadyOn;
-                    const disabledReason = !isPT ? "" : lacksMp ? "Need " + mpCost + " MP" : lacksHp ? "Need >" + hpCost + " HP" : fieldMissing ? "Needs an enemy field" : alreadyOn ? "Already active" : "";
+                                   || (isOverchannel && (tBuffs.overchannelMult || 1) > 1)
+                                   || (t.id === "brace_field" && (tBuffs.braceTurns || 0) > 0)
+                                   || (t.id === "focus_breath" && (pl.efx || []).some(e => e.id === "veilflare_focus"));
+                    const disabled = !isPT || lacksMp || lacksHp || fieldMissing || alreadyOn || hpGated;
+                    const disabledReason = !isPT ? "" : lacksMp ? "Need " + mpCost + " MP" : lacksHp ? "Need >" + hpCost + " HP" : hpGated ? ("Requires >" + Math.round(t.requiresHpAbovePct * 100) + "% HP") : fieldMissing ? "Needs an enemy field" : alreadyOn ? "Already active" : "";
                     const actId = t.id === "veil_anchor" ? "tact_anchor"
                                 : t.id === "field_sever" ? "tact_sever"
                                 : t.id === "brace_field" ? "tact_brace"
                                 : t.id === "overchannel_1" ? "tact_overchannel"
+                                : t.id === "overchannel_2" ? "tact_overchannel_2"
+                                : t.id === "overchannel_3" ? "tact_overchannel_3"
+                                : t.id === "focus_breath" ? "tact_focus"
                                 : "tact_anchor";
-                    return <div key={t.id} className="battle-action-card-wrap"><button type="button" className={"bt battle-action-btn sv-tactical-card sv-tactical-" + t.id + (alreadyOn ? " is-active" : "")} disabled={disabled} style={{ background: "rgba(255,216,107,0.10)", border: "1px solid rgba(255,216,107,0.45)", color: T.tx, textAlign: "left", padding: "6px 8px" }} onClick={() => bAct(actId)}>
+                    const cardCls = isOverchannel ? " sv-action-card-overchannel" : (t.id === "focus_breath" ? " sv-action-card-focus" : " sv-action-card-field-control");
+                    const riskCls = t.risk === "heavy" ? " sv-action-card-risk" : "";
+                    return <div key={t.id} className="battle-action-card-wrap"><button type="button" className={"bt battle-action-btn sv-tactical-card sv-tactical-" + t.id + cardCls + riskCls + (alreadyOn ? " is-active" : "")} disabled={disabled} style={{ background: "rgba(255,216,107,0.10)", border: "1px solid rgba(255,216,107,0.45)", color: T.tx, textAlign: "left", padding: "6px 8px" }} onClick={() => bAct(actId)}>
                       <div style={{ fontWeight: 800, fontSize: 11 }}>{t.icon} {t.name}</div>
                       <div style={{ fontSize: 8, color: T.tx, marginTop: 1 }}>{t.summary}</div>
                       <div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>{t.detail}</div>
                       <div style={{ fontSize: 8, marginTop: 2, display: "flex", gap: 4, flexWrap: "wrap" }}>
                         {mpCost > 0 && <span style={{ color: lacksMp ? T.bad : T.gd }}>Cost: {mpCost} MP</span>}
                         {hpCost > 0 && <span style={{ color: lacksHp ? T.bad : "#ff9c9c" }}>Cost: {hpCost} HP</span>}
-                        {disabledReason && <span style={{ color: T.bad }}>· {disabledReason}</span>}
+                        {disabledReason && <span className="sv-action-card-disabled-reason" style={{ color: T.bad }}>· {disabledReason}</span>}
                       </div>
                     </button></div>;
                   })}

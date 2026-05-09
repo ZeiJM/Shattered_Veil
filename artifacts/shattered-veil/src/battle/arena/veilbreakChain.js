@@ -633,9 +633,53 @@ export const TACTICAL_ACTIONS = [
     detail: "Spend 8 HP. Your next Veil Magic or Veilbreak deals ×1.5 power.",
     log: "overchannelled, trading blood for Veil output.",
     when: "Use just before a critical Veil Magic strike.",
-    // TODO Pass 9+: Overchannel II (×2) and III (×2.5) with HP scaling and risk.
+    overchannelMult: 1.5,
+    risk: "low",
+  },
+  {
+    id: "overchannel_2",
+    name: "Overchannel II",
+    icon: "🩸",
+    cost: { hp: 16 },
+    summary: "Pay deeper blood for greater Veil output.",
+    detail: "Spend 16 HP. Your next Veil Magic or Veilbreak deals ×2.0 power.",
+    log: "pushed past the safe channel — blood for Veil output.",
+    when: "Use only when HP can spare it. Cannot reduce you below 1 HP.",
+    overchannelMult: 2.0,
+    risk: "moderate",
+  },
+  {
+    id: "overchannel_3",
+    name: "Overchannel III",
+    icon: "🩸",
+    cost: { hp: 28 },
+    summary: "Tear at the Veil — heavy bloodprice.",
+    detail: "Spend 28 HP. Your next Veil Magic or Veilbreak deals ×2.5 power. Locked under 50% HP.",
+    log: "tore at the Veil itself, paying a heavy bloodprice.",
+    when: "Requires above 50% HP. Cannot reduce you below 1 HP.",
+    overchannelMult: 2.5,
+    risk: "heavy",
+    requiresHpAbovePct: 0.5,
+  },
+  {
+    id: "focus_breath",
+    name: "Focus Breath",
+    icon: "🌬",
+    cost: { mp: 3 },
+    summary: "Steady your breathing and sharpen your focus.",
+    detail: "Apply Veilflare Focus (2 turns): +crit, +Field Attunement, +Veil Magic next cast.",
+    log: "steadied his breathing and sharpened his focus.",
+    when: "Use to set up a Steady/Flurry crit window or a Veil Magic spike.",
+    grantsVeilflareFocus: 2,
   },
 ];
+
+// TODO Pass 10+:
+//  • Tactical action cooldowns (per-action cooldown tracker on btl).
+//  • Action economy: split movement / action / minor action so Focus Breath
+//    becomes a true minor action instead of consuming the player's main turn.
+//  • Boss counters to Overchannel (e.g. punish channelers with debuffs).
+//  • Enemy AI use of tactical actions.
 
 export function getTacticalAction(id) {
   return TACTICAL_ACTIONS.find(a => a.id === id) || null;
