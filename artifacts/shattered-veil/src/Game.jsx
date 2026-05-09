@@ -19,6 +19,18 @@ import {
   describeActionFromStrike as arenaActionFromStrike,
   clampBonusValue as arenaClampBonusValue,
 } from './battle/arena/arenaTerrain.js';
+import {
+  VB_REQ_TYPES,
+  buildRequirementsForUlt as vbBuildRequirements,
+  buildFieldForUlt as vbBuildField,
+  applyActionToRequirements as vbApplyAction,
+  isReadyFromRequirements as vbIsReady,
+  summarizeRequirements as vbSummary,
+  ensureBattleVeilbreakState as vbEnsureState,
+  tickActiveField as vbTickField,
+  describeFieldRecurring as vbDescribeRecurring,
+  instantiateActiveField as vbInstantiateField,
+} from './battle/arena/veilbreakChain.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -4669,7 +4681,7 @@ function Game() {
       // Arena init must NEVER block battle start — fall back to no arena layer.
       arenaInit = null;
     }
-    setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, arena: arenaInit, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
+    setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, arena: arenaInit, veilbreak: vbEnsureState(pl?.ult, null), activeField: null, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
     setArenaMoveMode(false);
     setArenaTargeting(null);
     setBattleBonus(null);
@@ -4923,6 +4935,28 @@ function Game() {
       ? arenaGetTerrainBonusForUnit(np, _playerTerrainKey, arenaActionFromSkill(sk, opts || {}))
       : null;
 
+    // ── Pass 7 — Veilbreak action context accumulator ──
+    // We collect the side-effects of THIS action (damage, statuses applied,
+    // crits, terrain bonus consumption, HP cost) into a single ctx that
+    // feeds the unordered requirement evaluator at the end of bAct.
+    const _vbCtx = {
+      act,
+      idx,
+      castElement: null,
+      skillType: null,
+      dealtDamage: 0,
+      receivedDamage: 0,
+      appliedStatuses: [],
+      wasCrit: false,
+      defeatedEnemy: false,
+      tacticalStep: false,
+      terrainKey: null,
+      usedTerrainBonus: false,
+      spentHP: 0,
+      tilesMoved: 0,
+    };
+    let _activatedFieldThisAction = null;
+    let _vbResetAfterCast = false;
     let nextInteractionState = { ...(btl.interactionState || {}) };
     if (!Array.isArray(nextInteractionState.freezeAppliedIds)) nextInteractionState.freezeAppliedIds = [];
     if (!Array.isArray(nextInteractionState.usedElements)) nextInteractionState.usedElements = [];
@@ -5445,6 +5479,18 @@ function Game() {
       en.filter(e => e.hp > 0).forEach(e => { const d = Math.max(1, Math.floor(pow - e.def * 0.12)); e.hp = Math.max(0, e.hp - d); if (np.ult.fx) { const ef = FX(np.ult.fx); if (ef) e.efx.push({ ...ef, tl: Math.min(5, (np.ult.fxDur || ef.dur) + (np.ult.chain >= 6 ? 1 : 0)), justApplied:true }); } });
       if (np.quote && np.quote !== "...") lg.push("💬 \"" + np.quote + "\"");
       lg.push("🌟 VEILBREAK: " + np.ult.name + "!" + (np.ult.fx ? " [" + np.ult.fx + " " + formatTurns(Math.min(5, (np.ult.fxDur||2) + (np.ult.chain >= 6 ? 1 : 0))) + "]" : "")); np.ult = { ...np.ult, ready: false }; ch = [];
+      // Pass 7 — instantiate a Veilbreak field on activation, snapshotted from
+      // the current ult so later swaps can't mutate the live field. Reset the
+      // requirement list so it can be rebuilt next round.
+      try {
+        const _newField = vbInstantiateField(np.ult, btl.tn || 0);
+        if (_newField) {
+          _activatedFieldThisAction = _newField;
+          lg.push("🌫 The Veil thinned — " + _newField.fieldName + " unfurled across the arena.");
+          lg.push("✦ Active Field: " + _newField.fieldName + " — " + vbDescribeRecurring(_newField) + " (" + _newField.duration + " turns)");
+        }
+        _vbResetAfterCast = true;
+      } catch (e) { /* never let field activation crash combat */ }
     } else if (act === "btl_equip_item") {
       // Equip item mid-battle (ends turn)
       const item = inv.find(i => i.id === idx);
