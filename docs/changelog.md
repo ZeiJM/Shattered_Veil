@@ -991,3 +991,25 @@ Quick polish so the painted `battle-arena.png` / `battle-rift.png` / `battle-for
 - `::before` overlay now layers a faint diagonal repeating-line texture (rgba(212,173,64,0.025)) at 45° for subtle "battle map" weave, in `mix-blend-mode: overlay`.
 
 Net effect: the painted top-down arena art is now visible through the hex grid, matching the NinjaRPG screenshot reference. Tile glow/hover/move/target rings still pop because each tile keeps its own backgrounds and box-shadow rings.
+
+## v90.2 — Mobile world map scroll (real fix)
+
+User reported that v89's mobile map scroll fix wasn't working — the painted hex grid was still cut off below the fold with no way to scroll. Two compounding bugs:
+
+1. **v89 trapped scroll inside `.wr` without max-height.** `.map-bg .wr { overflow-y: auto }` creates a nested scroll container, but `.wr` had no `max-height` set, so it just expanded with the content and never showed a scrollbar. Net effect: scroll silently broken.
+2. **Page-panel mobile grid clamped the map row.** The Pass 14 single-column mobile rule sets `grid-template-rows: auto auto 1fr`. The third row (`1fr`) absorbs only the *remaining* viewport space inside `.wr` (which itself was 100dvh), capping the square hex grid to whatever was left after the rail and world card — which was very little.
+
+**Fix** (single CSS block, replaces v89 rule). Architect review caught two more clamps that had to be released for body scroll to actually work:
+
+1. **Global app-shell viewport lock** at `~L1854` (`html, body, #root { height:100%; max-height:100vh; overflow:hidden }`) and `~L1857` (`.pg { height:100dvh; overflow:hidden }`). These hard-clamp the entire document. Solution: scope an override using `:has(.pg.map-bg)` so `html`, `body`, and `#root` flip to `height:auto; overflow:visible` **only when the map screen is mounted**. Battle/town/shell screens keep their fixed-viewport behavior.
+2. **`.map-bg .page-panel { max-height: calc(100dvh - 72/80px) }`** at `~L1324/1339`. Released with `max-height: none !important` inside the same mobile block.
+
+Then the v90.1-style fixes:
+- Removed `overflow-y: auto` from `.map-bg .wr`; set `overflow: visible !important` so the document body handles scroll naturally.
+- Set `.map-bg .page-panel { grid-template-rows: auto auto auto !important }` on `≤720px` — third row now sizes to its content (the square grid) and the page-panel grows taller than the viewport, which makes the body scroll.
+- Defensive `overflow: visible !important; max-height: none !important` on `.shell-viewport` and `.map-main-area` to make sure no other ancestor accidentally clamps height.
+- Bumped `padding-bottom` on `.wr` from 24px → 32px so the last hex row isn't crowded against the bottom edge.
+
+Browser support note: `:has()` is required for the body-scroll override (Safari 15.4+, Chrome 105+). All target mobile browsers ship it.
+
+No JSX changes. No engine, save shape, or other systems touched.

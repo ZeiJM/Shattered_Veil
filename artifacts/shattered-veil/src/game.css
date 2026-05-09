@@ -7355,27 +7355,57 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .sv-arena-grid.sv-arena-grid-hex .sv-arena-unit-hp { height: 4px; bottom: 8%; left: 12%; right: 12%; }
 }
 
-/* 3) Pass 15 — world map screen MUST scroll on mobile so the rail
-      AND the painted hex grid are both reachable. The Pass 14 layout
-      put the rail above the grid in a single column; on short screens
-      the grid was below the fold with no way to scroll. */
-.map-bg .wr {
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
+/* 3) Pass 15.1 — world map screen MUST scroll on mobile so the painted
+      hex grid is fully reachable. v89's overflow:auto on .wr trapped scroll
+      in a wrapper with no max-height (so it never actually scrolled), and
+      the page-panel's mobile `grid-template-rows: auto auto 1fr` capped the
+      map row to the viewport-remainder. Fix: let body scroll naturally
+      (no overflow on .wr), make the third grid row `auto` so the square
+      grid pushes the page-panel taller than the viewport. */
 @media (max-width: 720px) {
+  /* Defeat the global viewport locks (game.css ~L1854/1857) for the map
+     screen only, so the document body can actually scroll. Uses :has()
+     scoped to .pg.map-bg so other screens (battle/town/shell) keep their
+     fixed-viewport behavior. */
+  html:has(.pg.map-bg),
+  body:has(.pg.map-bg),
+  #root:has(.pg.map-bg) {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+  }
+  .pg.map-bg {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    min-height: 100dvh;
+  }
+  /* DO NOT trap scroll inside .wr — let the document body scroll.
+     Overrides the .map-bg .wr { height:100dvh; overflow:hidden } rule
+     at game.css ~L1860. */
   .map-bg .wr {
+    overflow: visible !important;
     max-height: none !important;
     height: auto !important;
     min-height: 100dvh;
-    padding-bottom: 24px !important;
+    padding-bottom: 32px !important;
+    -webkit-overflow-scrolling: touch;
   }
+  /* Remove the 1fr cap so the map area sizes to content and pushes the
+     page-panel to grow, letting body scroll. Also clears the
+     `max-height: calc(100dvh - 72px)` clamp from ~L1324/1339. */
   .map-bg .page-panel {
     height: auto !important;
     min-height: 0 !important;
+    max-height: none !important;
+    grid-template-rows: auto auto auto !important;
+    overflow: visible !important;
   }
   .map-bg .map-main-area {
     min-height: 280px;
+    height: auto !important;
+    overflow: visible !important;
   }
   .map-bg .battle-world-grid {
     /* Square, not capped by viewport height — let the page scroll */
@@ -7396,6 +7426,12 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
     gap: 3px !important;
     padding: 4px !important;
     max-width: 100% !important;
+  }
+  /* Defensive — older shell-viewport rule is min-height:100dvh; ensure no
+     ancestor accidentally clamps height. */
+  .map-bg .shell-viewport {
+    overflow: visible !important;
+    max-height: none !important;
   }
 }
 
