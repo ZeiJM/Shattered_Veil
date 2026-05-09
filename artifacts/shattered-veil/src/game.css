@@ -6175,3 +6175,59 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .sv-arena-tooltip { font-size: 9px; }
   .sv-arena-tile { font-size: 10px; }
 }
+
+/* ── BIG ARENA FOUNDATION — Pass 3 (Tactical Step movement) ────────────── */
+.sv-arena-tag-move {
+  background: rgba(94,124,255,0.22);
+  color: #b9c8ff;
+  border: 1px solid rgba(94,124,255,0.55);
+  animation: sv-arena-move-pulse 1.4s ease-in-out infinite;
+}
+.sv-arena-movemode-banner {
+  margin: 4px 6px 6px;
+  padding: 4px 8px;
+  background: linear-gradient(90deg, rgba(94,124,255,0.18), rgba(94,124,255,0.06));
+  border: 1px solid rgba(94,124,255,0.4);
+  border-radius: 4px;
+  color: #cdd7ff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+.sv-arena-grid.sv-arena-movement-mode {
+  outline: 1px dashed rgba(94,124,255,0.45);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.sv-arena-tile.sv-arena-tile-move-valid {
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(94,124,255,0.7) inset, 0 0 8px rgba(94,124,255,0.45);
+  background-image: radial-gradient(circle at center, rgba(94,124,255,0.32) 0%, rgba(94,124,255,0.08) 70%);
+  animation: sv-arena-tile-move-pulse 1.6s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+.sv-arena-tile.sv-arena-tile-move-valid:hover {
+  box-shadow: 0 0 0 2px #b9c8ff inset, 0 0 12px rgba(94,124,255,0.7);
+  background-image: radial-gradient(circle at center, rgba(94,124,255,0.55) 0%, rgba(94,124,255,0.18) 70%);
+}
+.sv-arena-tile.sv-arena-tile-move-selected {
+  box-shadow: 0 0 0 2px #ffe79b inset, 0 0 12px rgba(255,216,107,0.7);
+}
+.sv-arena-tile.sv-arena-tile-occupied {
+  filter: brightness(0.78) saturate(0.85);
+}
+.sv-arena-confirm-move {
+  outline: 1px solid rgba(94,124,255,0.7) !important;
+  box-shadow: 0 0 8px rgba(94,124,255,0.55) !important;
+  animation: sv-arena-move-pulse 1.4s ease-in-out infinite;
+}
+@keyframes sv-arena-tile-move-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(94,124,255,0.7) inset, 0 0 6px rgba(94,124,255,0.35); }
+  50%      { box-shadow: 0 0 0 1px rgba(94,124,255,0.95) inset, 0 0 12px rgba(94,124,255,0.6); }
+}
+@keyframes sv-arena-move-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.78; }
+}

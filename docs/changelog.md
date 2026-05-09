@@ -284,3 +284,44 @@ Non-destructive groundwork for future tactical arena combat. The current lane-st
 - Replacing `btl.plPos` (lane 0–4) and `e.pos` (lane 3–4) with real arena `{x,y}` positions will touch the entire combat dispatcher.
 - Wiring per-skill `range`/`shape` requires editing every entry in the skill catalogue.
 - Veilbreak field activation needs a transient battle-state slot for `activeField` + duration ticking inside the existing turn loop.
+
+## v77 — Battle Rework Pass 3 (Tactical Step + arena positions)
+
+The arena layer goes from preview to live. A real `{x,y}` position is initialized for every battle unit at `startBattle`, and the player can shift across the board with a new **Tactical Step** action — without any change to lane combat, damage math, or enemy AI.
+
+**Arena state**
+
+- New `btl.arena` slot, populated in `startBattle`. Carries the template, terrain/object maps, shape mask, and a `units` map: `{ player: {x,y,facing}, enemies: { [id]: {x,y,facing} }, ally?, pet? }`.
+- Lane positions (`btl.plPos`, `e.pos`) are deliberately **untouched** — the existing range gate, distance modifier, and enemy turn logic all keep working unchanged.
+- Init is wrapped in `try/catch` and falls back to `arena: null`; the ArenaBoard mount further falls back to spawn-on-the-fly so the panel still renders if init failed.
+
+**Movement stat**
+
+- New helper `getUnitMoveRange({ spd, classId, isBoss, kind })` in `arenaEngine.js`. Base 3, +1 at SPD 14, +2 at SPD 19, −1 at SPD ≤ 8, capped at 2 for slow tank classes (`gravity`, `monk`, `rune`), +1 for bosses, pets get one less. Min 1.
+- Displayed only inside the arena panel and on the Tactical Step card — no global stat sheet changes.
+
+**Tactical Step**
+
+- New combat action card "👣 Tactical Step" in the Combat Actions tab, placed right after Guard. Only renders if `btl.arena` is initialized.
+- Tap once to enter movement mode → arena highlights every reachable tile (BFS, terrain costs respected, blocked tiles skipped, occupied tiles refused). Tap a glowing tile to commit. Tap the action again to cancel.
+- Mirrors `bMove`'s contract: consumes the per-turn `moved` flag, **does not** end the player's main action, costs no MP, deals no damage, does not run any interaction triggers.
+- Battle log: `"<name> shifted across the arena to (x,y) — <Terrain>."`. "Already moved this turn." / "Cannot reach that tile." for failures.
+
+**ArenaBoard**
+
+- New props `moveMode`, `onTileSelect`, `moveModeHint`. When `moveMode` is on, the grid grows a dashed outline, valid tiles glow blue and pulse, occupied tiles get a darken filter, and clicking a valid tile commits via `onTileSelect`.
+- Hover tooltip behavior unchanged outside move mode.
+- Mount block now reads positions from `btl.arena.units` (player + enemies by id, plus ally/pet if present), with safe fallback to spawn slots.
+
+**CSS**
+
+- Appended `sv-arena-tag-move`, `sv-arena-movemode-banner`, `sv-arena-grid.sv-arena-movement-mode`, `sv-arena-tile-move-valid`, `sv-arena-tile-move-selected`, `sv-arena-tile-occupied`, `sv-arena-confirm-move`, plus two keyframes (`sv-arena-tile-move-pulse`, `sv-arena-move-pulse`).
+
+**Intentionally not yet built (TODOs left in code)**
+
+- Enemy movement AI on the arena layer.
+- Per-skill range + AoE shape enforcement.
+- Destructible object damage and line-of-sight blocking.
+- Splitting movement and main action into distinct phases.
+- Terrain bonus triggers and Veilbreak field movement effects.
+- Boss-arena specific mechanics (canyon edges, bridges).

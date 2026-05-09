@@ -166,6 +166,23 @@ export function getAreaShapeTiles(origin, shape, radius, arena, opts = {}) {
   return acc;
 }
 
+// Derived movement stat for an arena unit.
+// Pass 3 — temporary formula. Future passes can replace this with a real
+// `mv` field on player/enemies and rebalance per class.
+export function getUnitMoveRange({ spd = 0, classId = "", isBoss = false, kind = "player" } = {}) {
+  let mv = 3;
+  if (Number.isFinite(spd)) {
+    if (spd >= 19) mv += 2;
+    else if (spd >= 14) mv += 1;
+    else if (spd <= 8) mv -= 1;
+  }
+  // Slow tank classes cap at 2 for now.
+  if (["gravity", "monk", "rune"].includes(classId)) mv = Math.min(mv, 2);
+  if (isBoss) mv += 1;
+  if (kind === "pet") mv = Math.max(2, mv - 1);
+  return Math.max(1, mv);
+}
+
 // Convenience: assign units to spawn slots without overlap.
 export function assignSpawns(units, slots) {
   const out = [];

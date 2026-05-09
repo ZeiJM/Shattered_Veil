@@ -3,7 +3,7 @@ import './game.css';
 // BIG ARENA FOUNDATION (Pass 2) — visual prototype + future-proof data model.
 // Mounted inside the battle screen as a non-destructive preview panel.
 import ArenaBoard from './battle/arena/ArenaBoard.jsx';
-import { createInitialArenaState } from './battle/arena/arenaEngine.js';
+import { createInitialArenaState, getMovementRange as arenaGetMovementRange, getTerrainAt as arenaGetTerrainAt, getUnitMoveRange as arenaGetUnitMoveRange } from './battle/arena/arenaEngine.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -3384,6 +3384,8 @@ function Game() {
   const [battleHelpOpen, setBattleHelpOpen] = useState(false);
   // BIG ARENA FOUNDATION — collapsed state for the new battlefield preview panel.
   const [arenaCollapsed, setArenaCollapsed] = useState(false);
+  // Pass 3 — Tactical Step movement mode (player picks a destination tile on the arena).
+  const [arenaMoveMode, setArenaMoveMode] = useState(false);
   const [spellHelpOpen, setSpellHelpOpen] = useState(false);
   const [battleBonus, setBattleBonus] = useState(null);
   const [ults, setUlts] = useState([]);
@@ -4599,13 +4601,59 @@ function Game() {
     const prep = applyBattleStartPassive(pl, tunedEnemies);
     setPl(p => ({...prep.player, efx: prep.player.efx || [], lowHpBarrierUsed: false}));
     const enemiesWithPos = prep.enemies.map((e, i) => ({ ...e, pos: i < 2 ? 3 : 4 }));
-    setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
+    // Pass 3 — initialize the arena layer alongside the existing lane positions.
+    // Lane positions (plPos / e.pos) remain the source of truth for combat in this pass.
+    // arena.units carries parallel {x,y} coordinates used by the new visual board and Tactical Step.
+    let arenaInit = null;
+    try {
+      const ctx = {
+        isBoss: enemiesWithPos.some(e => e.boss),
+        isRift: battleType === "rift",
+        biomeHint: "",
+        enemyCount: enemiesWithPos.length,
+        seed: (Date.now() & 0x7fffffff) ^ ((pl?.lvl || 1) * 7919),
+      };
+      const a = createInitialArenaState(ctx);
+      const ps = a.template.playerSpawns || [{ x: 1, y: 1 }];
+      const es = a.template.enemySpawns  || [{ x: a.cols - 2, y: 1 }];
+      const used = new Set();
+      const takeSlot = (slots, fallback) => {
+        for (let i = 0; i < slots.length; i++) {
+          const s = slots[i];
+          const k = s.x + "," + s.y;
+          if (!used.has(k)) { used.add(k); return { x: s.x, y: s.y }; }
+        }
+        return fallback ? { ...fallback } : null;
+      };
+      const playerPos = takeSlot(ps, ps[0]);
+      const enemiesMap = {};
+      enemiesWithPos.forEach(e => {
+        const slot = takeSlot(es, es[0]);
+        if (slot) enemiesMap[e.id] = { x: slot.x, y: slot.y, facing: "W" };
+      });
+      const petPos  = (typeof pet !== "undefined" && pet && (pet.chp ?? pet.hp ?? 0) > 0) ? takeSlot(ps.slice(1), null) : null;
+      const allyPos = (typeof ally !== "undefined" && ally && ally.hp > 0) ? takeSlot(ps.slice(1), null) : null;
+      arenaInit = {
+        ...a,
+        units: {
+          player: { ...(playerPos || ps[0]), facing: "E" },
+          enemies: enemiesMap,
+          ...(petPos  ? { pet:  { ...petPos,  facing: "E" } } : {}),
+          ...(allyPos ? { ally: { ...allyPos, facing: "E" } } : {}),
+        },
+      };
+    } catch (err) {
+      // Arena init must NEVER block battle start — fall back to no arena layer.
+      arenaInit = null;
+    }
+    setBtl({ en: enemiesWithPos, turn: "p", chain: [], chainProg: 0, tn: 0, type: battleType, plPos: 1, moved: false, arena: arenaInit, interactionState: { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" } });
+    setArenaMoveMode(false);
     setBattleBonus(null);
     setBtlPanel(null);
     setBtlTarget(prep.enemies.find(e => e.hp > 0)?.id || null);
     setScr("battle");
     setLog(["⚔ Battle begins!" + (battleType === "train" ? " Training mode active." : battleType === "wild" ? " Swift field clash." : battleType === "pvp" ? " Arena rules engaged." : battleType === "outpost" ? " Outpost resistance hardens." : battleType === "rift" ? " Rift pressure thickens." : battleType === "fieldboss" ? " A roaming terror blocks the road." : "")]);
-  }, [pl, applyBattleStartPassive]);
+  }, [pl, applyBattleStartPassive, pet, ally]);
 
   // Helper: clear battle effects from player
   const clearBattleEffects = useCallback(() => {
@@ -4649,6 +4697,64 @@ function Game() {
     setBtl(b => b ? ({ ...b, plPos: toLane, moved: true }) : b);
     setLog(l => [...l, "PLAYER|› Repositioned to " + laneNm + "."]);
   }, [btl]);
+
+  // Pass 3 — Tactical Step: arena {x,y} reposition. Mirrors bMove's contract:
+  // consumes the per-turn `moved` flag, does NOT end the player's main action,
+  // does NOT cost MP, does NOT deal damage. Lane positions stay untouched so
+  // the existing range gate / distance modifier / enemy AI all keep working.
+  // TODO (future pass): split movement and action into separate phases so a player
+  //   can both step and attack on the same turn even if they already moved lanes.
+  // TODO (future pass): mirror this for enemy AI (NPCs picking step targets).
+  const bTacticalStep = useCallback((tile) => {
+    if (!btl || btl.turn !== "p") return;
+    if (btl.moved) { setLog(l => [...l, "PLAYER|› Already shifted this turn."]); return; }
+    const arena = btl.arena;
+    if (!arena || !arena.units?.player || !tile) { setArenaMoveMode(false); return; }
+    const cur = arena.units.player;
+    // Only living enemies block movement. Dead enemies stay in arena.units.enemies
+    // for log/replay reasons but must not gate the BFS.
+    const livingEnemyIds = new Set((btl.en || []).filter(e => (e.hp || 0) > 0).map(e => e.id));
+    const enemyOcc = Object.entries(arena.units.enemies || {})
+      .filter(([id]) => livingEnemyIds.has(Number(id)) || livingEnemyIds.has(id))
+      .map(([, p]) => p);
+    const petAlive  = (typeof pet  !== "undefined" && pet  && (pet.chp ?? pet.hp ?? 0) > 0) ? arena.units.pet  : null;
+    const allyAlive = (typeof ally !== "undefined" && ally && (ally.hp || 0) > 0)            ? arena.units.ally : null;
+    const occupied = [...enemyOcc, allyAlive, petAlive].filter(Boolean);
+    let mv = 3;
+    try {
+      mv = arenaGetUnitMoveRange({
+        spd: effSt(pl)?.spd || 0,
+        classId: pl?.cl || pl?.cid || "",
+        kind: "player",
+      });
+    } catch (e) { mv = 3; }
+    let valid = [];
+    try {
+      valid = arenaGetMovementRange(cur, mv, arena, { occupied });
+    } catch (e) { valid = []; }
+    const ok = valid.some(t => t.x === tile.x && t.y === tile.y);
+    if (!ok) {
+      setLog(l => [...l, "PLAYER|› Cannot reach that tile."]);
+      setArenaMoveMode(false);
+      return;
+    }
+    let terrainLabel = "open ground";
+    try {
+      const t = arenaGetTerrainAt(tile, arena);
+      if (t && t.label) terrainLabel = t.label;
+    } catch (e) {}
+    const nextArena = {
+      ...arena,
+      units: { ...arena.units, player: { ...cur, x: tile.x, y: tile.y } },
+    };
+    setBtl(b => {
+      if (!b || b.turn !== "p" || b.moved) return b;
+      return { ...b, arena: { ...nextArena, units: { ...b.arena?.units, ...nextArena.units } }, moved: true };
+    });
+    setArenaMoveMode(false);
+    const nm = pl?.nm || "You";
+    setLog(l => [...l, "PLAYER|› " + nm + " shifted across the arena to (" + tile.x + "," + tile.y + ") — " + terrainLabel + "."]);
+  }, [btl, pl, effSt, pet, ally]);
 
   const bAct = useCallback((act, idx) => {
     if (!btl || btl.turn !== "p") return;
@@ -8276,37 +8382,52 @@ const buildGroupedBattleLog = (entries) => {
                   <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>{[...FXS].sort((a,b)=>a.nm.localeCompare(b.nm)).map(f => <Tooltip key={f.id} text={<span><b>{f.ic} {f.nm}</b><br/>{STATUS_DESC[f.id] || f.nm + " effect."}</span>}><span className="tg" style={{ background: f.type === "dot" ? T.bad + "22" : f.type === "buff" || f.type === "hot" ? T.ok + "22" : T.wn + "22", color: f.type === "dot" ? T.bad : f.type === "buff" || f.type === "hot" ? T.ok : T.wn, fontSize: 8, cursor: "pointer" }}>{f.ic}{f.nm}</span></Tooltip>)}</div>
               </div>}
             </div>
-        {/* BIG ARENA FOUNDATION START — visual battlefield preview, no combat impact yet. */}
+        {/* BIG ARENA FOUNDATION (Pass 3) — real positions + Tactical Step. */}
+        {/* TODO (future pass): destructible objects damage and line-of-sight blocking. */}
+        {/* TODO (future pass): enemy movement AI on the arena layer. */}
+        {/* TODO (future pass): per-skill range + AoE shape enforcement. */}
+        {/* TODO (future pass): terrain bonus triggers and Veilbreak field movement effects. */}
+        {/* TODO (future pass): boss-arena specific mechanics (canyon edges, bridges). */}
         {(() => {
           try {
             const livingFoes = (btl?.en || []).filter(e => e.hp > 0);
-            const isBoss = livingFoes.some(e => e.boss);
-            const isRift = !!(typeof subMap !== "undefined" && subMap && (subMap.type === "rift" || subMap.kind === "rift"));
-            const biomeHint = (typeof subMap !== "undefined" && subMap?.biome) || "";
-            const seed = (btl?.startedAt || 0) ^ ((pl?.lvl || 1) * 7919);
-            const arena = createInitialArenaState({ isBoss, isRift, biomeHint, enemyCount: livingFoes.length, seed });
+            // Prefer the arena layer initialized at battle start; fall back to a fresh preview.
+            let arena = btl?.arena || null;
+            let usedFallback = false;
+            if (!arena) {
+              const isBoss = livingFoes.some(e => e.boss);
+              const isRift = !!(typeof subMap !== "undefined" && subMap && (subMap.type === "rift" || subMap.kind === "rift"));
+              const biomeHint = (typeof subMap !== "undefined" && subMap?.biome) || "";
+              const seed = (btl?.startedAt || 0) ^ ((pl?.lvl || 1) * 7919);
+              arena = createInitialArenaState({ isBoss, isRift, biomeHint, enemyCount: livingFoes.length, seed });
+              usedFallback = true;
+            }
             const tpl = arena.template;
-            // Place units onto template spawns (visual only; does not move real combat positions).
             const ps = tpl.playerSpawns || [{ x: 1, y: 1 }];
             const es = tpl.enemySpawns  || [{ x: tpl.cols - 2, y: 1 }];
+            const aUnits = arena.units || {};
             const units = [];
+            const playerPos = aUnits.player || ps[0];
             units.push({
               id: "player",
               kind: "player",
               label: pl?.nm || "You",
               ic: pl?.ic || cls?.ic || "🗡",
-              pos: ps[0],
+              pos: playerPos,
               hpPct: Math.max(0, Math.min(100, (pl?.chp / Math.max(1, effSt(pl).hp)) * 100)),
               isTarget: false,
             });
-            if (pet && (pet.chp ?? pet.hp ?? 0) > 0 && ps[1]) {
-              units.push({ id: "pet", kind: "pet", label: pet.nm, ic: pet.ic || "🐾", pos: ps[1], hpPct: Math.max(0, Math.min(100, ((pet.chp ?? pet.hp) / Math.max(1, pet.mhp ?? pet.hp)) * 100)) });
+            const petPos = aUnits.pet || ps[1];
+            if (pet && (pet.chp ?? pet.hp ?? 0) > 0 && petPos) {
+              units.push({ id: "pet", kind: "pet", label: pet.nm, ic: pet.ic || "🐾", pos: petPos, hpPct: Math.max(0, Math.min(100, ((pet.chp ?? pet.hp) / Math.max(1, pet.mhp ?? pet.hp)) * 100)) });
             }
-            if (ally && ally.hp > 0 && ps[2]) {
-              units.push({ id: "ally", kind: "ally", label: ally.nm, ic: ally.ic || "🤝", pos: ps[2], hpPct: Math.max(0, Math.min(100, (ally.hp / Math.max(1, ally.mhp)) * 100)) });
+            const allyPos = aUnits.ally || ps[2];
+            if (ally && ally.hp > 0 && allyPos) {
+              units.push({ id: "ally", kind: "ally", label: ally.nm, ic: ally.ic || "🤝", pos: allyPos, hpPct: Math.max(0, Math.min(100, (ally.hp / Math.max(1, ally.mhp)) * 100)) });
             }
             livingFoes.forEach((e, i) => {
-              const slot = es[i % es.length];
+              const stored = (aUnits.enemies || {})[e.id];
+              const slot = stored || es[i % es.length];
               if (!slot) return;
               units.push({
                 id: e.id,
@@ -8318,10 +8439,16 @@ const buildGroupedBattleLog = (entries) => {
                 isTarget: btlTarget === e.id,
               });
             });
-            // TODO (future pass): replace lane positions with real {x,y} arena positions on pl/btl.en.
-            // TODO (future pass): derive movement stat from a real `mv` field; for now use a small preview value.
-            const previewMove = 3;
-            // TODO (future pass): hook activeField from currently-firing Veilbreak; this pass only previews "primed".
+            // Movement stat from the new helper (visual + Tactical Step driver).
+            let previewMove = 3;
+            try {
+              previewMove = arenaGetUnitMoveRange({
+                spd: effSt(pl)?.spd || 0,
+                classId: pl?.cl || pl?.cid || "",
+                kind: "player",
+              });
+            } catch (e) { previewMove = 3; }
+            const moveModeActive = !!(arenaMoveMode && isPT && !btl?.moved && !usedFallback && aUnits.player);
             return (
               <ArenaBoard
                 arena={arena}
@@ -8333,10 +8460,12 @@ const buildGroupedBattleLog = (entries) => {
                 collapsed={arenaCollapsed}
                 onToggleCollapsed={() => setArenaCollapsed(v => !v)}
                 isMobile={typeof window !== "undefined" && window.innerWidth < 720}
+                moveMode={moveModeActive}
+                moveModeHint={moveModeActive ? ("Tactical Step — choose a tile within " + previewMove + ".") : null}
+                onTileSelect={moveModeActive ? bTacticalStep : null}
               />
             );
           } catch (err) {
-            // Crash-proof: never let the preview break the live battle screen.
             if (typeof console !== "undefined") console.warn("ArenaBoard preview skipped:", err);
             return null;
           }
@@ -8415,6 +8544,25 @@ const buildGroupedBattleLog = (entries) => {
                     </button>
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Guard", "Null"), fullscreen: true }); }}>?</button>
                   </div>
+                  {btl?.arena?.units?.player && <div className="battle-action-card-wrap">
+                    <button
+                      className={"bt battle-action-btn" + (arenaMoveMode ? " sv-arena-confirm-move" : "")}
+                      style={{ background: "#5e7cff15", border: "1px solid #5e7cff55", color: T.tx, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }}
+                      disabled={!isPT || btl?.moved}
+                      onClick={() => {
+                        if (!isPT || btl?.moved) return;
+                        setArenaCollapsed(false);
+                        setArenaMoveMode(v => !v);
+                      }}
+                    >
+                      <div style={{ fontWeight: 700 }}>👣 Tactical Step</div>
+                      <div style={{ fontSize: 7, color: T.dm }}>Reposition · Arena</div>
+                      <div style={{ fontSize: 7, color: T.tx }}>
+                        {(() => { let mv = 3; try { mv = arenaGetUnitMoveRange({ spd: effSt(pl)?.spd || 0, classId: pl?.cl || pl?.cid || "", kind: "player" }); } catch(e){} return "MOVE " + mv + " · Cost: 0"; })()}
+                      </div>
+                      <div style={{ fontSize: 7, color: T.dm }}>{arenaMoveMode ? "Pick a glowing tile (or tap again to cancel)." : (btl?.moved ? "Already moved this turn." : "Tap, then choose a tile.")}</div>
+                    </button>
+                  </div>}
                   <div className="battle-action-card-wrap">
                     <button className="bt battle-action-btn" style={{ background: T.ok + "15", border: "1px solid " + T.ok + "33", textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6, color: T.tx }} disabled={!isPT || pl.cmp < 8} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Mend", "Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText("Mend", "Null"), fullscreen: true }); return; } bAct("mend"); }}>
                       <div style={{ fontWeight: 700 }}>💚 Mend</div>

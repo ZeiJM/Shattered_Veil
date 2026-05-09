@@ -33,6 +33,10 @@ export default function ArenaBoard({
   collapsed = false,
   onToggleCollapsed = null,
   isMobile = false,
+  // Pass 3 — Tactical Step integration.
+  moveMode = false,       // when true, clicking a valid tile commits a move.
+  onTileSelect = null,    // (tile) => void — fires only on tiles inside move range.
+  moveModeHint = null,    // optional banner text shown above the grid in move mode.
 }) {
   const [hover, setHover] = useState(null);
 
@@ -43,13 +47,19 @@ export default function ArenaBoard({
   const player = units.find(u => u.kind === "player") || null;
   const occupied = units.filter(u => u && u.pos).map(u => u.pos);
 
+  // Stable key from non-player occupancy so movement highlights refresh when
+  // an enemy/ally/pet appears, dies, or relocates.
+  const occupancyKey = useMemo(
+    () => units.filter(u => u && u.kind !== "player" && u.pos).map(u => u.kind + ":" + u.pos.x + "," + u.pos.y).sort().join("|"),
+    [units]
+  );
   const moveRangeKeys = useMemo(() => {
     if (!showMovementPreview || !player || !player.pos || !movementStat) return new Set();
     const tiles = getMovementRange(player.pos, movementStat, arena, { occupied });
     return new Set(tiles.map(t => keyOf(t.x, t.y)));
-    // occupied is recomputed each render; intentional — cheap.
+    // occupied is rebuilt each render; we depend on occupancyKey to refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMovementPreview, player?.pos?.x, player?.pos?.y, movementStat, arena]);
+  }, [showMovementPreview, player?.pos?.x, player?.pos?.y, movementStat, arena, occupancyKey]);
 
   const fieldKeys = useMemo(() => {
     if (!field || !Array.isArray(field.zones)) return new Set();
@@ -91,6 +101,7 @@ export default function ArenaBoard({
           <span className="sv-arena-tag">{arena.cols}×{arena.rows}</span>
           {field && <span className="sv-arena-tag sv-arena-tag-field">{field.name || "Veilbreak Field"}</span>}
           {veilbreakReady && !field && <span className="sv-arena-tag sv-arena-tag-primed">Veilbreak primed</span>}
+          {moveMode && <span className="sv-arena-tag sv-arena-tag-move">Select destination</span>}
           {onToggleCollapsed && (
             <button type="button" className="sv-arena-toggle" onClick={onToggleCollapsed}>
               {collapsed ? "Show" : "Hide"}
@@ -100,8 +111,11 @@ export default function ArenaBoard({
       </div>
       {!collapsed && (
         <>
+          {moveMode && moveModeHint && (
+            <div className="sv-arena-movemode-banner">{moveModeHint}</div>
+          )}
           <div
-            className="sv-arena-grid"
+            className={"sv-arena-grid" + (moveMode ? " sv-arena-movement-mode" : "")}
             style={{
               gridTemplateColumns: `repeat(${arena.cols}, ${tileSize}px)`,
               gridAutoRows: `${tileSize}px`,
@@ -121,20 +135,31 @@ export default function ArenaBoard({
                 const inMove = moveRangeKeys.has(k);
                 const inField = fieldKeys.has(k);
                 const isHover = hover && hover.x === x && hover.y === y;
+                const isOccupied = tileUnits.length > 0;
+                const isMoveValid = moveMode && inMove && !isOccupied;
                 const cls = [
                   "sv-arena-tile",
                   terrain.cls,
                   isRare ? "sv-arena-rare-tile" : "",
-                  inMove ? "is-in-move" : "",
+                  inMove && !moveMode ? "is-in-move" : "",
+                  isMoveValid ? "sv-arena-tile-move-valid" : "",
+                  moveMode && isOccupied ? "sv-arena-tile-occupied" : "",
                   inField ? "sv-arena-field-overlay" : "",
                   isHover ? "is-hover" : "",
                 ].filter(Boolean).join(" ");
+                const handleTileClick = () => {
+                  if (moveMode && isMoveValid && typeof onTileSelect === "function") {
+                    onTileSelect({ x, y });
+                    return;
+                  }
+                  setHover(h => h && h.x === x && h.y === y ? null : { x, y });
+                };
                 return (
                   <div
                     key={k}
                     className={cls}
                     onMouseEnter={() => handleEnter(x, y)}
-                    onClick={() => setHover(h => h && h.x === x && h.y === y ? null : { x, y })}
+                    onClick={handleTileClick}
                   >
                     {objs.map(o => {
                       const def = OBJECTS[o.key];
