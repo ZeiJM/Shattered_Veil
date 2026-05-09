@@ -240,3 +240,17 @@ CSS in `v73 — TITLE TYPOGRAPHY + HUD REDESIGN + READABLE BUTTONS` block.
 Swim icon: regenerated `public/swim-icon.png` with a transparent background (no more white halo at the edges).
 
 CSS in `v74 — MAP HEADER + RAIL COMPASS/EVENTS RELOCATE` block.
+
+## v75 — Battle rework foundation pass 1
+
+Player-facing rename + battle UI tidy + readiness signaling. No combat math, balance, save shape, or backend changes.
+
+- **"Veil Expansion" → "Veilbreak"** in every player-facing string (HUD chain pill, action card sub-label, spellbook section titles + archive, codex/help text, succession/inheritance notes, notifications). Internal identifiers (`pl.ult`, `veilExpansionDetailText`, `gu_*` ids, save fields, archive keys) deliberately untouched — a deeper migration is parked for the save-versioning pass.
+- **Battle tab strip cleanup** — the count badges next to "Combat Actions" and "Veil Magic" are dropped (set `ct: null`); Items still shows its tiny consumable count. The descriptor sub-spans under the section titles ("{n} equipped", "Basic actions") are removed for a cleaner header line.
+- **Turn head + aux strip cleanup** — "Pick an action region." removed from the player-turn caption (enemy turn keeps "Await enemy actions."). "Loadout changes end turn" removed from the Auxiliary Actions sub-label.
+- **Readiness glow** — interaction chips and Veilbreak chain segments now carry semantic class names (`.battle-ready-chip.is-ready`, `.veilbreak-chain-step.is-complete/.is-current/.is-ready`). New CSS adds soft pulsing box-shadows: complete steps get a green halo, current step pulses violet, ready state pulses gold. Same for the "primed" interaction chips beside the chain.
+- **Battle log groups & line types** — round groups now classify as `log-player`, `log-enemy`, `log-effect` (for Skill Interaction / Event lines), or `log-veilbreak` (gold halo when a Veilbreak fires). Per-line content is tagged via regex: `line-miss` (italic, dim), `line-crit` (gold bold), `line-passive` (lavender), `line-status` (mint). Titles use Cinzel uppercase. Existing Copy button preserved.
+- **Standardized action card typography** — all eight action buttons (strike / w2 / guard / mend / copy / ult / each Veil Magic / consumables) read at the same scale via `.battle-bg .battle-action-btn > div` rules: 11px title row, 9px detail rows desktop / 10/8px mobile. The inline `fontSize: 7` chaos is overridden cleanly without rewriting JSX.
+- **TODO planning block** — a 50-line comment block was added in `Game.jsx` just above `buildGroupedBattleLog` documenting the next foundation pass for *large* arena combat (variable sizes 12x8 / 14x10 / 16x12 / irregular, terrain + destructibles, Veilbreak field overlays, Field Clash, new Field Attunement stat, range/area shapes, movement stat). Explicit note: the previous 5x3 grid sketch is superseded — future maps are large arenas.
+
+CSS in lines following the `.battle-log-entry.log-loss` rule (new `.log-player/.log-enemy/.log-veilbreak`, `.battle-log-title`, `.battle-log-line.line-*`, `.veilbreak-chain-step.*`, `.battle-ready-chip.is-ready`, `.battle-bg .battle-action-btn > div` typography pass).

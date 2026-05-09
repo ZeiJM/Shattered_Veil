@@ -1,0 +1,109 @@
+You are working on Shattered Veil. This is a complex game, so do not perform a broad rewrite.
+
+IMPORTANT COST/STABILITY RULES:
+- Do not rewrite the whole game.
+- Do not refactor the entire Game.jsx file.
+- Do not change save/load structure unless absolutely required.
+- Do not change class balance, skill damage, enemy balance, or combat math in this pass.
+- Do not change the backend/chat system.
+- Do not remove existing features.
+- Do not copy code, text, UI, or assets from any reference game.
+- Preserve the existing game loop and all current playable screens.
+- This pass is a foundation pass only. Do not attempt to build the full big-arena combat system yet.
+
+TASK NAME:
+Battle Rework Foundation Pass 1 — Veilbreak terminology, battle UI cleanup, log readability, and big-arena planning hooks.
+
+FILES TO INSPECT FIRST:
+- artifacts/shattered-veil/src/Game.jsx
+- artifacts/shattered-veil/src/game.css
+- docs/replit.md
+- docs/changelog.md if present
+
+DESIGN DIRECTION TO RESPECT:
+The future battle system should become large arena-style combat, not a small 5x3 grid. Future combat should support:
+- variable arena map sizes and shapes
+- tactical movement across larger battlefields
+- skill ranges and area shapes
+- destructible landscape objects
+- rare terrain tiles with class/element bonuses
+- beautiful battlefield backgrounds or terrain overlays
+- Veilbreak field effects that can light up or reshape the arena
+- epic Field Clash moments when two fields collide
+- a future Field Attunement stat for field dominance
+Do not implement all of this in this pass. Add TODO comments or safe helper structures only where appropriate.
+
+OBJECTIVES:
+
+1. Rename “Veil Expansion” to “Veilbreak” across the player-facing game UI.
+   - This includes battle UI, spellbook/manual text, character screens, inheritance/succession text, archive text, and any visible labels.
+   - Do not break old saved data that may still use old internal keys.
+   - If internal variables are risky to rename, keep internal variable names for now and only change player-facing text.
+   - Add a comment noting that internal variable renaming can be done later in a deeper migration pass.
+
+2. Clean up the battle tab labels.
+   - Remove the numbers beside “Combat Actions” and “Veil Magic”.
+   - Remove the text “Pick an action region”.
+   - Remove the text “Loadout changes end turn”.
+   - Keep all existing buttons functional.
+
+3. Add visual readiness glow states.
+   - Skill interaction cards/buttons should visibly glow when their condition is ready to activate.
+   - Veilbreak chain progress should visibly glow per completed requirement if the existing chain data supports it.
+   - If exact chain-progress tracking is not currently available, add only safe visual support where current state already exists and document what remains needed.
+
+4. Improve the battle log presentation without changing combat logic.
+   - Keep all existing log events.
+   - Make the log easier to read using clearer round/action grouping where current log data supports it.
+   - Player actions, enemy actions, passive triggers, terrain/field effects, status effects, misses/blocks, and Veilbreak-related events should be visually distinct.
+   - Add or keep the copy battle log button.
+   - Do not remove information from the log.
+
+5. Improve battle action card readability.
+   - Standardize font sizes.
+   - Make Combat Actions and Veil Magic cards more readable and more premium-looking.
+   - Use the existing dark battle theme.
+   - Do not introduce large external assets.
+   - Do not make the battle page overflow worse on desktop or mobile.
+
+6. Add planning comments for the future big-arena combat system.
+   Add TODO comments only, not full implementation, for:
+   - large variable-size arena maps
+   - map shapes and battlefield backgrounds
+   - destructible objects
+   - terrain tiles and rare field bonuses
+   - movement stat and movement range preview
+   - skill range and area shapes
+   - Veilbreak field overlays
+   - Field Clash outcomes
+   - Field Attunement stat
+   - arena-wide battle log events
+   - class/skill/passive rebalance around map movement and range
+
+7. Do not implement the earlier 5x3 grid idea.
+   - If any comments or notes are added, they should refer to large arena maps instead.
+   - Future maps may be 12x8, 14x10, 16x12, irregular, circular, fractured, or boss-specific.
+
+VALIDATION REQUIRED:
+After changes, run or manually verify:
+- game starts
+- character creation still works
+- battle starts
+- Strike/weapon attack still works
+- Guard still works
+- at least one Veil Magic skill still works
+- item use in battle still works
+- movement still works
+- battle log still updates
+- Veilbreak/old Veil Expansion display now says Veilbreak
+- no blank screen
+- no console errors
+
+REPORT BACK:
+At the end, list:
+- every file modified
+- every visible label changed
+- every battle UI section changed
+- what was tested
+- what was intentionally not changed
+- any risky areas for the next pass

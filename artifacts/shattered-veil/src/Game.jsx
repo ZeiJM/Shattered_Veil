@@ -459,7 +459,7 @@ const RANKS = [
   { nm:"Disciple", min:10, max:14,  ic:"⚔️",  cl:"#66bb6a", bonus:{atk:2,def:1},    ds:"Grade three. Cleared for field assignments and rift entry. Restricted tomes can be requested. Most never advance past here." },
   { nm:"Seeker",   min:15, max:19,  ic:"🔍",  cl:"#ffd740", bonus:{mag:2,mp:20},     ds:"Grade two. The Veil thins around you in a way the assessors can measure. You are now expected to investigate, not merely survive." },
   { nm:"Warden",   min:20, max:24,  ic:"🛡️",  cl:"#ff9800", bonus:{def:3,hp:20},    ds:"Grade one. Trusted to hold a border alone. Wardens speak directly to the elders of every covenant — and are sometimes refused." },
-  { nm:"Archon",   min:25, max:29,  ic:"🌟",  cl:"#f06292", bonus:{mag:3,atk:2,spd:2}, ds:"Special grade. Cited in the standing records of all five covenants. Capable of a partial Veil Expansion. Tracked, courted, feared." },
+  { nm:"Archon",   min:25, max:29,  ic:"🌟",  cl:"#f06292", bonus:{mag:3,atk:2,spd:2}, ds:"Special grade. Cited in the standing records of all five covenants. Capable of a partial Veilbreak. Tracked, courted, feared." },
   { nm:"Fractured",min:30, max:999, ic:"✦",   cl:"#c688ff", bonus:{hp:30,mp:30,mag:4}, ds:"Beyond formal grade. One whose unfolded territory is permanent — the Veil no longer fully closes behind them. Few remain themselves at this height." },
 ];
 function getRank(level) { return RANKS.find(r => level >= r.min && level <= r.max) || RANKS[0]; }
@@ -467,7 +467,7 @@ function getNextRankLevel(level) { const ci = RANKS.findIndex(r => level >= r.mi
 
 // COVENANTS — the five sorcerer schools that train, grade, and dispatch veilworkers
 const COVENANTS = [
-  { id:"veilwatch",  nm:"The Veilwatch",      ic:"👁️", cl:"#c688ff", el:"Void",  statBonus:{mag:3,mp:20},    ds:"The oldest school, founded to study the Veil rather than wield it. They believe Veil Expansion should be observed, recorded, and — when necessary — quietly contained.",        guildBonus:"Rift missions grant +30% XP. Void element bonus stacks with class element bonus." },
+  { id:"veilwatch",  nm:"The Veilwatch",      ic:"👁️", cl:"#c688ff", el:"Void",  statBonus:{mag:3,mp:20},    ds:"The oldest school, founded to study the Veil rather than wield it. They believe Veilbreak should be observed, recorded, and — when necessary — quietly contained.",        guildBonus:"Rift missions grant +30% XP. Void element bonus stacks with class element bonus." },
   { id:"ironcrown",  nm:"Iron Crown",          ic:"👑",  cl:"#ff9800", el:"Earth", statBonus:{def:4,hp:25},    ds:"A traditionalist school of bound techniques and inherited weapons. Discipline first, talent second. Their assessors are notoriously hard to impress and harder to fool.",        guildBonus:"Outpost missions grant +40% gold. DEF gains +2 from all equipped armor pieces." },
   { id:"embersong",  nm:"Embersong Circle",    ic:"🔥",  cl:"#ff7043", el:"Fire",  statBonus:{atk:3,mag:2},    ds:"A combat-leaning school. They argue that an unfolded technique, openly used, is the only honest answer to a hostile Veil. They lose more students than they graduate.",          guildBonus:"Fire and Lightning skills deal +8% damage. Kill missions award bonus shards." },
   { id:"silkweb",    nm:"Silkweb Guild",       ic:"🕸️", cl:"#78c7ff", el:"Wind",  statBonus:{spd:4,lck:2},    ds:"A school of intelligence, infiltration, and quiet hands. They never expand a domain in public — they prefer to be the ones inside someone else's when it closes.",                guildBonus:"Evasion and dodge passives are 15% more effective. Arena challenge rewards doubled." },
@@ -1555,9 +1555,9 @@ const GENETIC_SKILL_BOONS = [
   { id:"gs_bloom", type:"skill", skill:{ id:"legacy_bloom", n:"Bloomline Grace", el:"Nature", pow:0, mp:12, t:"buff", fx:"regen", fxDur:3, fx2:"fortify", fx2Dur:2, unlocked:true, equipped:false, lvl:1 }, nm:"Bloomline Grace", ds:"Inherited Veil Magic: steady restorative support." },
 ];
 const GENETIC_ULT_BOONS = [
-  { id:"gu_flare", kind:"ult", nm:"Veil Inheritance: Crimson Finale", ds:"Inherited rare Veil Expansion choice unlocked.", ult:{ id:"ult_inherited_flare", name:"Crimson Finale", pow:72, el:"Fire", fx:"burn", fxDur:3, chain:5, combo:[0,4,8,1,6], ready:false } },
-  { id:"gu_tide", kind:"ult", nm:"Veil Inheritance: Leviathan Hymn", ds:"Inherited rare Veil Expansion choice unlocked.", ult:{ id:"ult_inherited_tide", name:"Leviathan Hymn", pow:68, el:"Water", fx:"slow", fxDur:4, chain:5, combo:[1,7,8,0,6], ready:false } },
-  { id:"gu_null", kind:"ult", nm:"Veil Inheritance: Quiet Cataclysm", ds:"Inherited rare Veil Expansion choice unlocked.", ult:{ id:"ult_inherited_null", name:"Quiet Cataclysm", pow:74, el:"Void", fx:"silence", fxDur:2, chain:6, combo:[2,4,8,3,7,9], ready:false } },
+  { id:"gu_flare", kind:"ult", nm:"Veil Inheritance: Crimson Finale", ds:"Inherited rare Veilbreak choice unlocked.", ult:{ id:"ult_inherited_flare", name:"Crimson Finale", pow:72, el:"Fire", fx:"burn", fxDur:3, chain:5, combo:[0,4,8,1,6], ready:false } },
+  { id:"gu_tide", kind:"ult", nm:"Veil Inheritance: Leviathan Hymn", ds:"Inherited rare Veilbreak choice unlocked.", ult:{ id:"ult_inherited_tide", name:"Leviathan Hymn", pow:68, el:"Water", fx:"slow", fxDur:4, chain:5, combo:[1,7,8,0,6], ready:false } },
+  { id:"gu_null", kind:"ult", nm:"Veil Inheritance: Quiet Cataclysm", ds:"Inherited rare Veilbreak choice unlocked.", ult:{ id:"ult_inherited_null", name:"Quiet Cataclysm", pow:74, el:"Void", fx:"silence", fxDur:2, chain:6, combo:[2,4,8,3,7,9], ready:false } },
 ];
 function rollGeneticBoon(player, partner, seed) {
   const rareRoll = Math.abs(seed * 13 + 7) % 100;
@@ -1651,9 +1651,9 @@ Each new heir is uncertain. Bloodline outcomes are chance-based, not guaranteed.
 • An additional element or rare element pairing
 • A bloodline passive
 • A bloodline Veil Magic technique that can only enter the line through inheritance
-• A rare Veil Expansion unlock or archived family choice
+• A rare Veilbreak unlock or archived family choice
 • An inherited signature shaped by the current companion's nature and elements
-• Your predecessor's equipped Veil Expansion added to the available family choice pool
+• Your predecessor's equipped Veilbreak added to the available family choice pool
 
 The child may emerge stronger, stranger, calmer, harsher, or simply different. No two lines should mature in exactly the same way.`;
 }
@@ -1738,11 +1738,11 @@ ${natureInfluenceText(c.nature)}`;
   }
   if (field === "bloodline") {
     const preview = c.boonPreview?.nm || "Unformed Bloodline";
-    const desc = c.boonPreview?.ds || "A future heir can inherit stat growth, passives, Veil Magic, Veil Expansion choices, extra elements, or rarer mixed outcomes. Nothing is guaranteed.";
+    const desc = c.boonPreview?.ds || "A future heir can inherit stat growth, passives, Veil Magic, Veilbreak choices, extra elements, or rarer mixed outcomes. Nothing is guaranteed.";
     const skillLine = c.boonPreview?.skill ? `
 Inherited Veil Magic: ${c.boonPreview.skill.n} — ${c.boonPreview.skill.t === "heal" ? "Power" : "Power"} ${c.boonPreview.skill.pow || 0}, Cost ${c.boonPreview.skill.mp || 0} MP${c.boonPreview.skill.fx ? ", Effect: " + (FX(c.boonPreview.skill.fx)?.nm || c.boonPreview.skill.fx) : ""}.` : "";
     const ultLine = c.boonPreview?.ult ? `
-Inherited Veil Expansion: ${c.boonPreview.ult.name} — ${c.boonPreview.ult.el}, Power ${c.boonPreview.ult.pow}, Chain ${c.boonPreview.ult.chain}, Effect ${FX(c.boonPreview.ult.fx)?.nm || c.boonPreview.ult.fx || "None"}.` : "";
+Inherited Veilbreak: ${c.boonPreview.ult.name} — ${c.boonPreview.ult.el}, Power ${c.boonPreview.ult.pow}, Chain ${c.boonPreview.ult.chain}, Effect ${FX(c.boonPreview.ult.fx)?.nm || c.boonPreview.ult.fx || "None"}.` : "";
     const passiveLine = (c.boonPreview?.passive && c.boonPreview?.type !== "passive") ? `
 Inherited Passive: ${c.boonPreview.passive.nm} — ${c.boonPreview.passive.ds}` : "";
     return `${c.nm} — Bloodline Leaning
@@ -1763,10 +1763,10 @@ This tells you which stat this companion most naturally pushes forward when a gr
 A bonded companion is never just cosmetic. Their resonance changes what your next generation can become.`;
 }
 function veilExpansionDetailText(ult) {
-  if (!ult) return "No Veil Expansion equipped.";
+  if (!ult) return "No Veilbreak equipped.";
   const effectLine = ult.fx ? ((FX(ult.fx)?.ic || "⚡") + " " + (FX(ult.fx)?.nm || ult.fx) + (ult.fxDur ? " · " + ult.fxDur + " Turns" : "")) : "No secondary effect";
   const chainText = (ult.combo || []).map(v => ["Veil Magic 1","Veil Magic 2","Veil Magic 3","Veil Magic 4","On Hand Item 1","On Hand Item 2","Battle Item 1","Battle Item 2","Guard","Copied Skill"][v] || "?").join(" → ");
-  return "🌟 " + ult.name + "\n\nElement: " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\nChain: " + chainText + "\n\nYour Motto is uttered before this Veil Expansion is unleashed in battle.";
+  return "🌟 " + ult.name + "\n\nElement: " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\nChain: " + chainText + "\n\nYour Motto is uttered before this Veilbreak is unleashed in battle.";
 }
 
 function petPassiveTemplate(el) {
@@ -3561,7 +3561,7 @@ function Game() {
   const buildTavernRumors = useCallback((seed) => {
     const allRumors = [
       "Spatial rifts shimmer in the darkest regions... seek the void biome for ultimate upgrades.",
-      "Your Veil Expansion needs " + (pl?.ult?.chain || 0) + " actions chained exactly. Check your spell book for the sequence!",
+      "Your Veilbreak needs " + (pl?.ult?.chain || 0) + " actions chained exactly. Check your spell book for the sequence!",
       cyclePick(["Hidden treasure caches","Rare beast zones","Legendary weapon stashes"], seed, 3, 1) + " lie deep in " + cyclePick(BIOMES, seed, 5, 2) + " territory.",
       "Some say " + cyclePick(["Shōuei can copy boss abilities","Phoenix Knights cheat death once","Chronomancers warp the turn order","Void Mages ignore defense with silence combos"], seed, 7, 4) + "...",
       "The blacksmith in " + cyclePick(["Stonehelm","Cindervale","Frostwall"], seed, 11, 2) + " is said to craft the finest repairs.",
@@ -5146,7 +5146,7 @@ function Game() {
       const pow = (ultBase * 0.72 + st.mag * 1.24 + st.atk * 0.34) * encounterProfile.playerDamage * 0.95;
       en.filter(e => e.hp > 0).forEach(e => { const d = Math.max(1, Math.floor(pow - e.def * 0.12)); e.hp = Math.max(0, e.hp - d); if (np.ult.fx) { const ef = FX(np.ult.fx); if (ef) e.efx.push({ ...ef, tl: Math.min(5, (np.ult.fxDur || ef.dur) + (np.ult.chain >= 6 ? 1 : 0)), justApplied:true }); } });
       if (np.quote && np.quote !== "...") lg.push("💬 \"" + np.quote + "\"");
-      lg.push("🌟 VEIL EXPANSION: " + np.ult.name + "!" + (np.ult.fx ? " [" + np.ult.fx + " " + formatTurns(Math.min(5, (np.ult.fxDur||2) + (np.ult.chain >= 6 ? 1 : 0))) + "]" : "")); np.ult = { ...np.ult, ready: false }; ch = [];
+      lg.push("🌟 VEILBREAK: " + np.ult.name + "!" + (np.ult.fx ? " [" + np.ult.fx + " " + formatTurns(Math.min(5, (np.ult.fxDur||2) + (np.ult.chain >= 6 ? 1 : 0))) + "]" : "")); np.ult = { ...np.ult, ready: false }; ch = [];
     } else if (act === "btl_equip_item") {
       // Equip item mid-battle (ends turn)
       const item = inv.find(i => i.id === idx);
@@ -5367,7 +5367,7 @@ function Game() {
           const nu = P(remainingUlts);
           setUlts(u => [...u, nu]);
           setPl(p => p ? ({ ...p, ultPool: p.ultPool || fullPool }) : p);
-          lg.push("🌟 New Veil Expansion: " + nu.name);
+          lg.push("🌟 New Veilbreak: " + nu.name);
         }
       }
       // Arena shard reward
@@ -6045,6 +6045,57 @@ const getReadyInteractions = (interList, btlState, tgt) => {
     return { ...x, nm: x.nm || interactionDisplayName(x.k, x.ds), isReady };
   });
 };
+/* ──────────────────────────────────────────────────────────────────────────
+   FUTURE BIG-ARENA COMBAT — PLANNING HOOKS (no implementation in this pass)
+   ──────────────────────────────────────────────────────────────────────────
+   The current battle is a 5-lane positional bar. The intent for the next
+   combat overhaul is a true large-arena tactical layer, NOT a small grid.
+   Everything below is a parking lot for the next foundation pass. None of
+   it should be implemented until a dedicated arena pass is scheduled.
+
+   TODO (arena foundation):
+   - Variable-size arena maps (12x8, 14x10, 16x12, irregular, circular,
+     fractured, boss-specific). Map shape lives on the encounter, not the
+     battler.
+   - Per-arena painted background + terrain overlay layer (separate from
+     world tile art). Reuse existing painted assets where possible; do not
+     ship more huge images than needed.
+   - Tile entity model: { x, y, terrainKey, blocked, occupantId, fxIds[] }.
+     Player + enemies + pets carry { pos:{x,y}, mv } instead of a lane index.
+   - Movement stat (mv) and movement-range preview (highlight reachable
+     tiles before commit). Map movement consumes the existing "free move"
+     budget plus a new mv-derived range.
+   - Skill range + area shapes (single, line, cone, burst, ring). Each
+     skill gets an optional { range, shape } override; existing range
+     heuristic remains the fallback.
+   - Destructible landscape objects (rubble, pillars, sealed gates) that
+     can block sight/movement and be broken by hits or by Veilbreaks.
+   - Rare terrain tiles with class/element bonuses (e.g. molten vents
+     for Fire, ley nodes for Arcane, shrine tiles for Light).
+   - Veilbreak field overlays — when a Veilbreak fires, a temporary field
+     reshapes a region of the arena (gravity well, void zone, blooming
+     grove, etc.) for N turns, applying an environmental fx.
+   - Field Clash — when two Veilbreak fields overlap or collide, resolve
+     a one-shot dramatic outcome based on element matchup + Field
+     Attunement stat. Possible results: dominance, shatter, fusion,
+     stalemate, mutual collapse.
+   - Field Attunement stat — new player/enemy stat governing field
+     dominance. Caps Veilbreak field size, controls Field Clash outcome
+     weighting. Inheritable.
+   - Arena-wide battle log events — terrain breaks, field formations,
+     field clashes, environmental kills. Use existing log pipeline; tag
+     them so the new round-grouped log can render them distinctly.
+   - Class / skill / passive rebalance pass once the above lands —
+     positioning, range, and mobility will shift the meta. DO NOT touch
+     numbers in this foundation pass.
+
+   NOTE: The previous 5x3 grid sketch is superseded — future maps are
+   large arenas (see size list above), not small grids.
+   ────────────────────────────────────────────────────────────────────── */
+// FOUNDATION PASS NOTE: internal identifiers like `veilExpansionDetailText`
+// were intentionally NOT renamed in the Veilbreak rename pass; only
+// player-facing strings were changed. A deeper migration can rename internal
+// vars + `pl.ult` shape later when save migrations are addressed.
 const buildGroupedBattleLog = (entries) => {
     const chronological = [...(entries || [])];
     const grouped = [];
@@ -7268,7 +7319,7 @@ const buildGroupedBattleLog = (entries) => {
   if (sub) return (
     <div className="pg shell-bg"><div className="wr shell-viewport">{notiEl}{tipEl}{popupEl}{chatEl}{chatProfileEl}{chatRosterEl}{chatLeaveConfirmEl}{hud}<div className="cd page-panel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}><div style={{ fontFamily: "'Cinzel',serif", fontSize: 14, color: T.gd }}>{sub === "items" ? "🎒 Equipment" : sub === "spells" ? "📖 Veil Archive" : sub === "stats" ? "📊 Stats" : sub === "story" ? "📜 Story" : sub === "manual" ? "📘 Game Manual" : "☰ Menu"}</div><button className="bt bs" style={{ background: T.c2 }} onClick={() => setSub(null)}>←</button></div>
-      {sub === "skills" && <div className="sb-panel"><div className="sb-title">Veil Archive</div><div className="sb-kv sb-muted">Veil Magic management has been folded into Veil Archive. Use that page for active Veil Magic, passive selection, and Veil Expansion management.</div><button className="bt bs" style={{ background: T.gd, marginTop: 6 }} onClick={() => setSub("spells")}>Open Veil Archive</button></div>}
+      {sub === "skills" && <div className="sb-panel"><div className="sb-title">Veil Archive</div><div className="sb-kv sb-muted">Veil Magic management has been folded into Veil Archive. Use that page for active Veil Magic, passive selection, and Veilbreak management.</div><button className="bt bs" style={{ background: T.gd, marginTop: 6 }} onClick={() => setSub("spells")}>Open Veil Archive</button></div>}
 {sub === "items" && (() => {
         try {
           const slotDefs = [
@@ -7418,14 +7469,14 @@ const buildGroupedBattleLog = (entries) => {
         <div className="sb-panel">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
             <div>
-              <div className="sb-title" style={{ marginBottom: 2 }}>Veil Expansion</div>
+              <div className="sb-title" style={{ marginBottom: 2 }}>Veilbreak</div>
               <div style={{ fontSize: 13, fontFamily: "'Cinzel',serif", color: T.gd }}>{pl.ult.name}</div>
             </div>
             <button className="bt bs" style={{ background: spellHelpOpen ? T.gd : T.c2, color: spellHelpOpen ? "#1a1207" : T.tx }} onClick={() => setSpellHelpOpen(v => !v)}>🏷️ Guide</button>
           </div>
           <div className="sb-grid">
             <div className="sb-line-card">
-              <div className="sb-title">Expansion Details</div>
+              <div className="sb-title">Veilbreak Details</div>
               <div className="sb-kv">Power: <span style={{ color: T.tx }}>{pl.ult.pow} + MAG×2</span></div>
               <div className="sb-kv">Element: <span style={{ color: ELC[pl.ult.el] || T.tx }}>{pl.ult.el}</span></div>
               <div className="sb-kv">Effect: <button type="button" className="bt bs" style={{ background: T.c2, color: T.tx, fontSize: 8, padding: "2px 6px", marginLeft: 4 }} onClick={() => setPopup({ text: pl.ult.fx ? archiveEffectInfoText(pl.ult.fx, pl.ult.fxDur || 0) : "No extra effect." })}>{pl.ult.fx || "None"}{pl.ult.fx ? " · " + (pl.ult.fxDur || 0) + " Turns" : ""}</button></div>
@@ -7443,8 +7494,8 @@ const buildGroupedBattleLog = (entries) => {
         </div>
 
         <div className="sb-panel">
-          <div className="sb-title">Veil Expansion Archive</div>
-          <div className="sb-kv sb-muted">Only one Veil Expansion can be active at a time, but every unlocked family option is listed here, including the one currently equipped.</div>
+          <div className="sb-title">Veilbreak Archive</div>
+          <div className="sb-kv sb-muted">Only one Veilbreak can be active at a time, but every unlocked family option is listed here, including the one currently equipped.</div>
           <div className="sb-mini-grid">{(ults.length ? ults : [pl.ult]).map((u, i) => <div key={i} className="sb-line-card" style={{ background: pl.ult.name === u.name ? T.gd + "14" : undefined, border: "1px solid " + ((ELC[u.el] || T.gd) + "44") }}><div style={{ color: ELC[u.el] || T.gd, fontWeight: 700, fontSize: 10, marginBottom: 3 }}>{u.name}</div><div className="sb-chip-row" style={{ marginBottom: 4 }}><button type="button" className="bt bs" style={{ background: (ELC[u.el] || T.gd) + "22", color: ELC[u.el] || T.gd, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: `${u.el}\n\n${compactMatchupText([u.el], 3, false)}` })}>{u.el}</button><button type="button" className="bt bs" style={{ background: T.c2, color: T.tx, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveTagInfoText("chain") })}>Ult Chain</button>{u.fx ? <button type="button" className="bt bs" style={{ background: T.c2, color: T.tx, fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: archiveEffectInfoText(u.fx, u.fxDur || 0) })}>{FX(u.fx)?.ic || "✦"} {FX(u.fx)?.nm || u.fx}</button> : null}</div><div className="sb-kv">Power {u.pow} · <span style={{ color: ELC[u.el] || T.tx, fontWeight: 700 }}>{u.el}</span> · {u.fx || "No extra effect"}{u.fx ? " · " + (u.fxDur || 0) + " Turns" : ""}</div><div className="sb-kv">Chain: {u.chain}</div><button className="bt bs" style={{ background: pl.ult.name === u.name ? T.ok : T.c2, marginTop: 5 }} onClick={() => setPl(p => ({ ...p, ult: { ...u, ready: false } }))}>{pl.ult.name === u.name ? "Active" : "Set"}</button></div>)}</div>
         </div>
         <div className="sb-panel">
@@ -7702,12 +7753,12 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">Combat at a Glance</div>
-          <div className="sb-kv sb-muted">Combat is built around tempo, pressure, and layered utility. Raw damage matters, but so do control effects, guards, heals, item timing, and the exact moment you cash in a Veil Expansion. The system is meant to feel readable enough for any player to understand while still rewarding smarter sequencing.</div>
+          <div className="sb-kv sb-muted">Combat is built around tempo, pressure, and layered utility. Raw damage matters, but so do control effects, guards, heals, item timing, and the exact moment you cash in a Veilbreak. The system is meant to feel readable enough for any player to understand while still rewarding smarter sequencing.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
             <div className="sb-title">Battle Options</div>
-            <div className="sb-kv sb-muted">• Veil Magic: your primary tactical toolkit.<br/>• Basic Actions: strike, guard, mend, copied skill, and on-hand gear.<br/>• Battle Items: fast support, cleansing, burst utility, control tools.<br/>• Auxiliary Actions: swap and management actions when the moment calls for it.<br/>• Veil Expansion: your signature climax, charged by exact chain inputs.</div>
+            <div className="sb-kv sb-muted">• Veil Magic: your primary tactical toolkit.<br/>• Basic Actions: strike, guard, mend, copied skill, and on-hand gear.<br/>• Battle Items: fast support, cleansing, burst utility, control tools.<br/>• Auxiliary Actions: swap and management actions when the moment calls for it.<br/>• Veilbreak: your signature climax, charged by exact chain inputs.</div>
           </div>
           <div className="sb-panel">
             <div className="sb-title">Why Non-Damage Actions Matter</div>
@@ -7719,8 +7770,8 @@ const buildGroupedBattleLog = (entries) => {
           <div className="sb-kv sb-muted">Element advantage is normally +10% damage. Element vulnerability is normally +10% damage taken. Neutral remains 100%. There are no elemental resists in the current battle model. Multi-element characters can still stack multiple offensive and defensive weaknesses. The Element Summary now separates each active element into its own panel so you can tell exactly which element grants which offensive and defensive matchup.</div>
         </div>
         <div className="sb-panel">
-          <div className="sb-title">Veil Magic and Veil Expansions</div>
-          <div className="sb-kv sb-muted">Veil Magic defines your class rhythm. Damage, healing, status, control, and setup are all balanced against effect burden. Veil Expansions are stronger, rarer declarations of intent. They are charged by exact chain orders, then released with your Motto spoken as the identity of your line. Inheritance can eventually widen your Veil Expansion choices beyond your class baseline.</div>
+          <div className="sb-title">Veil Magic and Veilbreaks</div>
+          <div className="sb-kv sb-muted">Veil Magic defines your class rhythm. Damage, healing, status, control, and setup are all balanced against effect burden. Veilbreaks are stronger, rarer declarations of intent. They are charged by exact chain orders, then released with your Motto spoken as the identity of your line. Inheritance can eventually widen your Veilbreak choices beyond your class baseline.</div>
         </div>
         <div className="sb-grid">
           <div className="sb-panel">
@@ -7729,7 +7780,7 @@ const buildGroupedBattleLog = (entries) => {
           </div>
           <div className="sb-panel">
             <div className="sb-title">Reading a Battle Like a Veteran</div>
-            <div className="sb-kv sb-muted">The strongest players do not simply cast the highest number. They watch element spread, passive triggers, status duration, action economy, and chain setup. A fight becomes elegant when one action prepares the next: Guard into a powered strike, a debuff before an execution spell, a support window before a Veil Expansion, or a defensive turn that survives a boss’s peak pressure.</div>
+            <div className="sb-kv sb-muted">The strongest players do not simply cast the highest number. They watch element spread, passive triggers, status duration, action economy, and chain setup. A fight becomes elegant when one action prepares the next: Guard into a powered strike, a debuff before an execution spell, a support window before a Veilbreak, or a defensive turn that survives a boss’s peak pressure.</div>
           </div>
         </div>
         <div className="sb-panel">
@@ -7752,11 +7803,11 @@ const buildGroupedBattleLog = (entries) => {
         </div>
         <div className="sb-panel">
           <div className="sb-title">How an Heir Can Turn Out</div>
-          <div className="sb-kv sb-muted">An heir is not built from one fixed rule. The final child can inherit from multiple layers at once: your class foundation, your current lineage trait, your companion’s elements, your companion’s nature, bloodline growth leanings, rare passive boons, inherited Veil Magic, rare inherited Veil Expansion choices, stat edges, and even extra elemental resonance. Some results are common. Some are rare. Some are surprising. That uncertainty is the point.</div>
+          <div className="sb-kv sb-muted">An heir is not built from one fixed rule. The final child can inherit from multiple layers at once: your class foundation, your current lineage trait, your companion’s elements, your companion’s nature, bloodline growth leanings, rare passive boons, inherited Veil Magic, rare inherited Veilbreak choices, stat edges, and even extra elemental resonance. Some results are common. Some are rare. Some are surprising. That uncertainty is the point.</div>
         </div>
         <div className="sb-panel">
           <div className="sb-title">What Always Carries Forward</div>
-          <div className="sb-kv sb-muted">Your predecessor’s Veil Expansion becomes part of the family arsenal as an available future choice. Gold and banking can partly carry through a will system. The bloodline itself accumulates shape: its preferences, risks, and special possibilities become more interesting the longer the family survives.</div>
+          <div className="sb-kv sb-muted">Your predecessor’s Veilbreak becomes part of the family arsenal as an available future choice. Gold and banking can partly carry through a will system. The bloodline itself accumulates shape: its preferences, risks, and special possibilities become more interesting the longer the family survives.</div>
         </div>
         <div className="sb-panel">
           <div className="sb-title">Reading the Interface</div>
@@ -8178,13 +8229,14 @@ const buildGroupedBattleLog = (entries) => {
               <div className="battle-info-strip">
                 <div>
                   <div className="battle-chain-line" style={{ whiteSpace: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                    <span className="tg" style={{ background: pl.ult.ready ? T.gd + "22" : T.c2, color: pl.ult.ready ? T.gd : T.dm, marginRight: 4 }}>{chainProg + "/" + pl.ult.chain}</span><span style={{ color: T.tx }}>Veil Expansion: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={() => setPopup({ text: veilExpansionDetailText(pl.ult) })}>ℹ</button><span style={{ color: T.dm }}> — </span>
+                    <span className="tg" style={{ background: pl.ult.ready ? T.gd + "22" : T.c2, color: pl.ult.ready ? T.gd : T.dm, marginRight: 4 }}>{chainProg + "/" + pl.ult.chain}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={() => setPopup({ text: veilExpansionDetailText(pl.ult) })}>ℹ</button><span style={{ color: T.dm }}> — </span>
                     {pl.ult.combo.map((v, i) => {
                       const label = chainLabels[v] || "?";
                       const isComplete = i < chainProg;
                       const isCurrent = i === chainProg && !pl.ult.ready;
                       const isReady = pl.ult.ready;
-                      return <span key={i}>{i > 0 && <span style={{ color: T.dm }}>→</span>}<span style={{
+                      const stepCls = "veilbreak-chain-step" + (isReady ? " is-ready" : isComplete ? " is-complete" : isCurrent ? " is-current" : "");
+                      return <span key={i}>{i > 0 && <span style={{ color: T.dm }}>→</span>}<span className={stepCls} style={{
                         padding: "0 3px", borderRadius: 2, fontWeight: 700,
                         background: isReady ? T.gd + "44" : isComplete ? T.ok + "33" : isCurrent ? T.ac + "33" : "transparent",
                         color: isReady ? T.gd : isComplete ? T.ok : isCurrent ? T.ac : T.dm,
@@ -8202,7 +8254,7 @@ const buildGroupedBattleLog = (entries) => {
                     <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 1, marginTop: 2 }}>
                       <div style={{ fontSize: 7, color: "#97a7d5", marginBottom: 2 }}>Tap an interaction name for its trigger and effect.</div>{getReadyInteractions(pl.inter, btl, btl.en?.find(e => e.hp > 0)).map((x,i) => {
                       const isReady = x.isReady;
-                      return <button type="button" key={i} className="battle-ready-chip" onClick={() => setPopup({ text: interactionPopupText(x) })} style={{ display: "inline-block", color: isReady ? "#ffd600" : T.ok, background: isReady ? "#ffd60022" : "transparent", lineHeight: 1.45, whiteSpace: "nowrap", border: "1px solid " + (isReady ? "#ffd60055" : "transparent"), boxShadow: isReady ? "0 0 10px #ffd60055" : "none", cursor: "pointer" }}>★ {x.nm || interactionDisplayName(x.k, x.ds)}{isReady ? " ⚡" : ""}</button>;
+                      return <button type="button" key={i} className={"battle-ready-chip" + (isReady ? " is-ready" : "")} onClick={() => setPopup({ text: interactionPopupText(x) })} style={{ display: "inline-block", color: isReady ? "#ffd600" : T.ok, background: isReady ? "#ffd60022" : "transparent", lineHeight: 1.45, whiteSpace: "nowrap", border: "1px solid " + (isReady ? "#ffd60055" : "transparent"), boxShadow: isReady ? "0 0 10px #ffd60055" : "none", cursor: "pointer" }}>★ {x.nm || interactionDisplayName(x.k, x.ds)}{isReady ? " ⚡" : ""}</button>;
                     })}
                     </div>
                   </div>}
@@ -8223,11 +8275,11 @@ const buildGroupedBattleLog = (entries) => {
             <div className="cd battle-actions-card" style={{ padding: 6 }}>
               <div className="battle-turn-head">
                 <span style={{ fontSize: 10, fontWeight: 700, color: isPT ? T.ok : T.bad }}>{isPT ? "Your Turn" : "Enemy Turn..."}</span>
-                <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "Pick an action region." : "Await enemy actions."}</span>
+                <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "" : "Await enemy actions."}</span>
               </div>
               {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [
-                { id: "combat", ic: "⚔",   nm: "Combat Actions", ct: 2 + (eq.w2 ? 1 : 0) + (copied && copyN > 0 ? 1 : 0) + (pl.ult.ready ? 1 : 0) },
-                { id: "veil",   ic: "✦",   nm: "Veil Magic",     ct: eqSk.length },
+                { id: "combat", ic: "⚔",   nm: "Combat Actions", ct: null },
+                { id: "veil",   ic: "✦",   nm: "Veil Magic",     ct: null },
                 ...(hasItems ? [{ id: "items", ic: "🧪", nm: "Items", ct: (eq.c1 ? 1 : 0) + (eq.c2 ? 1 : 0) }] : []),
               ]; const active = battleSectionAvailable(battleSection, { hasItems, isPT }) ? battleSection : "combat"; return (
                 <div className="battle-tabs v66" role="tablist">
@@ -8241,7 +8293,7 @@ const buildGroupedBattleLog = (entries) => {
                 </div>
               ); })()}
               <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "combat") === "veil" ? "block" : "none" }}>
-                <div className="battle-section-title"><span style={{ color: T.gd }}>Veil Magic</span><span style={{ fontSize: 7, color: T.dm }}>{eqSk.length} equipped</span></div>
+                <div className="battle-section-title"><span style={{ color: T.gd }}>Veil Magic</span></div>
                 <div className="battle-action-grid">
                   {eqSk.map((sk, i) => {
                     const fxInfo = sk.fx ? FX(sk.fx) : null;
@@ -8263,7 +8315,7 @@ const buildGroupedBattleLog = (entries) => {
                 </div>
               </div>
               <div className="battle-section" style={{ display: (battleSectionAvailable(battleSection, { hasItems: !!(eq.c1 || eq.c2), isPT }) ? battleSection : "combat") === "combat" ? "block" : "none" }}>
-                <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span><span style={{ fontSize: 7, color: T.dm }}>Basic actions</span></div>
+                <div className="battle-section-title"><span style={{ color: T.gd }}>Combat Actions</span></div>
                 <div className="battle-action-grid">
                   <div className="battle-action-card-wrap">
                     <button className="bt battle-action-btn" style={{ background: T.c2, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6 }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText((eq.w1 ? eq.w1.name : (eq.w2 ? eq.w2.name : "Unarmed")), ((eq.w1||eq.w2)?.el)||"Null"), fullscreen: true }); return; } bAct("strike"); }}>
@@ -8311,7 +8363,7 @@ const buildGroupedBattleLog = (entries) => {
                   {pl.ult.ready && <div className="battle-action-card-wrap">
                     <button className="bt battle-action-btn" style={{ background: T.gd, textAlign: "center", paddingLeft: 6, paddingRight: 6, paddingBottom: 6, animation: "pulse 1s infinite" }} disabled={!isPT} onTouchStart={(ev) => { const r=ev.currentTarget.getBoundingClientRect(); if(ev.touches[0].clientY-r.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(pl.ult.name, pl.ult.el), fullscreen: true }); return; } }} onClick={(ev) => { if(popupJustOpenedRef.current) return; const r2=ev.currentTarget.getBoundingClientRect(); if(ev.clientY-r2.top<=18){ ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(pl.ult.name, pl.ult.el), fullscreen: true }); return; } bAct("ult"); }}>
                       <div style={{ fontWeight: 700 }}>🌟 {pl.ult.name}</div>
-                      <div style={{ fontSize: 7, color: "#5b4300", fontWeight: 700 }}>Veil Expansion · <span style={{ color: ELC[pl.ult.el]||"#221" }}>{pl.ult.el}</span></div>
+                      <div style={{ fontSize: 7, color: "#5b4300", fontWeight: 700 }}>Veilbreak · <span style={{ color: ELC[pl.ult.el]||"#221" }}>{pl.ult.el}</span></div>
                       <div style={{ fontSize: 7, color: "#000" }}>Power: {pl.ult.pow} + MAG×2 · Cost: 0</div>
                       <div style={{ fontSize: 7, color: "#221" }}><span style={{ color: "#66bb6a", fontWeight: 700 }}>Additional Effect:</span> {battleEffectButtonText(pl.ult.fx, pl.ult.fxDur) || "None"}</div>
                     </button>
@@ -8332,7 +8384,7 @@ const buildGroupedBattleLog = (entries) => {
                 </div>
               </div>}
               {isPT && <div className="battle-section battle-aux-shared" data-battle-aux>
-                <div className="battle-section-title"><span style={{ color: T.gd }}>Auxiliary Actions</span><span style={{ fontSize: 7, color: T.dm }}>Loadout changes end turn</span></div>
+                <div className="battle-section-title"><span style={{ color: T.gd }}>Auxiliary Actions</span></div>
                 <div className="battle-aux-row">
                   <button className="bt bs" style={{ background: btlPanel === "items" ? "#3486ff" : "#203867" }} onClick={() => setBtlPanel(btlPanel === "items" ? null : "items")}>🧪 Equip Item</button>
                   <button className="bt bs" style={{ background: btlPanel === "weapons" ? "#7c67ff" : "#332a6b" }} onClick={() => setBtlPanel(btlPanel === "weapons" ? null : "weapons")}>🗡️ Draw Weapon</button>
@@ -8370,13 +8422,23 @@ const buildGroupedBattleLog = (entries) => {
               <div style={{ maxHeight: "none", overflowY: "auto", lineHeight: 1.4 }} ref={logR} className="blog-sel">
               {buildGroupedBattleLog(log).map((grp, i) => {
                 const eventLike = grp.type === "event";
-                const baseClass = eventLike ? "log-loss" : (grp.type === "enemy" ? "log-loss" : "log-attack");
-                return <div key={i} className={"battle-log-entry " + baseClass} style={{ color: eventLike ? "#ff8f8f" : "#dbe4ff" }}>
-                  <div style={{ fontWeight: 800, marginBottom: grp.lines.length ? 4 : 0, color: eventLike ? "#ff7e7e" : "#f1f4ff" }}>{grp.title}</div>
-                  <div style={{ display: "grid", gap: 3 }}>
-                    {grp.lines.map((line, li) => <div key={li} style={{ color: eventLike ? "#ff7e7e" : "#dbe4ff", fontWeight: 600, opacity: 0.98 }}>
-                      {eventLike ? renderClickableLogText(line, "event_" + i + "_" + li) : <><span style={{ color: "#9fb2e8" }}>• </span>{renderClickableLogText(line, "grp_" + i + "_" + li)}</>}
-                    </div>)}
+                const isVeilbreak = (grp.lines || []).some(l => /Veilbreak/i.test(l)) || /Veilbreak/i.test(grp.title || "");
+                const isInteraction = /Skill Interaction/i.test(grp.title || "");
+                const baseClass = isVeilbreak ? "log-veilbreak" : isInteraction ? "log-effect" : eventLike ? "log-effect" : (grp.type === "enemy" ? "log-enemy" : "log-player");
+                const titleColor = isVeilbreak ? "#ffd86b" : eventLike ? "#ff7e7e" : (grp.type === "enemy" ? "#ffb0b0" : "#dbe4ff");
+                return <div key={i} className={"battle-log-entry " + baseClass}>
+                  <div className="battle-log-title" style={{ color: titleColor }}>{grp.title}</div>
+                  <div className="battle-log-lines">
+                    {grp.lines.map((line, li) => {
+                      const lineKind = /miss|missed|block(ed)?|dodge/i.test(line) ? "miss"
+                        : /critical|crit\b/i.test(line) ? "crit"
+                        : /Passive/i.test(line) ? "passive"
+                        : /(burn|bleed|poison|slow|stun|sleep|blind|silence|freeze|fortify|barrier|shield|regen|haste)/i.test(line) ? "status"
+                        : "default";
+                      return <div key={li} className={"battle-log-line line-" + lineKind} data-kind={lineKind}>
+                        {eventLike ? renderClickableLogText(line, "event_" + i + "_" + li) : <><span className="battle-log-bullet">• </span>{renderClickableLogText(line, "grp_" + i + "_" + li)}</>}
+                      </div>;
+                    })}
                   </div>
                 </div>;
               })}
@@ -8704,7 +8766,7 @@ const buildGroupedBattleLog = (entries) => {
                             <button className="bt bs" style={{ background: "#3f2f52", fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: companionFieldDetailText(c, "bloodline") })}>Bloodline: {c.boonPreview?.nm || "Unformed"}</button>
                             <button className="bt bs" style={{ background: "#4a3a24", fontSize: 8, padding: "2px 6px" }} onClick={() => setPopup({ text: companionFieldDetailText(c, "growth") })}>Growth: {String(c.boonStat).toUpperCase()} ×{(c.boonMult || 1.04).toFixed(2)}</button>
                           </div>
-                          <div style={{ fontSize: 8, color: "#a8c7ff", marginTop: 4 }}>{c.boonPreview?.ds || "A stronger lineage waits in the next generation."}{c.boonPreview?.skill ? " · Inherited Veil Magic: " + c.boonPreview.skill.n : ""}{c.boonPreview?.ult ? " · Inherited Expansion: " + c.boonPreview.ult.name : ""}</div>
+                          <div style={{ fontSize: 8, color: "#a8c7ff", marginTop: 4 }}>{c.boonPreview?.ds || "A stronger lineage waits in the next generation."}{c.boonPreview?.skill ? " · Inherited Veil Magic: " + c.boonPreview.skill.n : ""}{c.boonPreview?.ult ? " · Inherited Veilbreak: " + c.boonPreview.ult.name : ""}</div>
                         </div>
                         <button className="bt bs" disabled={!canRebond} style={{ background: isBonded ? T.ok : (canRebond ? T.gd : "#333") }} onClick={() => {
                           if (isBonded) { notify(c.nm + " is already your bonded companion."); return; }

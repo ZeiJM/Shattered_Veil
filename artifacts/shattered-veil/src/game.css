@@ -1066,6 +1066,90 @@ html, body, #root {
 .battle-log-entry.log-info    { border-left-color: rgba(180,196,220,0.70); background: linear-gradient(180deg, rgba(50,64,88,0.20), rgba(20,26,40,0.10)); }
 .battle-log-entry.log-win     { border-left-color: rgba(212,173,64,0.95); background: linear-gradient(180deg, rgba(90,70,10,0.28), rgba(40,30,4,0.12)); }
 .battle-log-entry.log-loss    { border-left-color: rgba(148,26,26,0.95); background: linear-gradient(180deg, rgba(80,16,16,0.28), rgba(36,8,8,0.12)); }
+.battle-log-entry.log-player  { border-left-color: rgba(125,184,255,0.90); background: linear-gradient(180deg, rgba(20,50,100,0.26), rgba(10,26,52,0.12)); }
+.battle-log-entry.log-enemy   { border-left-color: rgba(214,86,86,0.92);  background: linear-gradient(180deg, rgba(80,18,18,0.26), rgba(40,10,10,0.12)); }
+.battle-log-entry.log-veilbreak {
+  border-left-color: rgba(255,212,90,0.98);
+  background: linear-gradient(180deg, rgba(120,82,12,0.34), rgba(50,32,4,0.16));
+  box-shadow: inset 0 0 14px rgba(255,212,90,0.10), 0 0 12px rgba(255,212,90,0.10);
+}
+.battle-log-title {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.battle-log-lines { display: grid; gap: 3px; }
+.battle-log-line {
+  font-weight: 600;
+  color: #dbe4ff !important;
+  opacity: 0.98;
+}
+.battle-log-entry.log-enemy .battle-log-line { color: #f0c5c5 !important; }
+.battle-log-entry.log-veilbreak .battle-log-line { color: #ffe9b3 !important; }
+.battle-log-bullet { color: #9fb2e8; }
+.battle-log-entry.log-enemy .battle-log-bullet { color: #d49b9b; }
+.battle-log-entry.log-veilbreak .battle-log-bullet { color: #ffd86b; }
+.battle-log-line.line-miss     { opacity: 0.72; font-style: italic; }
+.battle-log-line.line-crit     { color: #ffd86b !important; font-weight: 700; }
+.battle-log-line.line-passive  { color: #c5b3ff !important; }
+.battle-log-line.line-status   { color: #b3e5d3 !important; }
+
+/* ── Veilbreak chain step + readiness glows ── */
+.veilbreak-chain-step {
+  display: inline-block;
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+.veilbreak-chain-step.is-complete {
+  box-shadow: 0 0 6px rgba(102,187,106,0.45);
+}
+.veilbreak-chain-step.is-current {
+  box-shadow: 0 0 6px rgba(124,103,255,0.55);
+  animation: veilbreakStepPulse 1.6s ease-in-out infinite;
+}
+.veilbreak-chain-step.is-ready {
+  box-shadow: 0 0 10px rgba(212,173,64,0.85);
+  animation: veilbreakReadyPulse 1.1s ease-in-out infinite;
+}
+@keyframes veilbreakStepPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(124,103,255,0.35); }
+  50%      { box-shadow: 0 0 10px rgba(124,103,255,0.75); }
+}
+@keyframes veilbreakReadyPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(212,173,64,0.55); transform: translateY(0); }
+  50%      { box-shadow: 0 0 16px rgba(212,173,64,0.95); transform: translateY(-1px); }
+}
+.battle-ready-chip {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  margin-right: 3px;
+  transition: box-shadow 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+}
+.battle-ready-chip.is-ready {
+  animation: veilbreakReadyPulse 1.2s ease-in-out infinite;
+}
+.battle-ready-chip:hover { transform: translateY(-1px); }
+
+/* ── Standardized battle action card detail typography ──
+   Applies to .battle-action-btn descendant text rows so all 8 cards read at
+   the same scale without touching inline styles spread across each button. */
+.battle-bg .battle-action-btn > div { font-family: 'Nunito', sans-serif; }
+.battle-bg .battle-action-btn > div:first-child { font-size: 11px !important; letter-spacing: 0.02em; }
+.battle-bg .battle-action-btn > div + div,
+.battle-bg .battle-action-btn > div + div + div,
+.battle-bg .battle-action-btn > div + div + div + div { font-size: 9px !important; line-height: 1.35; }
+@media (max-width: 720px) {
+  .battle-bg .battle-action-btn > div:first-child { font-size: 10px !important; }
+  .battle-bg .battle-action-btn > div + div,
+  .battle-bg .battle-action-btn > div + div + div,
+  .battle-bg .battle-action-btn > div + div + div + div { font-size: 8px !important; }
+}
 
 /* Battle passives */
 .battle-passive-line {
@@ -1984,7 +2068,7 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 .battle-bg .battle-action-btn > div + div + div { color: #ece4cc !important; }
 .battle-bg .battle-action-btn > div + div + div + div { color: #93a3c1 !important; }
 
-/* Veil Expansion (ult) keeps a gold treatment — it's the climax button */
+/* Veilbreak (ult) keeps a gold treatment — it's the climax button */
 .battle-bg .battle-action-btn[disabled] { animation: none !important; }
 .battle-bg .battle-action-card-wrap:has(.battle-action-btn[style*="pulse"]) .battle-action-btn,
 .battle-bg .battle-action-btn[style*="pulse"] {

@@ -1,0 +1,258 @@
+You are working on Shattered Veil. This is a complex game. Be careful, surgical, and cost-conscious.
+
+TASK NAME:
+Battle Rework Pass 4 — Arena Skill Range, Area Shapes, and Target Preview System
+
+BEFORE STARTING:
+Create or rely on a safe Replit checkpoint before making changes.
+
+CRITICAL RULES:
+- Do not rewrite the whole game.
+- Do not replace the entire combat engine in this pass.
+- Do not rebalance all classes, enemies, passives, or status effects yet.
+- Do not change base damage formulas in this pass.
+- Do not change save/load structure unless absolutely required.
+- Do not change character creation, world map, towns, marriage, succession, chat, or backend.
+- Do not remove existing battle actions.
+- Do not copy code, exact UI, exact text, names, or assets from any reference game.
+- Keep the current game playable even if some skills only receive temporary range metadata.
+- If a skill cannot safely be converted, give it a safe fallback range/shape and document it.
+
+FILES TO INSPECT FIRST:
+- artifacts/shattered-veil/src/Game.jsx
+- artifacts/shattered-veil/src/game.css
+- artifacts/shattered-veil/src/battle/arena/arenaMaps.js, if it exists
+- artifacts/shattered-veil/src/battle/arena/arenaEngine.js, if it exists
+- artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx, if it exists
+
+PRIMARY GOAL:
+Add a safe arena targeting layer so skills and attacks can begin showing range, target zones, and area shapes on the big battle map.
+
+This pass should make the arena feel more tactical, but should not fully rebalance every skill yet.
+
+DESIGN DIRECTION:
+The future battle system should support large arena battles with:
+- variable map sizes and shapes
+- tactical movement
+- range-based skills
+- area-of-effect shapes
+- line, cone, burst, self, aura, zone, and global targeting
+- destructible objects
+- rare terrain bonuses
+- Veilbreak field effects
+- Field Clashes
+- cinematic battle log entries
+
+IMPLEMENTATION REQUIREMENTS:
+
+1. Add skill range metadata support.
+
+   Every battle action and Veil Magic skill should be able to have metadata such as:
+
+   {
+     range: number,
+     shape: "single" | "line" | "cone" | "burst" | "self" | "aura" | "zone" | "global",
+     radius: number,
+     targetType: "enemy" | "ally" | "self" | "tile" | "emptyTile" | "object" | "any",
+     requiresLineOfSight: boolean,
+     canTargetObjects: boolean,
+     terrainInteraction: string | null
+   }
+
+   Do not break skills that do not yet have this metadata.
+   Add safe defaults.
+
+2. Add default range/shape assignment helpers.
+
+   Add helper logic that can infer safe temporary metadata for existing skills.
+
+   Suggested defaults:
+   - Basic Strike: range 1, shape single, target enemy
+   - Flurry: range 1, shape single, target enemy
+   - Guard: range 0, shape self
+   - Self buffs: range 0, shape self
+   - Heals/support: range 4, shape single or burst, target ally/self
+   - Projectiles: range 5, shape single or line
+   - AoE magic: range 4, shape burst, radius 1 or 2
+   - Veilbreaks: global or large zone, but visual-only for now
+   - Boss-wide mechanics: global
+   - Unknown skills: range 4, shape single, target enemy
+
+   This should be a temporary foundation, not final balance.
+
+3. Add arena range calculation helpers.
+
+   Add or update helper functions such as:
+   - getTilesInRange(position, range, arena)
+   - getLineTiles(origin, directionOrTarget, range, arena)
+   - getConeTiles(origin, target, range, angleOrWidth, arena)
+   - getBurstTiles(center, radius, arena)
+   - getAuraTiles(origin, radius, arena)
+   - getGlobalTiles(arena)
+   - getValidTargetTiles(caster, skill, arenaState)
+   - getAffectedTiles(caster, targetTile, skill, arenaState)
+   - getUnitsOnAffectedTiles(affectedTiles, arenaUnits)
+   - hasLineOfSight(origin, target, arenaState)
+
+   Keep line-of-sight simple for now.
+   Blocking terrain/objects can be respected if already available, but do not overcomplicate it.
+
+4. Add visual targeting modes to the ArenaBoard.
+
+   When the player selects an action or skill:
+   - highlight valid target tiles
+   - highlight affected area tiles
+   - show enemy/ally/object tokens that would be affected
+   - show out-of-range targets differently if safe
+   - show a simple tooltip with range, shape, and target type
+   - keep movement preview separate from skill targeting preview
+
+   Required visual states:
+   - valid movement tile
+   - valid target tile
+   - affected area tile
+   - selected target tile
+   - out-of-range tile
+   - blocked line-of-sight tile, if implemented
+   - occupied tile
+   - destructible object tile
+
+5. Update battle action and Veil Magic cards.
+
+   Each card should show readable tactical metadata where available:
+
+   Examples:
+   - Range: 1
+   - Shape: Single
+   - Target: Enemy
+   - Area: Burst 2
+   - Line of Sight: Required
+   - Can hit objects: Yes
+
+   Keep the card clean.
+   Do not overload the UI with too much text.
+   Use compact badges or small labels.
+
+6. Add target preview before confirming an action.
+
+   For player actions:
+   - selecting a skill should enter targeting mode if the skill needs a target
+   - clicking a valid enemy/tile should preview affected tiles
+   - player should be able to confirm or cancel
+   - existing direct button behavior should still work if targeting mode fails
+
+   Important:
+   Do not fully force all combat through the new targeting system if it risks breaking existing battle flow.
+   Use a safe fallback to existing target selection.
+
+7. Soft range enforcement.
+
+   For this pass, use soft enforcement where possible:
+   - If a selected skill has reliable range metadata and arena positions exist, prevent targeting clearly invalid/out-of-range tiles.
+   - If metadata or positions are missing, fall back to the current combat targeting behavior.
+   - Do not make existing combat impossible because of missing data.
+
+   Add TODO comments for full hard enforcement in a later pass.
+
+8. Add basic line-of-sight foundation.
+
+   Add simple support for:
+   - objects or terrain that block line of sight
+   - skills that ignore line of sight
+   - future destructible-object interactions
+
+   Do not make every skill require line-of-sight yet.
+   Use it only where safe.
+
+9. Add basic object targeting support.
+
+   Destructible objects should be targetable in preview if:
+   - canTargetObjects is true
+   - the object is in range
+   - the object is destructible
+
+   Do not fully implement object HP/damage resolution unless the existing foundation makes it safe.
+   If not implemented, add visual targeting support and TODO comments for Pass 5.
+
+10. Add battle log hooks for targeting.
+
+   Add clear log entries where safe, such as:
+   - “Koen traced a line of fire across the arena.”
+   - “The spell’s impact zone shimmered across three tiles.”
+   - “The target stood beyond the caster’s reach.”
+   - “The cracked pillar was caught in the projected blast.”
+
+   Do not spam the log with previews.
+   Only log confirmed actions or invalid attempts where appropriate.
+
+11. Add CSS polish.
+
+   Add or update classes such as:
+   - sv-arena-targeting-mode
+   - sv-arena-tile-target-valid
+   - sv-arena-tile-target-selected
+   - sv-arena-tile-area-preview
+   - sv-arena-tile-out-of-range
+   - sv-arena-tile-los-blocked
+   - sv-arena-card-range-badge
+   - sv-arena-card-shape-badge
+   - sv-arena-target-tooltip
+   - sv-arena-confirm-target
+   - sv-arena-cancel-target
+
+   Keep the dark mystical battle theme.
+   Make the battlefield feel premium and readable.
+   Do not introduce external art or large assets.
+
+12. Add TODO comments for later passes.
+
+   Add TODO comments for:
+   - full skill-by-skill range balancing
+   - full class rebalance around range and movement
+   - true enemy AI movement and range selection
+   - destructible object damage
+   - terrain bonus triggers
+   - rare field tile triggers
+   - Veilbreak field area control
+   - Field Clash targeting and territory split
+   - status effects interacting with range/movement
+   - boss-specific arena mechanics
+
+VALIDATION REQUIRED:
+After changes, verify:
+- game starts
+- character creation still works
+- normal battle starts
+- boss/training battle starts if available
+- player and enemy tokens still appear on arena
+- movement from Pass 3 still works
+- selecting a basic attack shows or uses range metadata
+- selecting at least one Veil Magic skill shows range/shape metadata
+- target tiles highlight correctly where possible
+- affected area preview appears for at least one burst/area skill if available
+- invalid/out-of-range targets are handled safely
+- existing attack still works
+- Guard still works
+- at least one Veil Magic skill still works
+- item use still works
+- enemy turn still works
+- battle log still updates
+- no blank screen
+- no console errors
+- mobile layout remains usable or at least not severely worse
+
+REPORT BACK:
+At the end, list:
+- every file modified
+- every new file created
+- what skill metadata structure was added
+- what default range/shape rules were added
+- what targeting previews were added
+- whether range is soft-enforced or only visual
+- what was tested
+- what was intentionally not changed
+- any risky areas for the next pass
+
+IMPORTANT FINAL NOTE:
+This pass should make skills begin to understand range and area shape on the big arena.
+It should not yet fully rebalance every skill, enemy, class, or boss around the new system.
