@@ -6887,3 +6887,84 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   font-size: 8px !important;
   padding: 2px 6px !important;
 }
+
+/* ─── Pass 12 — Enemy/Boss Identity layer ───────────────────────────── */
+/* Boss intro banner — emitted once per boss at battle start. */
+.sv-boss-intro-banner {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, rgba(28,18,12,0.92) 0%, rgba(54,8,8,0.85) 100%) !important;
+  color: #f6deb1 !important;
+  border: 1px solid rgba(255, 184, 96, 0.42) !important;
+  box-shadow: 0 0 0 1px rgba(255,184,96,0.18) inset, 0 0 18px rgba(255,184,96,0.18) !important;
+  font-family: 'Cinzel', serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6) !important;
+}
+
+/* Boss phase pulse — short attention pulse on the log line emitted at
+   the 72% / 38% HP transitions. Pure presentational — applied via the
+   existing log-line tag pipeline if/when the renderer threads it. */
+@keyframes sv-boss-phase-pulse-kf {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 96, 96, 0.55); }
+  60%  { box-shadow: 0 0 0 12px rgba(255, 96, 96, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 96, 96, 0); }
+}
+.sv-boss-phase-pulse {
+  animation: sv-boss-phase-pulse-kf 1.6s ease-out 1;
+  border-radius: 6px;
+}
+
+/* Boss warning telegraph — used by future enemy field-activation visuals
+   that want a brief "incoming pressure" cue. Additive, opt-in. */
+.sv-boss-warning-telegraph {
+  position: relative;
+  outline: 1px dashed rgba(255, 96, 96, 0.42);
+  outline-offset: 2px;
+  background: linear-gradient(180deg, rgba(54,8,8,0.18), rgba(28,18,12,0.0));
+}
+.sv-boss-warning-telegraph::after {
+  content: "▲ telegraph";
+  position: absolute;
+  top: -10px;
+  right: 6px;
+  font-size: 9px;
+  font-family: 'Nunito', sans-serif;
+  color: #ffb060;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+
+/* Archetype badge — for future HUD/codex display of getEnemyArchetype()
+   results. Mirrors the role-badge styling from Pass 11. */
+.sv-enemy-archetype-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(28,18,12,0.78);
+  color: #f5d57a;
+  border: 1px solid rgba(245,213,122,0.36);
+  font-family: 'Nunito', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sv-enemy-archetype-badge.is-fortress    { color:#cfd6e0; border-color:rgba(207,214,224,0.38); }
+.sv-enemy-archetype-badge.is-siege_brute { color:#f0a060; border-color:rgba(240,160,96,0.38); }
+.sv-enemy-archetype-badge.is-predator    { color:#f06060; border-color:rgba(240,96,96,0.38); }
+.sv-enemy-archetype-badge.is-tempest     { color:#90c8ff; border-color:rgba(144,200,255,0.38); }
+.sv-enemy-archetype-badge.is-hexweaver   { color:#c090f0; border-color:rgba(192,144,240,0.38); }
+.sv-enemy-archetype-badge.is-rotcourt    { color:#90d088; border-color:rgba(144,208,136,0.38); }
+.sv-enemy-archetype-badge.is-abyssal     { color:#a070d0; border-color:rgba(160,112,208,0.38); }
+.sv-enemy-archetype-badge.is-radiant     { color:#ffe080; border-color:rgba(255,224,128,0.42); }
+.sv-enemy-archetype-badge.is-tide        { color:#70b8e0; border-color:rgba(112,184,224,0.38); }
+.sv-enemy-archetype-badge.is-cryomancer  { color:#a8e0e8; border-color:rgba(168,224,232,0.38); }
+.sv-enemy-archetype-badge.is-dreamweaver { color:#d0a0ff; border-color:rgba(208,160,255,0.38); }
+.sv-enemy-archetype-badge.is-cataclysm   { color:#ff8050; border-color:rgba(255,128,80,0.42); }

@@ -102,6 +102,21 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 12 (v85) — Enemy & Boss Identity Layer
+
+40 boss identities (20 outpost + 20 rift), 12 archetype families, 12 shared boss-field templates routed through the existing Pass 8 Field Clash engine, per-boss arena preference, and dramatic battle-log narration. **Additive only** — no engine rewrite, no save-shape change, no rebalance of existing skills/HP/damage. Existing AI helpers left intact (`chooseEnemySkill`, `chooseBossSignatureSkill`, `BOSS_STYLE_BY_KEY`, `BOSS_PHASE_EFFECTS`, `mkOutpostBoss`, `mkRiftBoss`).
+
+- **`battle/enemyBossIdentity.js`** — single source of truth: `ENEMY_ARCHETYPES` (12 families with role/movementBias/rangePref/weakness/behaviorHints/fieldDefault), `BOSS_FIELD_TEMPLATES` (12 archetype-shared field records), `BOSS_IDENTITIES` (40 entries with arch + arena + intro + phase1/phase2 phrases + field key + counterplay hint). Pure helpers: `getBossIdentity`, `getBossArchetype`, `getBossIntroLine`, `getBossPhaseLine`, `getBossCounterplayHint`, `getBossPreferredArenaId`, `shouldActivateBossField`, `buildBossFieldOpts`, `describeBossFieldHint`, `markBossFieldActivated`, `getEnemyArchetype`, `getEnemyArchetypeId`. All return `null` rather than throwing on missing keys.
+- **Game.jsx wiring** (six surgical insertions, all guarded):
+  - `applyBossPhasePressure` uses `ebiGetBossPhaseLine(next, "p1"/"p2")` for the narration phrase, falling back to `familyFx.*.msg`.
+  - `startBattle` arena ctx carries `bossKey` so per-boss preferred arenas can win over the generic `isBoss → abyssal_expanse` default.
+  - Initial battle log emits boss intro line + counterplay hint after the "Battle begins!" header.
+  - Enemy-turn loop activates boss fields via `ebiShouldActivateBossField` → `vbPlaceholderEnemyField` → log narration + hint; `previewPlayerTurnState` threads `enemyField` so the clash engine picks them up next tick.
+- **`battle/arena/arenaMaps.js`** — inline `BOSS_PREFERRED_ARENA` (40 entries) consulted at the top of `pickArenaTemplate(ctx)`. Falls through to existing branches when no override exists.
+- **Boss field activation gating** — fires only on a fresh phase transition (72% / 38% HP) or a one-time opener for `cataclysm` / `tempest` / `abyssal` archetypes (after `bossTurns >= 4`). Per-boss cooldown via `enemy.bossFieldCdUntilTurn` (transient battle-only — never persisted to save).
+- **CSS** — additive block: `.sv-boss-intro-banner`, `.sv-boss-phase-pulse`, `.sv-boss-warning-telegraph`, `.sv-enemy-archetype-badge` (+ 12 archetype colour variants).
+- **Audit doc**: see `docs/BATTLE_ENEMY_BOSS_REBALANCE_AUDIT.md` for the per-boss table, archetype mapping, safeguards, and Pass 13+ risk list.
+
 ## Battle Rework Pass 11 (v84) — Class Roles + Skill Range/Shape Metadata
 
 Distinct role identity for all 21 player classes plus per-skill range/shape metadata for the arena. **Additive only** — no engine rewrites, no save shape change, existing `inter[]` / `mkPassives` / `mkUltPool` left intact (they already use canonical Pass 10 statuses).

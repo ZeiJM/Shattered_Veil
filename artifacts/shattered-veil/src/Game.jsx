@@ -56,6 +56,25 @@ import {
   rangeLabel as crRangeLabel,
   shapeLabel as crShapeLabel,
 } from './battle/classRoles.js';
+// Pass 12 — Enemy/Boss identity layer (intro + phase narration, boss
+// fields routed through Field Clash, per-boss arena preference).
+import {
+  ENEMY_ARCHETYPES as EBI_ARCHETYPES,
+  BOSS_IDENTITIES as EBI_BOSS_IDENTITIES,
+  BOSS_FIELD_TEMPLATES as EBI_FIELD_TEMPLATES,
+  getBossIdentity as ebiGetBossIdentity,
+  getBossArchetype as ebiGetBossArchetype,
+  getBossIntroLine as ebiGetBossIntroLine,
+  getBossPhaseLine as ebiGetBossPhaseLine,
+  getBossCounterplayHint as ebiGetBossCounter,
+  getBossPreferredArenaId as ebiGetBossArenaId,
+  shouldActivateBossField as ebiShouldActivateBossField,
+  buildBossFieldOpts as ebiBuildBossFieldOpts,
+  describeBossFieldHint as ebiBossFieldHint,
+  markBossFieldActivated as ebiMarkBossField,
+  getEnemyArchetype as ebiGetEnemyArchetype,
+  getEnemyArchetypeId as ebiGetEnemyArchetypeId,
+} from './battle/enemyBossIdentity.js';
 import {
   getAccuracy as dsGetAccuracy,
   getEvasion as dsGetEvasion,
@@ -2875,13 +2894,20 @@ function applyBossPhasePressure(enemy, player, logLines) {
   if (!next.hpPhaseFlags.phase1 && pct <= 0.72) {
     next.hpPhaseFlags.phase1 = true;
     next.efx = addOrRefreshEffect(next.efx, familyFx.phase1.fx, familyFx.phase1.dur);
-    logLines.push("👹 " + next.name + " " + familyFx.phase1.msg + " (" + (FX(familyFx.phase1.fx)?.nm || familyFx.phase1.fx) + ")");
+    // Pass 12 — prefer identity-specific phase narration if the boss has
+    // a registered identity entry. Falls back to the family default.
+    const _idP1 = ebiGetBossPhaseLine(next, "p1");
+    const _phrase1 = _idP1 || familyFx.phase1.msg;
+    logLines.push("👹 " + next.name + " " + _phrase1 + " (" + (FX(familyFx.phase1.fx)?.nm || familyFx.phase1.fx) + ")");
   }
   if (!next.hpPhaseFlags.phase2 && pct <= 0.38) {
     next.hpPhaseFlags.phase2 = true;
     next.efx = addOrRefreshEffect(next.efx, familyFx.phase2.fx, familyFx.phase2.dur);
     if (next.bossFamily === "rift") next.efx = addOrRefreshEffect(next.efx, "empower", 2);
-    logLines.push("⚠️ " + next.name + " " + familyFx.phase2.msg + " (" + (FX(familyFx.phase2.fx)?.nm || familyFx.phase2.fx) + ")");
+    // Pass 12 — identity-specific phase 2 narration with family fallback.
+    const _idP2 = ebiGetBossPhaseLine(next, "p2");
+    const _phrase2 = _idP2 || familyFx.phase2.msg;
+    logLines.push("⚠️ " + next.name + " " + _phrase2 + " (" + (FX(familyFx.phase2.fx)?.nm || familyFx.phase2.fx) + ")");
     if (player && next.bossFamily === "rift") logLines.push("🌀 Rift pressure thickens around you.");
   }
   return next;
@@ -4697,12 +4723,16 @@ function Game() {
     // arena.units carries parallel {x,y} coordinates used by the new visual board and Tactical Step.
     let arenaInit = null;
     try {
+      // Pass 12 — pass the boss key so per-boss preferred arenas can win
+      // over the generic isBoss → abyssal_expanse default.
+      const _bossEnemy = enemiesWithPos.find(e => e.boss);
       const ctx = {
-        isBoss: enemiesWithPos.some(e => e.boss),
+        isBoss: !!_bossEnemy,
         isRift: battleType === "rift",
         biomeHint: "",
         enemyCount: enemiesWithPos.length,
         seed: (Date.now() & 0x7fffffff) ^ ((pl?.lvl || 1) * 7919),
+        bossKey: _bossEnemy ? _bossEnemy.bossKey : null,
       };
       const a = createInitialArenaState(ctx);
       const ps = a.template.playerSpawns || [{ x: 1, y: 1 }];
@@ -4748,7 +4778,16 @@ function Game() {
     setBtlPanel(null);
     setBtlTarget(prep.enemies.find(e => e.hp > 0)?.id || null);
     setScr("battle");
-    setLog(["⚔ Battle begins!" + (battleType === "train" ? " Training mode active." : battleType === "wild" ? " Swift field clash." : battleType === "pvp" ? " Arena rules engaged." : battleType === "outpost" ? " Outpost resistance hardens." : battleType === "rift" ? " Rift pressure thickens." : battleType === "fieldboss" ? " A roaming terror blocks the road." : "")]);
+    // Pass 12 — emit boss intro narration + counterplay hint after the
+    // generic "Battle begins!" header so players see boss identity up front.
+    const _initialLog = ["⚔ Battle begins!" + (battleType === "train" ? " Training mode active." : battleType === "wild" ? " Swift field clash." : battleType === "pvp" ? " Arena rules engaged." : battleType === "outpost" ? " Outpost resistance hardens." : battleType === "rift" ? " Rift pressure thickens." : battleType === "fieldboss" ? " A roaming terror blocks the road." : "")];
+    enemiesWithPos.filter(e => e.boss).forEach(b => {
+      const _intro = ebiGetBossIntroLine(b);
+      if (_intro) _initialLog.push(_intro);
+      const _hint = ebiGetBossCounter(b.bossKey);
+      if (_hint) _initialLog.push("📜 " + _hint);
+    });
+    setLog(_initialLog);
   }, [pl, applyBattleStartPassive, pet, ally]);
 
   // Helper: clear battle effects from player
@@ -6262,10 +6301,34 @@ function Game() {
         if (isDot) { addLingering((ef.ic||"🩸")+" "+ef.nm, "Affecting you ("+formatTurns(ef.tl)+" left)"); }
         else { addLingering((ef.ic||"✨")+" "+ef.nm, (isGood?"Active on you":"Affecting you")+" ("+formatTurns(ef.tl)+" left)"); }
       });
+      // Pass 12 — track boss-field activation across the enemy loop so it
+      // can be threaded into previewPlayerTurnState below. Carries forward
+      // any field already on the battle from the player turn.
+      let _ebiEnemyFieldEturn = (previewBattleState && previewBattleState.enemyField) || btl.enemyField || null;
       ue.forEach((rawEnemy, enemyIndex) => {
         if (!rawEnemy || (rawEnemy.hp || 0) <= 0) return;
         let enemy = applyBossPhasePressure(rawEnemy, up, el2);
         ue[enemyIndex] = enemy;
+        // Pass 12 — boss field activation hook. Conservative: only on a
+        // fresh phase transition (or one-time opener for cataclysm /
+        // tempest / abyssal archetypes). Per-boss cooldown prevents spam.
+        // Activated field flows into Field Clash via previewPlayerTurnState.
+        if (!_ebiEnemyFieldEturn && ebiShouldActivateBossField(enemy, { ...btl, enemyField: _ebiEnemyFieldEturn, tn: btl.tn || 0 })) {
+          try {
+            const _bfOpts = ebiBuildBossFieldOpts(enemy);
+            if (_bfOpts) {
+              const _bf = vbPlaceholderEnemyField(_bfOpts, (btl.tn || 0) + 1);
+              if (_bf) {
+                _ebiEnemyFieldEturn = _bf;
+                el2.push("🌫 " + enemy.name + " unfurls " + _bf.fieldName + " across the arena!");
+                const _bfHint = ebiBossFieldHint(enemy);
+                if (_bfHint) el2.push("📜 " + _bfHint);
+                enemy = ebiMarkBossField(enemy, btl.tn || 0, 4);
+                ue[enemyIndex] = enemy;
+              }
+            }
+          } catch (_ebiErr) { /* never block enemy turn on identity errors */ }
+        }
         const skipEf = (enemy.turnFx || enemy.efx || []).find(ef => ef.type === "skip" && !ef.justApplied && (ef.v >= 100 || Math.random() * 100 < ef.v));
         if (skipEf) { el2.push("⚡ " + enemy.name + " can't move this turn."); enemy.efx = (enemy.efx || []).map(ef => ef.id === skipEf.id ? { ...ef, justApplied:false } : ef); ue[enemyIndex] = enemy; return; }
         let sk = chooseEnemySkill(enemy, pfx, encounterProfile);
@@ -6412,7 +6475,8 @@ function Game() {
       }
       if (ue.every(e => e.hp <= 0)) { const xp2 = ue.reduce((s, e) => s + e.xp, 0), g2 = ue.reduce((s, e) => s + e.gold, 0); up = giveXP(xp2, up); setGold(go => go + g2); if (btl.type === "fieldboss") { const fb = ue.find(e => e.fieldBossKey); if (fb?.fieldBossKey) { setFieldBossDefeated(d => ({ ...d, [fb.fieldBossKey]: true })); setMData(md => md ? md.map(t => t?.poi?.bossKey === fb.fieldBossKey ? { ...t, poi: null } : t) : md); const prize = Math.random() < 0.5 ? mkRiftGear(C(Math.floor(pl.level/3)+2, 3, 7)) : mkArmor(C(Math.floor(pl.level/3)+2, 3, 7)); setInv(i => [...i, { ...prize, qty: 1 }]); el2.push("💀 Field Boss defeated: " + fb.name); el2.push("🎁 Trophy reward: " + (prize.name || prize.nm)); } } el2.push("🏆 Victory! +" + xp2 + "XP +" + g2 + "G"); up.efx = []; up.tempBattleEl = null; up.tempBattleEl2 = null; up.tempBonusEls = []; up.kagamiAttunedEnemyIds = []; if (pet) setPet(p => p ? ({...p, chp: p.mhp ?? p.hp ?? p.chp}) : p); setPl(up); setBtl(null); setLog(l => [...l, ...enemyTagged(el2)]); try { musicRef.current.playSfx("victory"); } catch {} setScr(subMap ? "submap" : "map"); return; }
       const nextEnemyInteractionState = { ...((previewBattleState && previewBattleState.interactionState) || btl.interactionState || { copiedSkillUses: 0, copiedFromBoss: false, guardThenCopyPrimed: false, copySequenceOpen: false, freezeAppliedIds: [], usedElements: [], elementUseCounts: {}, usedSkillNames: [], aoeDamageUses: 0, readyKeys: [], consecutiveGuards: 0, healUses: 0, buffUses: 0, debuffUses: 0, strikeCount: 0, guardUses: 0, damageSkillUses: 0, killCount: 0, luckyHighCount: 0, luckyLowCount: 0, devotionUnlocked: false, firstAttackPending: true, lastCopiedSkillEl: "" }) };
-      const previewPlayerTurnState = { ...(previewBattleState || btl), en: ue, interactionState: nextEnemyInteractionState, turn: "p", tn: ((previewBattleState?.tn) || (btl.tn || 1)) + 1 };
+      // Pass 12 — thread any boss-activated enemy field into the next state.
+      const previewPlayerTurnState = { ...(previewBattleState || btl), en: ue, enemyField: _ebiEnemyFieldEturn, interactionState: nextEnemyInteractionState, turn: "p", tn: ((previewBattleState?.tn) || (btl.tn || 1)) + 1 };
       nextEnemyInteractionState.readyKeys = getReadyInteractions(up.inter || [], previewPlayerTurnState, ue.find(e => e.hp > 0) || null)
         .filter(ai => ai.isReady)
         .map(ai => String(ai.k || "").toLowerCase());

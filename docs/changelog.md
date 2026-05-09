@@ -865,3 +865,15 @@ range identity defaults.
 - Gear scaling tied to role priorities (Crit gear → Monk/Assassin, etc).
 - Bloodmark interactions with role identities.
 - Heir inheritance of role-defining stats.
+
+## v85 — Battle Rework Pass 12: Enemy & Boss Identity Layer
+- New module `artifacts/shattered-veil/src/battle/enemyBossIdentity.js`: 12 archetype families (`ENEMY_ARCHETYPES`), 12 shared boss-field templates (`BOSS_FIELD_TEMPLATES`), and 40 per-boss identity records (`BOSS_IDENTITIES` — 20 outpost + 20 rift). Pure helpers: `getBossIdentity`, `getBossArchetype`, `getBossIntroLine`, `getBossPhaseLine`, `getBossCounterplayHint`, `getBossPreferredArenaId`, `shouldActivateBossField`, `buildBossFieldOpts`, `describeBossFieldHint`, `markBossFieldActivated`, `getEnemyArchetype`, `getEnemyArchetypeId`.
+- `Game.jsx` wiring (six surgical insertions, all guarded):
+  - Identity-specific phase narration in `applyBossPhasePressure` with family-default fallback.
+  - `bossKey` threaded into the arena ctx at `startBattle` so per-boss preferred arenas win over the generic boss → `abyssal_expanse` default.
+  - Boss intro line + counterplay hint emitted into the initial battle log.
+  - Enemy-turn boss-field activation hook: `ebiShouldActivateBossField` → `vbPlaceholderEnemyField` → narration + hint, results threaded into `previewPlayerTurnState.enemyField` so Field Clash picks them up.
+- `arenaMaps.js`: inline `BOSS_PREFERRED_ARENA` (40 entries) consulted at the top of `pickArenaTemplate(ctx)`.
+- New CSS in `game.css`: `.sv-boss-intro-banner`, `.sv-boss-phase-pulse`, `.sv-boss-warning-telegraph`, `.sv-enemy-archetype-badge` (+ 12 archetype colour variants).
+- Audit doc: `docs/BATTLE_ENEMY_BOSS_REBALANCE_AUDIT.md` covers the per-boss table, gating rules, safeguards, and Pass 13+ risk list.
+- **Additive only** — no engine rewrite, no save-shape change, no rebalancing of existing skills/HP/damage. Existing AI helpers (`chooseEnemySkill`, `chooseBossSignatureSkill`, `BOSS_STYLE_BY_KEY`, `BOSS_PHASE_EFFECTS`, `mkOutpostBoss`, `mkRiftBoss`) all left intact.

@@ -334,11 +334,37 @@ export const ARENA_TEMPLATES = [
 
 export const ARENA_BY_ID = ARENA_TEMPLATES.reduce((acc, t) => { acc[t.id] = t; return acc; }, {});
 
+// Pass 12 — per-boss preferred arena overrides. Kept inline (instead of
+// importing from enemyBossIdentity.js) so this module stays a leaf with
+// no cross-package coupling. Keys must match BOSS_IDENTITIES bossKey.
+const BOSS_PREFERRED_ARENA = {
+  ironjaw: "broken_shrine", silkweave: "abyssal_expanse", blazefury: "ruined_courtyard",
+  scylla: "moonlit_forest_hollow", gravewatch: "broken_shrine", stormmarshal: "abyssal_expanse",
+  thornmatron: "moonlit_forest_hollow", chalkseer: "broken_shrine", floodjudge: "rift_crater",
+  hushsaint: "broken_shrine", sandreaver: "ruined_courtyard", glacierabbot: "abyssal_expanse",
+  sunlancer: "broken_shrine", velvetfang: "moonlit_forest_hollow", mirebishop: "moonlit_forest_hollow",
+  windvicar: "abyssal_expanse", steelmatron: "ruined_courtyard", lunacensor: "abyssal_expanse",
+  brazenidol: "ruined_courtyard", gravechorus: "broken_shrine",
+  entropy: "abyssal_expanse", time: "abyssal_expanse", null: "abyssal_expanse",
+  reality: "abyssal_expanse", primal: "moonlit_forest_hollow", starhunger: "abyssal_expanse",
+  mourningaxis: "broken_shrine", crownofice: "abyssal_expanse", deepjudge: "rift_crater",
+  dreamcaul: "abyssal_expanse", gravitomb: "abyssal_expanse", sunkenarchive: "abyssal_expanse",
+  voidcathedral: "abyssal_expanse", glassleviathan: "abyssal_expanse", plagestar: "moonlit_forest_hollow",
+  tempestoracle: "abyssal_expanse", namelessforge: "broken_shrine", verdantmaw: "moonlit_forest_hollow",
+  blackhorizon: "abyssal_expanse", palegeometry: "abyssal_expanse",
+};
+
 // Pick a template from a small context object.
 // Context shape is intentionally loose so callers don't need to know the data
-// model: { isBoss?, isRift?, biomeHint?, enemyCount?, seed? }.
+// model: { isBoss?, isRift?, biomeHint?, enemyCount?, seed?, bossKey? }.
 export function pickArenaTemplate(ctx = {}) {
   const seed = Number(ctx.seed || 0) || 0;
+  // Pass 12 — boss identity arena preference wins over the generic boss
+  // default. Falls through if the boss key has no override or the named
+  // arena is missing.
+  if (ctx.bossKey && BOSS_PREFERRED_ARENA[ctx.bossKey] && ARENA_BY_ID[BOSS_PREFERRED_ARENA[ctx.bossKey]]) {
+    return ARENA_BY_ID[BOSS_PREFERRED_ARENA[ctx.bossKey]];
+  }
   if (ctx.isBoss) return ARENA_BY_ID.abyssal_expanse;
   if (ctx.isRift) return ARENA_BY_ID.rift_crater;
   const biome = String(ctx.biomeHint || "").toLowerCase();
