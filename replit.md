@@ -102,12 +102,21 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 8 (v81) — Field Attunement, Field Clash, Tactical Actions
+
+- **Field Attunement** — derived stat `MAG×0.6 + LCK×0.3 + level×0.5 + ctx bonuses`; pill strip in battle HUD.
+- **Field Clash** — 5 outcomes (domination / split / fracture / backlash / collapse) when player Veilbreak meets an enemy field. State lives on `btl.fieldClash` (transient, ticks per action).
+- **Tactical Actions tab** (⚓): Veil Anchor (+6 attunement & +1 dur next clash), Field Sever (-1 enemy field turn), Brace Against Field (halve next-round pressure), Overchannel I (8 HP → next Veil Magic / Veilbreak ×1.5).
+- All new transient combat state lives under `btl.tacticalBuffs`, `btl.enemyField`, `btl.fieldClash` — **no save shape change**.
+- Enemy fields are placeholders today; training-only "Test: Spawn Enemy Field" action exercises the clash loop until real enemy AI lands.
+
 ## Future combat hooks (queued, not built)
 
 - Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
 - Per-skill `range` overrides (finer than the current el-based heuristic).
 - Veilcourt covenant sub-channels + WebSocket upgrade.
 - A11y on new clickable HUD spans (Enter/Space + `tabIndex`).
+- Real enemy/boss field activation AI; per-class Field Attunement affinity table; Overchannel II/III; brace mechanical effect on enemy field DoT; fractured-tile gameplay (per-tile DoT + Veil Magic gain).
 
 ## Pointers
 

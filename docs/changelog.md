@@ -468,3 +468,80 @@ Reworks Veilbreak charging from a strict ordered combo into 2/3/4 unordered cond
 - Requirement evaluator is wrapped in try/catch — combat never crashes if a requirement matcher throws.
 - Field tick uses `appliedAtTn` keyed to the post-action turn number; do **not** tick on the same turn the field was instantiated, otherwise duration would be 1 short.
 - `pl.ult.combo` is intentionally NOT removed — keeping save back-compat means players migrating from v79 still load cleanly.
+
+## v81 — Battle Rework Pass 8: Field Attunement, Field Clash & Tactical Actions
+
+Pass 8 closes the field-vs-field loop opened in Pass 7. The battle screen now
+exposes a real **Field Attunement** stat, full **Field Clash** resolution
+(domination / split / fracture / backlash / collapse), and four anti-field
+**Tactical Actions** the player can weave between strikes and Veilbreaks.
+
+### Field Attunement (derived stat)
+- Formula: `MAG × 0.6 + LCK × 0.3 + level × 0.5`, plus contextual bonuses for
+  heavy-intensity fields, rare/broken-veil terrain, the Veil Anchor buff, and
+  matching elements. Clamped to `[1, 999]`, displayed to one decimal.
+- Lives in `getFieldAttunement(unit, ctx)` inside `veilbreakChain.js` — pure,
+  defensive (missing stats default to safe values), never throws.
+- Surfaced as a compact pill row beside the Veilbreak banner in the battle
+  info-strip (also shows the enemy's attunement when an enemy field is up).
+
+### Field Clash (5 outcomes)
+- `resolveFieldClash(incoming, existing, attIn, attEx)` returns
+  `{outcome, winner, loser, intensity, log[], aftermath}`.
+- Outcome thresholds (with ±3 variance and a 5% "mutual collapse" wildcard):
+  - **Domination** (`|diff| ≥ 10`) — winner replaces the loser; +1 duration.
+  - **Split Field** (`|diff| ≥ 5`) — both fields persist for ~3 turns;
+    arena tiles paint with two competing themes.
+  - **Fracture** (`|diff| < 5`) — both fields shave duration; sparse
+    fractured tiles flicker across the grid.
+  - **Backlash** (`diff ≤ -10`) — incoming caster takes a small HP/MP recoil
+    and the failed field never instantiates.
+  - **Collapse** (5% chance) — both fields shatter; tiles fracture briefly.
+- Triggered automatically when a player Veilbreak is cast while an enemy
+  field is on the arena. Same-owner re-cast still refreshes (no clash).
+- Aftermath state lives on `btl.fieldClash` (transient, ticks down each
+  player action via `tickFieldClash`).
+
+### Anti-field Tactical Actions
+Routed through new `bAct` branches (no save shape changes; everything lives
+on `btl.tacticalBuffs`). Each ends the player turn and credits the
+`useTacticalAction` Veilbreak requirement.
+- **⚓ Veil Anchor** (6 MP) — +6 Field Attunement and +1 duration on the
+  next field/clash. Consumed on activation/clash.
+- **✂ Field Sever** (8 MP) — trims an enemy field's remaining duration by 1.
+  Disabled when no enemy field is present.
+- **🛡 Brace Against Field** (2 MP) — flags the next round as braced;
+  surfaced in the log when an enemy field would tick.
+- **🩸 Overchannel I** (8 HP) — the next damaging Veil Magic skill OR
+  Veilbreak deals ×1.5. Consumed once. Floor at 1 HP — never lethal.
+
+### Enemy field placeholders
+Real enemy/boss field activation arrives in a later pass. To exercise the
+clash loop today, a training-only **"Test: Spawn Enemy Field"** action is
+exposed under the new Tactical tab (gated by `btl.type === "train"`).
+`instantiatePlaceholderEnemyField` produces a safe, dramatic field record
+matching the shape of a player Veilbreak field.
+
+### UI
+- New **Tactical** battle tab (⚓) sits alongside Combat / Veil Magic / Items.
+  Tab badge dot when any tactical buff is currently primed.
+- Field Attunement pill strip + enemy field banner + Field Clash banner
+  (5 themed variants) all stack neatly under the Veilbreak banner.
+- `ArenaBoard` accepts new `enemyField` and `fieldClash` props and renders:
+  arena-root glow per outcome, "split-field" alternating tile shading
+  (A/B chequer using each side's theme), and sparse fractured-tile flicker.
+
+### Files touched
+- `artifacts/shattered-veil/src/battle/arena/veilbreakChain.js` — new pure
+  helpers + `TACTICAL_ACTIONS` catalogue (~270 new lines).
+- `artifacts/shattered-veil/src/Game.jsx` — imports, bAct branches, ult
+  clash detection, Overchannel hooks, enemy-field tick + clash decay,
+  preview state, info-strip Attunement pills, Tactical tab.
+- `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx` — `enemyField`
+  + `fieldClash` props, banner tags, split/fracture tile classes.
+- `artifacts/shattered-veil/src/game.css` — Pass 8 styles (~140 lines).
+
+### Out of scope (future passes)
+- Real boss/enemy field activation AI, per-class field affinity tables,
+  fractured-tile gameplay (per-tile DoT + Veil Magic gain), Overchannel II/III,
+  per-rare-terrain interactions, brace mechanical effect on enemy field DoT.

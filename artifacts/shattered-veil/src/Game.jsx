@@ -30,6 +30,14 @@ import {
   tickActiveField as vbTickField,
   describeFieldRecurring as vbDescribeRecurring,
   instantiateActiveField as vbInstantiateField,
+  // Pass 8 — Field Attunement, Field Clash, Tactical Actions.
+  getFieldAttunement as vbGetAttunement,
+  instantiatePlaceholderEnemyField as vbPlaceholderEnemyField,
+  resolveFieldClash as vbResolveClash,
+  tickFieldClash as vbTickClash,
+  describeClashOutcome as vbDescribeClash,
+  TACTICAL_ACTIONS as VB_TACTICAL_ACTIONS,
+  getTacticalAction as vbGetTactical,
 } from './battle/arena/veilbreakChain.js';
 
 
@@ -3460,7 +3468,7 @@ function Game() {
   // Battle panels
   const [btlPanel, setBtlPanel] = useState(null);
   const [battleSection, setBattleSection] = useState("combat");
-  const battleSectionAvailable = (key, ctx) => key === "veil" || key === "combat" || (key === "items" && ctx.hasItems);
+  const battleSectionAvailable = (key, ctx) => key === "veil" || key === "combat" || key === "tactical" || (key === "items" && ctx.hasItems);
   // v66 — biome-aware battle backdrop picker
   const BATTLE_BIOME_BGS = useMemo(() => new Set(["plains","forest","mountain","desert","snow","swamp","coast","volcanic","void","jungle"]), []);
   const battleBgUrl = useMemo(() => {
@@ -4987,6 +4995,13 @@ function Game() {
     };
     let _activatedFieldThisAction = null;
     let _vbResetAfterCast = false;
+    // Pass 8 — Field Clash + Tactical buffs (transient, mirrored on btl).
+    let _enemyFieldNext = btl.enemyField || null;
+    let _fieldClashNext = btl.fieldClash || null;
+    let _tacticalBuffsNext = { ...(btl.tacticalBuffs || {}) };
+    // Overchannel ×1.5: consumed by the next damaging Veil Magic skill OR Veilbreak.
+    const _overchannelMult = (typeof _tacticalBuffsNext.overchannelMult === "number" && _tacticalBuffsNext.overchannelMult > 1) ? _tacticalBuffsNext.overchannelMult : 1;
+    let _overchannelConsumed = false;
     // Snapshot enemy/player HP and log length so we can derive damage,
     // statuses applied, crits and defeats by diffing AFTER the action runs.
     const _vbEnHpBefore = {};
@@ -5255,6 +5270,79 @@ function Game() {
       }
       logHeal(np.name + " uses Mend on " + np.name + "\n• Applies " + regenEf.ic + " Regen\n• " + regenEf.v + " HP per Turn for " + formatTurns(3));
       ch.push(-1);
+    } else if (act === "tact_anchor") {
+      // Pass 8 — Veil Anchor: +6 Field Attunement & +1 duration to next clash/field.
+      const tact = vbGetTactical("veil_anchor");
+      const cost = tact?.cost?.mp || 6;
+      if (np.cmp < cost) { notify("Need " + cost + " MP!"); return; }
+      if ((_tacticalBuffsNext.anchorBonus || 0) >= 6) { notify("Already anchored — clash a field first."); return; }
+      try { musicRef.current.playSfx("menu"); } catch {}
+      np.cmp -= cost;
+      _tacticalBuffsNext = { ..._tacticalBuffsNext, anchorBonus: 6, anchorDurationBonus: 1 };
+      _vbCtx.tacticalStep = true;
+      lg.push("⚓ " + (np.nm || np.name || "You") + " anchored their Veilbreak field against collapse.");
+      lg.push("✦ Field resistance increased — +6 Field Attunement and +1 duration on your next field/clash.");
+      ch.push(-1);
+    } else if (act === "tact_sever") {
+      // Pass 8 — Field Sever: trims an enemy field's remaining duration.
+      const tact = vbGetTactical("field_sever");
+      const cost = tact?.cost?.mp || 8;
+      const ef = btl.enemyField || (btl.activeField && btl.activeField.owner === "enemy" ? btl.activeField : null);
+      if (!ef) { notify("No enemy field to sever."); return; }
+      if (np.cmp < cost) { notify("Need " + cost + " MP!"); return; }
+      try { musicRef.current.playSfx("hit"); } catch {}
+      np.cmp -= cost;
+      const nextRemaining = Math.max(0, (ef.remainingTurns || 0) - 1);
+      // Stamp appliedAtTn so the generic enemy-field tick below does not
+      // double-decrement on this same action.
+      const _severStamp = (btl.tn || 0) + 1;
+      _enemyFieldNext = nextRemaining > 0 ? { ...ef, remainingTurns: nextRemaining, appliedAtTn: _severStamp } : null;
+      _vbCtx.tacticalStep = true;
+      lg.push("✂ " + (np.nm || np.name || "You") + " cut at the opposing field's boundary.");
+      lg.push("✦ Enemy field duration reduced by 1.");
+      if (nextRemaining <= 0) lg.push("🌫 " + ef.fieldName + " collapsed under the cut.");
+      ch.push(-1);
+    } else if (act === "tact_brace") {
+      // Pass 8 — Brace Against Field: halves enemy-field tick effects next round.
+      const tact = vbGetTactical("brace_field");
+      const cost = tact?.cost?.mp || 2;
+      if (np.cmp < cost) { notify("Need " + cost + " MP!"); return; }
+      try { musicRef.current.playSfx("menu"); } catch {}
+      np.cmp -= cost;
+      _tacticalBuffsNext = { ..._tacticalBuffsNext, braceTurns: 2 };
+      _vbCtx.tacticalStep = true;
+      lg.push("🛡 " + (np.nm || np.name || "You") + " braced against the hostile field pressure.");
+      lg.push("✦ Incoming field effects reduced this round.");
+      ch.push(-1);
+    } else if (act === "tact_overchannel") {
+      // Pass 8 — Overchannel I: spend 8 HP, next Veil Magic / Veilbreak ×1.5.
+      const tact = vbGetTactical("overchannel_1");
+      const hpCost = tact?.cost?.hp || 8;
+      // Floor: never reduce HP below 1 from Overchannel itself.
+      if ((np.chp || 0) <= hpCost) { notify("Not enough HP to safely Overchannel."); return; }
+      if ((_tacticalBuffsNext.overchannelMult || 1) > 1) { notify("Already overchannelled — cast first."); return; }
+      try { musicRef.current.playSfx("hit"); } catch {}
+      np.chp = Math.max(1, (np.chp || 1) - hpCost);
+      _vbCtx.spentHP = (_vbCtx.spentHP || 0) + hpCost;
+      _tacticalBuffsNext = { ..._tacticalBuffsNext, overchannelMult: 1.5 };
+      _vbCtx.tacticalStep = true;
+      lg.push("🩸 " + (np.nm || np.name || "You") + " overchannelled, trading blood for Veil output.");
+      lg.push("✦ Next Veil Magic output increased to ×1.5.");
+      ch.push(-1);
+    } else if (act === "tact_sim_enemy") {
+      // Pass 8 — Test hook (training battles only): summon a placeholder enemy field
+      // so Field Clash can be exercised without real enemy/boss field AI yet.
+      if (btl.type !== "train") { notify("Test field only available in training."); return; }
+      if (btl.enemyField) { notify("Enemy field already active."); return; }
+      try { musicRef.current.playSfx("menu"); } catch {}
+      const _foe = en.find(e => (e.hp || 0) > 0) || en[0] || {};
+      const _foeEl = (_foe && (_foe.el || _foe.element)) || "Void";
+      // Pass the *next* tn so appliedAtTn matches the same-turn guard used
+      // by the enemy-field tick below (prevents instant -1 turn on spawn).
+      const placeholder = vbPlaceholderEnemyField({ element: _foeEl, name: _foeEl + " Bloom", chain: 5 }, (btl.tn || 0) + 1);
+      _enemyFieldNext = placeholder;
+      lg.push("🌫 [Test] An enemy field unfurled — " + placeholder.fieldName + " (" + placeholder.duration + " turns).");
+      ch.push(-1);
     } else if (act === "skill") {
       // Silence check: silenced players can only use weapons, guard, items, swap
       if ((np.efx || []).some(ef => ef.id === "silence")) { notify("Silenced! Can only use weapons, guard, items."); return; }
@@ -5282,6 +5370,8 @@ function Game() {
         if (passiveHas("dual_elboost") && playerEls.includes(sk.el)) base *= 1.12;
         if (passiveHas("burn_boost") && sk.fx === "burn") base += 4;
         if (passiveHas("first_spell_burst") && !btl.firstSpellUsed) { base *= 1.22; logBuff("Wild Flux! +22% power"); }
+        // Pass 8 — Overchannel I: ×1.5 to next damaging Veil Magic. Consumed once.
+        if (_overchannelMult > 1 && !_overchannelConsumed) { base *= _overchannelMult; lg.push("🩸 Overchannel released — ×" + _overchannelMult + " power."); _overchannelConsumed = true; }
         if (battleBonus && ((battleBonus.type === "sameEl" && sk.el === battleBonus.el) || battleBonus.type === "setup")) { base *= battleBonus.mult; logBuff(battleBonus.label); lg.push("Skill Interaction: " + battleBonus.label + " active — fires on " + sk.n + "."); setBattleBonus(null); }
         // Evaluate per-interaction bonuses for damage skills
         if (sk.el && sk.el !== "Null") {
@@ -5514,7 +5604,9 @@ function Game() {
     } else if (act === "ult" && np.ult?.ready) {
       try { musicRef.current.playSfx("cast"); } catch {}
       const ultBase = Math.min(np.ult.pow || 120, 150);
-      const pow = (ultBase * 0.72 + st.mag * 1.24 + st.atk * 0.34) * encounterProfile.playerDamage * 0.95;
+      let pow = (ultBase * 0.72 + st.mag * 1.24 + st.atk * 0.34) * encounterProfile.playerDamage * 0.95;
+      // Pass 8 — Overchannel I: ×1.5 to a Veilbreak cast as well. Consumed once.
+      if (_overchannelMult > 1 && !_overchannelConsumed) { pow *= _overchannelMult; lg.push("🩸 Overchannel released — ×" + _overchannelMult + " Veilbreak power."); _overchannelConsumed = true; }
       en.filter(e => e.hp > 0).forEach(e => { const d = Math.max(1, Math.floor(pow - e.def * 0.12)); e.hp = Math.max(0, e.hp - d); if (np.ult.fx) { const ef = FX(np.ult.fx); if (ef) e.efx.push({ ...ef, tl: Math.min(5, (np.ult.fxDur || ef.dur) + (np.ult.chain >= 6 ? 1 : 0)), justApplied:true }); } });
       if (np.quote && np.quote !== "...") lg.push("💬 \"" + np.quote + "\"");
       lg.push("🌟 VEILBREAK: " + np.ult.name + "!" + (np.ult.fx ? " [" + np.ult.fx + " " + formatTurns(Math.min(5, (np.ult.fxDur||2) + (np.ult.chain >= 6 ? 1 : 0))) + "]" : "")); np.ult = { ...np.ult, ready: false }; ch = [];
@@ -5524,9 +5616,57 @@ function Game() {
       try {
         const _newField = vbInstantiateField(np.ult, btl.tn || 0);
         if (_newField) {
-          _activatedFieldThisAction = _newField;
-          lg.push("🌫 The Veil thinned — " + _newField.fieldName + " unfurled across the arena.");
-          lg.push("✦ Active Field: " + _newField.fieldName + " — " + vbDescribeRecurring(_newField) + " (" + _newField.duration + " turns)");
+          // Pass 8 — Field Clash detection. A clash fires only when an
+          // enemy field already holds the arena (placeholder today; real
+          // boss/AI field activation will arrive in a later pass).
+          const _existingEnemyField = btl.enemyField || (btl.activeField && btl.activeField.owner === "enemy" ? btl.activeField : null);
+          const _tBuffsNow = btl.tacticalBuffs || {};
+          const _playerCtxAtt = {
+            fieldIntensity: _newField.intensity,
+            terrainKey: _playerTerrainKey,
+            anchorBonus: _tBuffsNow.anchorBonus || 0,
+            elementMatch: !!(_existingEnemyField && _existingEnemyField.elementTags && _existingEnemyField.elementTags[0] === (_newField.elementTags && _newField.elementTags[0])),
+          };
+          const _playerAtt = vbGetAttunement(np, _playerCtxAtt);
+          if (_existingEnemyField) {
+            const _foe = en.find(e => (e.hp || 0) > 0) || en[0] || {};
+            const _enemyAtt = vbGetAttunement(_foe, { fieldIntensity: _existingEnemyField.intensity });
+            const _clash = vbResolveClash(_newField, _existingEnemyField, _playerAtt, _enemyAtt);
+            _clash.log.forEach(line => lg.push(line));
+            // Player field survives only if clash leaves a player-owned aftermath field.
+            const _afterPlayer = _clash.aftermath.activeField && _clash.aftermath.activeField.owner === "player" ? _clash.aftermath.activeField : null;
+            _activatedFieldThisAction = _afterPlayer;
+            // Stamp newly-created enemy-field/clash with the action's
+            // currentTn so the same-turn ticks below don't immediately
+            // decrement them (mirrors the player active-field rule).
+            const _stampTn = (btl.tn || 0) + 1;
+            _enemyFieldNext = _clash.aftermath.enemyField ? { ..._clash.aftermath.enemyField, appliedAtTn: _stampTn } : null;
+            _fieldClashNext = _clash.aftermath.fieldClash ? { ..._clash.aftermath.fieldClash, appliedAtTn: _stampTn } : null;
+            // Backlash: incoming player field recoils — small HP/MP cost.
+            if (_clash.outcome === "backlash" && _newField.owner === "player") {
+              const _back = Math.max(4, Math.floor((np.chp || 1) * 0.04));
+              np.chp = Math.max(1, (np.chp || 1) - _back);
+              np.cmp = Math.max(0, (np.cmp || 0) - 4);
+              lg.push("💢 Backlash recoil — you lost " + _back + " HP and 4 MP.");
+            }
+            // Anchor bonus is consumed once a clash actually resolves.
+            if ((_tBuffsNow.anchorBonus || 0) > 0 || (_tBuffsNow.anchorDurationBonus || 0) > 0) {
+              _tacticalBuffsNext = { ..._tacticalBuffsNext, anchorBonus: 0, anchorDurationBonus: 0 };
+            }
+          } else {
+            // No enemy field — straightforward instantiation. Anchor's
+            // duration bonus (if any) extends the new field by 1.
+            let _instField = _newField;
+            if ((_tBuffsNow.anchorDurationBonus || 0) > 0) {
+              const _bonus = _tBuffsNow.anchorDurationBonus;
+              _instField = { ..._instField, duration: Math.min(5, (_instField.duration || 2) + _bonus), remainingTurns: Math.min(5, (_instField.remainingTurns || _instField.duration || 2) + _bonus) };
+              _tacticalBuffsNext = { ..._tacticalBuffsNext, anchorBonus: 0, anchorDurationBonus: 0 };
+            }
+            _activatedFieldThisAction = _instField;
+            lg.push("🌫 The Veil thinned — " + _instField.fieldName + " unfurled across the arena.");
+            lg.push("✦ Active Field: " + _instField.fieldName + " — " + vbDescribeRecurring(_instField) + " (" + _instField.duration + " turns)");
+            lg.push("✦ Field Attunement: " + _playerAtt + ".");
+          }
         }
         _vbResetAfterCast = true;
       } catch (e) { /* never let field activation crash combat */ }
@@ -5668,6 +5808,45 @@ function Game() {
         }
       }
     }
+    // ── Pass 8 — Enemy field tick (placeholder; safe no-op when absent) ──
+    // We only decrement remainingTurns and log expiry here. Real recurring
+    // effects from enemy fields ship with the boss-AI pass. Brace, when
+    // active, is acknowledged in the log but does nothing mechanical yet
+    // since enemy fields don't deal tick damage in this pass.
+    if (_enemyFieldNext) {
+      const currentTn = (btl.tn || 0) + 1;
+      if (_enemyFieldNext.appliedAtTn !== currentTn) {
+        const remaining = (_enemyFieldNext.remainingTurns || 0) - 1;
+        _enemyFieldNext = { ..._enemyFieldNext, remainingTurns: remaining, appliedAtTn: currentTn };
+        if (remaining <= 0) {
+          lg.push("🌫 The opposing field — " + _enemyFieldNext.fieldName + " — faded.");
+          _enemyFieldNext = null;
+        } else {
+          if ((_tacticalBuffsNext.braceTurns || 0) > 0) {
+            lg.push("🛡 Brace held against " + _enemyFieldNext.fieldName + " — incoming pressure halved.");
+          }
+          lg.push("✦ " + _enemyFieldNext.fieldName + " — " + remaining + " " + (remaining === 1 ? "turn" : "turns") + " remaining.");
+        }
+      }
+    }
+    // ── Pass 8 — Field Clash overlay tick + tactical buff decay ──
+    // Same-turn instantiation guard: skip the tick on the action that
+    // created/updated the clash so the banner shows its full duration.
+    if (_fieldClashNext) {
+      const _clashTn = (btl.tn || 0) + 1;
+      if (_fieldClashNext.appliedAtTn !== _clashTn) {
+        try { _fieldClashNext = vbTickClash(_fieldClashNext); } catch (e) { _fieldClashNext = null; }
+        if (_fieldClashNext) _fieldClashNext = { ..._fieldClashNext, appliedAtTn: _clashTn };
+        if (!_fieldClashNext) lg.push("🌌 The clash echoes faded from the arena.");
+      }
+    }
+    if ((_tacticalBuffsNext.braceTurns || 0) > 0) {
+      _tacticalBuffsNext = { ..._tacticalBuffsNext, braceTurns: Math.max(0, _tacticalBuffsNext.braceTurns - 1) };
+    }
+    // Clamp tactical buffs to safe bounds.
+    if (typeof _tacticalBuffsNext.anchorBonus === "number") _tacticalBuffsNext.anchorBonus = Math.max(0, Math.min(20, _tacticalBuffsNext.anchorBonus));
+    if (typeof _tacticalBuffsNext.anchorDurationBonus === "number") _tacticalBuffsNext.anchorDurationBonus = Math.max(0, Math.min(2, _tacticalBuffsNext.anchorDurationBonus));
+    if (_overchannelConsumed) _tacticalBuffsNext = { ..._tacticalBuffsNext, overchannelMult: 1 };
 
     // Pet
     const petChp = pet?.chp ?? pet?.hp ?? 0;
@@ -5855,7 +6034,7 @@ function Game() {
 
     en = en.filter(e => (e.hp || 0) > 0).map(e => ({ ...e, efx: [...(e.efx || [])] }));
     const previewTarget = (tgt && tgt.hp > 0 ? tgt : en.find(e => e.hp > 0)) || null;
-    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, veilbreak: _vbState, activeField: _vbActiveField, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1, moved: false };
+    const previewBattleState = { ...btl, en, chain: ch, chainProg: nextProg, veilbreak: _vbState, activeField: _vbActiveField, enemyField: _enemyFieldNext, fieldClash: _fieldClashNext, tacticalBuffs: _tacticalBuffsNext, lastSkillEl: resolvedLastSkillEl, lastSkillType: resolvedLastSkillType, firstSpellUsed: btl.firstSpellUsed || act === "skill", interactionState: nextInteractionState, turn: "e", tn: btl.tn + 1, moved: false };
     const nextReadyList = getReadyInteractions(np.inter, previewBattleState, previewTarget).filter(ai => ai.isReady);
     nextInteractionState.readyKeys = nextReadyList.map(ai => String(ai.k || "").toLowerCase());
     nextReadyList.forEach(ai => {
@@ -8738,6 +8917,43 @@ const buildGroupedBattleLog = (entries) => {
                         <span className="sv-vfb-name">✦ Active Field: {_activeField.fieldName}</span>
                         <span className="sv-vfb-meta">{vbDescribeRecurring(_activeField)} — {_activeField.remainingTurns} {_activeField.remainingTurns === 1 ? "turn" : "turns"} left</span>
                       </div>}
+                      {/* Pass 8 — Enemy field banner (placeholder; visible only when one exists). */}
+                      {btl?.enemyField && <div className={"sv-veilbreak-field-banner sv-veilbreak-field-banner-enemy sv-arena-field-" + (btl.enemyField.visualTheme || "void")} style={{ marginTop: 3 }}>
+                        <span className="sv-vfb-name">⚔ Enemy Field: {btl.enemyField.fieldName}</span>
+                        <span className="sv-vfb-meta">{vbDescribeRecurring(btl.enemyField)} — {btl.enemyField.remainingTurns} {btl.enemyField.remainingTurns === 1 ? "turn" : "turns"} left</span>
+                      </div>}
+                      {/* Pass 8 — Field Clash banner (transient, shows clash type + duration). */}
+                      {btl?.fieldClash && btl.fieldClash.active && <div className={"sv-field-clash-banner sv-field-clash-" + btl.fieldClash.outcome} style={{ marginTop: 3 }}>
+                        <span className="sv-fcb-tag">⚡ FIELD CLASH</span>
+                        <span className="sv-fcb-name">{btl.fieldClash.outcome.toUpperCase()}</span>
+                        <span className="sv-fcb-meta">{vbDescribeClash(btl.fieldClash.outcome)} {btl.fieldClash.turnsRemaining > 0 ? "(" + btl.fieldClash.turnsRemaining + " " + (btl.fieldClash.turnsRemaining === 1 ? "turn" : "turns") + " left)" : ""}</span>
+                      </div>}
+                      {/* Pass 8 — Field Attunement compact pill. Always shown so the
+                          player can read their attunement before activating a field. */}
+                      {(() => {
+                        let _pAtt = 5;
+                        try {
+                          const _tBuffs = btl?.tacticalBuffs || {};
+                          const _ctx = { fieldIntensity: pl?.ult?.chain >= 6 ? "heavy" : "light", terrainKey: (btl?.arena && btl.arena.units?.player) ? (function(){ try { return arenaGetTerrainKeyAt(btl.arena, btl.arena.units.player.x, btl.arena.units.player.y); } catch (_e) { return null; } })() : null, anchorBonus: _tBuffs.anchorBonus || 0 };
+                          _pAtt = vbGetAttunement(pl, _ctx);
+                        } catch (e) { _pAtt = 5; }
+                        let _eAtt = null;
+                        const _foe = (btl?.en || []).find(e => (e.hp || 0) > 0);
+                        const _enemyField = btl?.enemyField || null;
+                        if (_foe && _enemyField) { try { _eAtt = vbGetAttunement(_foe, { fieldIntensity: _enemyField.intensity }); } catch (e) { _eAtt = null; } }
+                        return <div className="sv-field-attunement-strip" style={{ marginTop: 3 }}>
+                          <span className="sv-field-attunement-badge is-player" title="Field Attunement — your dominance in a Field Clash. Higher wins.">
+                            <span className="sv-faa-ic">✦</span>
+                            <span className="sv-faa-lab">Attunement</span>
+                            <span className="sv-faa-val">{_pAtt}</span>
+                          </span>
+                          {(btl?.tacticalBuffs?.anchorBonus || 0) > 0 && <span className="sv-field-attunement-badge is-anchor" title="Veil Anchor active — bonus consumed on next clash.">⚓ +{btl.tacticalBuffs.anchorBonus}</span>}
+                          {(btl?.tacticalBuffs?.overchannelMult || 1) > 1 && <span className="sv-field-attunement-badge is-overchannel" title="Overchannel primed — next Veil Magic ×1.5.">🩸 ×{btl.tacticalBuffs.overchannelMult}</span>}
+                          {(btl?.tacticalBuffs?.braceTurns || 0) > 0 && <span className="sv-field-attunement-badge is-brace" title="Bracing — incoming field pressure halved.">🛡 Brace {btl.tacticalBuffs.braceTurns}t</span>}
+                          {_activeField && <span className="sv-field-attunement-badge is-field" title="Active player field strength.">{_activeField.intensity === "heavy" ? "Heavy" : "Light"} · {_activeField.remainingTurns}t</span>}
+                          {_eAtt != null && <span className="sv-field-attunement-badge is-enemy" title="Enemy Field Attunement.">⚔ Foe {_eAtt}</span>}
+                        </div>;
+                      })()}
                     </>;
                   })()}
                   {isPT && <div className="battle-tactical-inline">
@@ -8877,6 +9093,15 @@ const buildGroupedBattleLog = (entries) => {
                   recurring: btl.activeField.recurringEffect,
                   zones: [],
                 } : null}
+                enemyField={btl?.enemyField ? {
+                  name: btl.enemyField.fieldName,
+                  owner: "enemy",
+                  element: (btl.enemyField.elementTags && btl.enemyField.elementTags[0]) || null,
+                  intensity: btl.enemyField.intensity || "light",
+                  theme: btl.enemyField.visualTheme || "void",
+                  remainingTurns: btl.enemyField.remainingTurns,
+                } : null}
+                fieldClash={btl?.fieldClash || null}
                 collapsed={arenaCollapsed}
                 onToggleCollapsed={() => setArenaCollapsed(v => !v)}
                 isMobile={typeof window !== "undefined" && window.innerWidth < 720}
@@ -8909,6 +9134,7 @@ const buildGroupedBattleLog = (entries) => {
               {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [
                 { id: "combat", ic: "⚔",   nm: "Combat Actions", ct: null },
                 { id: "veil",   ic: "✦",   nm: "Veil Magic",     ct: null },
+                { id: "tactical", ic: "⚓", nm: "Tactical", ct: ((btl?.tacticalBuffs?.anchorBonus || 0) > 0 || (btl?.tacticalBuffs?.overchannelMult || 1) > 1 || (btl?.tacticalBuffs?.braceTurns || 0) > 0) ? "•" : null },
                 ...(hasItems ? [{ id: "items", ic: "🧪", nm: "Items", ct: (eq.c1 ? 1 : 0) + (eq.c2 ? 1 : 0) }] : []),
               ]; const active = battleSectionAvailable(battleSection, { hasItems, isPT }) ? battleSection : "combat"; return (
                 <div className="battle-tabs v66" role="tablist">
@@ -9040,6 +9266,47 @@ const buildGroupedBattleLog = (entries) => {
                     </button>
                     <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(pl.ult.name, pl.ult.el), fullscreen: true }); }}>?</button>
                   </div>}</div>
+              </div>
+              {/* Pass 8 — Tactical actions tab (anti-field counterplay). */}
+              <div className="battle-section sv-tactical-section" style={{ display: battleSection === "tactical" ? "block" : "none" }}>
+                <div className="battle-section-title"><span style={{ color: T.gd }}>Tactical Actions</span><span style={{ fontSize: 7, color: T.dm }}>Anti-field counterplay & Veil pressure</span></div>
+                <div className="battle-action-grid sv-tactical-grid">
+                  {VB_TACTICAL_ACTIONS.map(t => {
+                    const ef = btl?.enemyField || (btl?.activeField && btl.activeField.owner === "enemy" ? btl.activeField : null);
+                    const tBuffs = btl?.tacticalBuffs || {};
+                    const mpCost = t.cost?.mp || 0;
+                    const hpCost = t.cost?.hp || 0;
+                    const lacksMp = mpCost > 0 && (pl.cmp || 0) < mpCost;
+                    const lacksHp = hpCost > 0 && (pl.chp || 0) <= hpCost;
+                    const needsField = !!t.requiresEnemyField;
+                    const fieldMissing = needsField && !ef;
+                    const alreadyOn = (t.id === "veil_anchor" && (tBuffs.anchorBonus || 0) >= 6)
+                                   || (t.id === "overchannel_1" && (tBuffs.overchannelMult || 1) > 1)
+                                   || (t.id === "brace_field" && (tBuffs.braceTurns || 0) > 0);
+                    const disabled = !isPT || lacksMp || lacksHp || fieldMissing || alreadyOn;
+                    const disabledReason = !isPT ? "" : lacksMp ? "Need " + mpCost + " MP" : lacksHp ? "Need >" + hpCost + " HP" : fieldMissing ? "Needs an enemy field" : alreadyOn ? "Already active" : "";
+                    const actId = t.id === "veil_anchor" ? "tact_anchor"
+                                : t.id === "field_sever" ? "tact_sever"
+                                : t.id === "brace_field" ? "tact_brace"
+                                : t.id === "overchannel_1" ? "tact_overchannel"
+                                : "tact_anchor";
+                    return <div key={t.id} className="battle-action-card-wrap"><button type="button" className={"bt battle-action-btn sv-tactical-card sv-tactical-" + t.id + (alreadyOn ? " is-active" : "")} disabled={disabled} style={{ background: "rgba(255,216,107,0.10)", border: "1px solid rgba(255,216,107,0.45)", color: T.tx, textAlign: "left", padding: "6px 8px" }} onClick={() => bAct(actId)}>
+                      <div style={{ fontWeight: 800, fontSize: 11 }}>{t.icon} {t.name}</div>
+                      <div style={{ fontSize: 8, color: T.tx, marginTop: 1 }}>{t.summary}</div>
+                      <div style={{ fontSize: 8, color: T.dm, marginTop: 2 }}>{t.detail}</div>
+                      <div style={{ fontSize: 8, marginTop: 2, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {mpCost > 0 && <span style={{ color: lacksMp ? T.bad : T.gd }}>Cost: {mpCost} MP</span>}
+                        {hpCost > 0 && <span style={{ color: lacksHp ? T.bad : "#ff9c9c" }}>Cost: {hpCost} HP</span>}
+                        {disabledReason && <span style={{ color: T.bad }}>· {disabledReason}</span>}
+                      </div>
+                    </button></div>;
+                  })}
+                  {/* Training-only test trigger to exercise Field Clash without enemy AI. */}
+                  {btl?.type === "train" && <div className="battle-action-card-wrap"><button type="button" className="bt battle-action-btn sv-tactical-card sv-tactical-sim" disabled={!isPT || !!btl?.enemyField} style={{ background: "rgba(120,160,255,0.10)", border: "1px dashed rgba(120,160,255,0.45)", color: T.tx, textAlign: "left", padding: "6px 8px" }} onClick={() => bAct("tact_sim_enemy")}>
+                    <div style={{ fontWeight: 800, fontSize: 11 }}>🌫 Test: Spawn Enemy Field</div>
+                    <div style={{ fontSize: 8, color: T.dm, marginTop: 1 }}>Training only — instantiate a placeholder enemy field so the next Veilbreak triggers a Field Clash.</div>
+                  </button></div>}
+                </div>
               </div>
               {(eq.c1 || eq.c2) && <div className="battle-section" style={{ display: battleSection === "items" && battleSectionAvailable("items", { hasItems: true, isPT }) ? "block" : "none" }}>
                 <div className="battle-section-title"><span style={{ color: T.gd }}>Battle Items</span><span style={{ fontSize: 7, color: T.dm }}>Quick consumables</span></div>

@@ -341,13 +341,315 @@ export function requirementSummaryLine(reqs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// TODO — Future passes (NOT in scope for Pass 7):
-//  • Enemy Veilbreak fields (boss-side requirement tracking + activation).
-//  • Field Clash (player field ↔ enemy field collision; dominance math).
-//  • Field Attunement stat (per-class affinity to certain field categories).
-//  • Split-field arena territory; field fracture; field cataclysm; backlash.
-//  • Per-class signature requirements (e.g. Phoenix "take damage", Bard
-//    "apply confuse", Voidmage "silence chain").
+// PASS 8 — FIELD ATTUNEMENT, FIELD CLASH, ANTI-FIELD TACTICAL ACTIONS
+// ─────────────────────────────────────────────────────────────────────────
+// Pure additions. Same rules as the Pass 7 module: NO React, NO Game.jsx
+// imports, NO mutation of `pl`/`btl` from here. Game.jsx orchestrates.
+// ─────────────────────────────────────────────────────────────────────────
+
+// ── Field Attunement ────────────────────────────────────────────────────
+// Derived stat that decides which field wins a clash. Documented formula:
+//   base = MAG * 0.6 + LCK * 0.3 + level * 0.5
+// + heavy-intensity field bonus, terrain-alignment bonus, anchor bonus,
+// + tiny class modifier when class data is provided.
+//
+// All inputs are defensive — missing stats default to safe values so this
+// helper never throws and is safe to call mid-render.
+//
+// Returns a number clamped to [1, 999], rounded to one decimal.
+export function getFieldAttunement(unit, ctx) {
+  if (!unit) return 5;
+  const stPick = (k, fb) => {
+    const direct = unit[k];
+    if (typeof direct === "number" && isFinite(direct)) return direct;
+    if (unit.st && typeof unit.st[k] === "number" && isFinite(unit.st[k])) return unit.st[k];
+    return fb;
+  };
+  const mag = stPick("mag", 10);
+  const lck = stPick("lck", 5);
+  const lvl = (typeof unit.level === "number" ? unit.level
+            : typeof unit.lvl === "number" ? unit.lvl
+            : typeof unit.lv === "number" ? unit.lv
+            : 1);
+  let total = mag * 0.6 + lck * 0.3 + lvl * 0.5;
+  if (ctx) {
+    if (ctx.fieldIntensity === "heavy") total += 4;
+    if (ctx.terrainKey && ctx.terrainKey !== "normal") total += 1.5;
+    if (ctx.terrainKey === "broken_veil" || ctx.onBrokenVeil) total += 4;
+    if (typeof ctx.anchorBonus === "number") total += ctx.anchorBonus;
+    if (typeof ctx.classBonus === "number") total += ctx.classBonus;
+    if (ctx.elementMatch) total += 2;
+  }
+  if (!isFinite(total) || total < 1) total = 1;
+  if (total > 999) total = 999;
+  return Math.round(total * 10) / 10;
+}
+
+// ── Placeholder enemy field instantiator ────────────────────────────────
+// Real boss/enemy field activation will arrive in a later pass. This
+// helper produces a safe, dramatic field record from minimal metadata so
+// Field Clash can be tested today and triggered by future enemy AI.
+export function instantiatePlaceholderEnemyField(opts, currentTn) {
+  const o = opts || {};
+  const el = o.element || "Void";
+  const profile = elementProfile(el);
+  const ch = Math.max(4, Math.min(7, o.chain || 5));
+  const dur = Math.max(2, Math.min(5, Math.floor(ch / 2) + 1));
+  const safeId = String(o.id || (el + "_enemy_field")).replace(/\W+/g, "_").toLowerCase();
+  return {
+    fieldId: "vbe_" + safeId,
+    fieldName: o.name || (el + " Bloom"),
+    fieldDescription: o.description || profile.note,
+    owner: "enemy",
+    duration: dur,
+    remainingTurns: dur,
+    roundApplied: -1,
+    appliedAtTn: typeof currentTn === "number" ? currentTn : 0,
+    visualTheme: profile.theme,
+    elementTags: [el],
+    fieldTags: [profile.recurring, "veilbreak", "enemy"],
+    recurringEffect: profile.recurring,
+    intensity: ch >= 6 ? "heavy" : "light",
+    veilMagicModifier: 0.0,
+    affectedArea: "arena",
+  };
+}
+
+// ── Field Clash resolver ────────────────────────────────────────────────
+// Pure. Inputs: incoming + existing field records (as produced by
+// instantiateActiveField/instantiatePlaceholderEnemyField), and the
+// matching attunement values for the side activating each field.
+// Returns:
+//   {
+//     outcome: "domination" | "split" | "fracture" | "backlash" | "collapse",
+//     winner:  "incoming" | "existing" | null,
+//     loser:   "incoming" | "existing" | null,
+//     incomingAttunement, existingAttunement, diff,
+//     intensity: "light" | "heavy",
+//     log: string[],          // ready-to-push battle-log lines
+//     aftermath: {
+//       activeField: <field|null>,    // what the live field becomes
+//       enemyField: <field|null>,     // what the enemy slot becomes (if relevant)
+//       fieldClash: <clashState|null> // transient clash overlay info
+//     }
+//   }
+//
+// Outcome thresholds (small variance ±3):
+//   collapse  — 5% chance regardless of math (rare, dramatic)
+//   backlash  — incoming field is FAR weaker (diff <= -10)
+//   domination — |diff| >= 10
+//   split     — |diff| in [5, 9]
+//   fracture  — |diff| < 5
+export function resolveFieldClash(incoming, existing, incomingAttunement, existingAttunement, opts) {
+  const o = opts || {};
+  const aIn = (typeof incomingAttunement === "number" ? incomingAttunement : 5);
+  const aEx = (typeof existingAttunement === "number" ? existingAttunement : 5);
+  const variance = (Math.random() * 6) - 3;
+  const diff = Math.round(((aIn - aEx) + variance) * 10) / 10;
+  const absDiff = Math.abs(diff);
+  let outcome;
+  const collapseChance = typeof o.collapseChance === "number" ? o.collapseChance : 0.05;
+  if (Math.random() < collapseChance) outcome = "collapse";
+  else if (diff <= -10) outcome = "backlash";
+  else if (absDiff >= 10) outcome = "domination";
+  else if (absDiff >= 5) outcome = "split";
+  else outcome = "fracture";
+
+  let winner = null, loser = null;
+  if (outcome === "domination") { winner = diff >= 0 ? "incoming" : "existing"; loser = winner === "incoming" ? "existing" : "incoming"; }
+  else if (outcome === "split")  { winner = diff >= 0 ? "incoming" : "existing"; loser = winner === "incoming" ? "existing" : "incoming"; }
+  else if (outcome === "backlash") { winner = "existing"; loser = "incoming"; }
+  // fracture / collapse have no winner
+  const intensity = (incoming?.intensity === "heavy" || existing?.intensity === "heavy") ? "heavy" : "light";
+  const inName = incoming?.fieldName || "Incoming Field";
+  const exName = existing?.fieldName || "Standing Field";
+  const log = [];
+  log.push("⚡ Two Veilbreak fields collided at the heart of the arena.");
+  log.push("⚡ " + inName + " (" + aIn + ") vs " + exName + " (" + aEx + ") — " + (diff > 0 ? "+" : "") + diff + " Field Attunement.");
+
+  // ── Aftermath construction ──
+  let aftermathActive = existing || null;
+  let aftermathEnemy  = null;
+  if (incoming && incoming.owner === "enemy") aftermathEnemy = incoming;
+  else if (existing && existing.owner === "enemy") aftermathEnemy = existing;
+
+  if (outcome === "domination") {
+    const won = winner === "incoming" ? incoming : existing;
+    const lost = loser  === "incoming" ? incoming : existing;
+    aftermathActive = won && won.owner === "player" ? { ...won, remainingTurns: Math.min((won.remainingTurns || won.duration || 2) + 1, 5) } : (won && won.owner === "enemy" ? null : won);
+    aftermathEnemy  = won && won.owner === "enemy"  ? { ...won, remainingTurns: Math.min((won.remainingTurns || won.duration || 2) + 1, 5) } : null;
+    log.push("🔥 Field Clash: Domination — " + (won?.fieldName || "Field") + " overwhelmed " + (lost?.fieldName || "the rival Veil") + ".");
+  } else if (outcome === "split") {
+    const won = winner === "incoming" ? incoming : existing;
+    const lost = loser  === "incoming" ? incoming : existing;
+    // Both fields persist at reduced duration.
+    const splitDur = 3;
+    if (won) {
+      const wonNext = { ...won, remainingTurns: Math.max(2, Math.min(splitDur, won.remainingTurns || splitDur)) };
+      if (won.owner === "player") aftermathActive = wonNext; else aftermathEnemy = wonNext;
+    }
+    if (lost) {
+      const lostNext = { ...lost, remainingTurns: Math.max(2, Math.min(splitDur, (lost.remainingTurns || splitDur) - 1)) };
+      if (lost.owner === "player") aftermathActive = lostNext; else aftermathEnemy = lostNext;
+    }
+    log.push("🌫 Field Clash: Split Field — the battlefield divided into rival territories.");
+  } else if (outcome === "fracture") {
+    // Both destabilize; durations shaved.
+    if (existing) {
+      const next = { ...existing, remainingTurns: Math.max(0, (existing.remainingTurns || existing.duration || 2) - 1) };
+      if (existing.owner === "player") aftermathActive = next.remainingTurns > 0 ? next : null;
+      else aftermathEnemy = next.remainingTurns > 0 ? next : null;
+    }
+    if (incoming) {
+      const next = { ...incoming, remainingTurns: Math.max(0, (incoming.remainingTurns || incoming.duration || 2) - 1) };
+      if (incoming.owner === "player") aftermathActive = next.remainingTurns > 0 ? next : null;
+      else aftermathEnemy = next.remainingTurns > 0 ? next : null;
+    }
+    log.push("💥 Field Clash: Field Fracture — both fields destabilized, scattering unstable Veil-light across the arena.");
+  } else if (outcome === "backlash") {
+    // Existing field stands. Incoming field never takes hold.
+    log.push("💢 Field Clash: Backlash — the failed field recoiled against its caster.");
+    if (existing && existing.owner === "player") aftermathActive = existing;
+    if (existing && existing.owner === "enemy") aftermathEnemy = existing;
+    if (incoming && incoming.owner === "player") {
+      // incoming player field never instantiates
+    }
+  } else if (outcome === "collapse") {
+    log.push("🌌 Field Clash: Mutual Collapse — both fields shattered, leaving fractured Veil in their wake.");
+    aftermathActive = null;
+    aftermathEnemy = null;
+  }
+
+  // Clamp durations to safe bounds.
+  if (aftermathActive && typeof aftermathActive.remainingTurns === "number") {
+    aftermathActive.remainingTurns = Math.max(0, Math.min(5, aftermathActive.remainingTurns));
+    if (aftermathActive.remainingTurns <= 0) aftermathActive = null;
+  }
+  if (aftermathEnemy && typeof aftermathEnemy.remainingTurns === "number") {
+    aftermathEnemy.remainingTurns = Math.max(0, Math.min(5, aftermathEnemy.remainingTurns));
+    if (aftermathEnemy.remainingTurns <= 0) aftermathEnemy = null;
+  }
+
+  // ── Clash overlay (transient, lives on btl.fieldClash) ──
+  const fieldClash = {
+    active: true,
+    outcome,
+    winner,
+    loser,
+    intensity,
+    incomingName: inName,
+    existingName: exName,
+    incomingAttunement: aIn,
+    existingAttunement: aEx,
+    diff,
+    turnsRemaining: outcome === "split" ? 3 : (outcome === "fracture" ? 2 : (outcome === "collapse" ? 2 : 1)),
+    splitFieldZones: outcome === "split" ? { a: incoming?.visualTheme || "void", b: existing?.visualTheme || "void" } : null,
+    fracturedTiles: (outcome === "fracture" || outcome === "collapse") ? true : false,
+    backlashTarget: outcome === "backlash" && incoming?.owner === "player" ? "player" : (outcome === "backlash" && incoming?.owner === "enemy" ? "enemy" : null),
+    log: log.slice(),
+  };
+
+  return {
+    outcome,
+    winner,
+    loser,
+    incomingAttunement: aIn,
+    existingAttunement: aEx,
+    diff,
+    intensity,
+    log,
+    aftermath: {
+      activeField: aftermathActive,
+      enemyField: aftermathEnemy,
+      fieldClash,
+    },
+  };
+}
+
+// ── Per-action clash overlay tick ───────────────────────────────────────
+// Returns a new clash state with turnsRemaining-1, or null when the
+// overlay has fully expired. Caller does NOT need to call this every
+// render — only at the same point active-field ticks happen.
+export function tickFieldClash(clash) {
+  if (!clash || !clash.active) return null;
+  const next = (clash.turnsRemaining || 0) - 1;
+  if (next <= 0) return null;
+  return { ...clash, turnsRemaining: next };
+}
+
+export function describeClashOutcome(outcome) {
+  const map = {
+    domination: "Stronger field replaced the weaker one.",
+    split:      "The arena divided into rival territories for a few turns.",
+    fracture:   "Both fields destabilized — fractured Veil-light scattered across the arena.",
+    backlash:   "The failed field recoiled against its caster.",
+    collapse:   "Both fields shattered into a brief, neutral fractured state.",
+  };
+  return map[outcome] || "The Veil churned.";
+}
+
+// ── Tactical Action catalogue ───────────────────────────────────────────
+// Catalogue only — Game.jsx applies the actual mutations so React state
+// remains the single source of truth. `cost` shape is `{ mp?, hp? }`.
+// `tags` lets the UI explain when each action helps.
+export const TACTICAL_ACTIONS = [
+  {
+    id: "veil_anchor",
+    name: "Veil Anchor",
+    icon: "⚓",
+    cost: { mp: 6 },
+    summary: "Anchor your Veilbreak field against collapse.",
+    detail: "Adds +6 Field Attunement and +1 duration to your next clash. Stacks once.",
+    log: "anchored their Veilbreak field against collapse.",
+    when: "Use before activating a field if a hostile field is rising.",
+  },
+  {
+    id: "field_sever",
+    name: "Field Sever",
+    icon: "✂",
+    cost: { mp: 8 },
+    summary: "Sever an enemy field's boundary.",
+    detail: "Reduces an enemy field's remaining duration by 1 turn.",
+    log: "cut at the opposing field's boundary.",
+    when: "Only usable while an enemy field is active.",
+    requiresEnemyField: true,
+  },
+  {
+    id: "brace_field",
+    name: "Brace Against Field",
+    icon: "🛡",
+    cost: { mp: 2 },
+    summary: "Brace against hostile field pressure.",
+    detail: "Halves incoming field tick damage on you next round.",
+    log: "braced against the hostile field pressure.",
+    when: "Use while an enemy field is active and pressuring your HP.",
+  },
+  {
+    id: "overchannel_1",
+    name: "Overchannel I",
+    icon: "🩸",
+    cost: { hp: 8 },
+    summary: "Trade blood for Veil output.",
+    detail: "Spend 8 HP. Your next Veil Magic or Veilbreak deals ×1.5 power.",
+    log: "overchannelled, trading blood for Veil output.",
+    when: "Use just before a critical Veil Magic strike.",
+    // TODO Pass 9+: Overchannel II (×2) and III (×2.5) with HP scaling and risk.
+  },
+];
+
+export function getTacticalAction(id) {
+  return TACTICAL_ACTIONS.find(a => a.id === id) || null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TODO — Future passes (NOT in scope for Pass 8):
+//  • Real enemy/boss Veilbreak field activation (AI side).
+//  • Per-class field affinity table (Phoenix dot-field +att, Tidecaller
+//    regen-field +att, Voidmage silence-field +att, etc).
+//  • Split-field tile assignment from arena geometry (zones based on
+//    actual tile distance instead of theme tags).
+//  • Fractured tile gameplay (small per-tile DoT + Veil Magic gain).
+//  • Overchannel II / III (×2 / ×2.5 with HP scaling + heavier risk).
 //  • Per-rare-terrain interactions (Bloodstone amplifies dot fields, etc).
 //  • Boss-specific recurring effects + duration tuning.
 // ─────────────────────────────────────────────────────────────────────────

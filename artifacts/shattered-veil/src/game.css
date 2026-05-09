@@ -6519,3 +6519,181 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   border: 1px solid rgba(255, 216, 107, 0.5);
   font-weight: 800;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Pass 8 — Field Attunement, Field Clash, Tactical Actions
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Field Attunement strip + badges (compact pills next to Veilbreak banner). */
+.sv-field-attunement-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-family: "Nunito", sans-serif;
+}
+.sv-field-attunement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .25px;
+  border: 1px solid rgba(255, 216, 107, 0.42);
+  background: rgba(20, 14, 36, 0.55);
+  color: #ffe9b3;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+  white-space: nowrap;
+}
+.sv-field-attunement-badge .sv-faa-ic { color: #ffd86b; }
+.sv-field-attunement-badge .sv-faa-lab { font-weight: 700; color: #d8cfb1; font-size: 8px; text-transform: uppercase; letter-spacing: .4px; }
+.sv-field-attunement-badge .sv-faa-val { color: #fff5d0; font-size: 10px; }
+.sv-field-attunement-badge.is-anchor { border-color: rgba(120, 200, 255, 0.55); color: #cfe6ff; background: rgba(20, 36, 60, 0.6); }
+.sv-field-attunement-badge.is-overchannel { border-color: rgba(220, 80, 100, 0.55); color: #ffc8c8; background: rgba(50, 12, 18, 0.6); }
+.sv-field-attunement-badge.is-brace { border-color: rgba(180, 200, 220, 0.55); color: #e6ecff; background: rgba(20, 22, 40, 0.6); }
+.sv-field-attunement-badge.is-field { border-color: rgba(255, 216, 107, 0.65); color: #fff5d0; }
+.sv-field-attunement-badge.is-enemy { border-color: rgba(220, 80, 100, 0.65); color: #ffc8c8; background: rgba(40, 10, 14, 0.6); }
+
+/* Enemy field banner — uses the same skeleton as Pass 7 player field banner
+   but flips the dominant color to crimson so the player can read at a glance
+   which side owns the field. */
+.sv-veilbreak-field-banner.sv-veilbreak-field-banner-enemy {
+  border-color: rgba(220, 80, 100, 0.65) !important;
+  background: linear-gradient(90deg, rgba(220, 80, 100, 0.20), rgba(0,0,0,0.18)) !important;
+}
+.sv-veilbreak-field-banner.sv-veilbreak-field-banner-enemy .sv-vfb-name { color: #ffb0b0; }
+
+/* Field Clash banner — five outcome variants. */
+.sv-field-clash-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 216, 107, 0.6);
+  background: linear-gradient(90deg, rgba(255, 216, 107, 0.15), rgba(20, 10, 36, 0.45));
+  font-family: "Nunito", sans-serif;
+  font-size: 10px;
+  color: #fff5d0;
+  animation: sv-clash-pulse 2.6s ease-in-out infinite;
+}
+.sv-field-clash-banner .sv-fcb-tag {
+  font-family: "Cinzel", serif;
+  font-weight: 900;
+  letter-spacing: .8px;
+  font-size: 9px;
+  color: #ffd86b;
+}
+.sv-field-clash-banner .sv-fcb-name {
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  letter-spacing: .5px;
+  font-size: 11px;
+  color: #fff5d0;
+}
+.sv-field-clash-banner .sv-fcb-meta { font-style: italic; color: #d8cfb1; }
+.sv-field-clash-banner.sv-field-clash-domination { border-color: rgba(255, 122, 89, 0.7);  background: linear-gradient(90deg, rgba(255, 122, 89, 0.22), rgba(20, 10, 36, 0.45)); }
+.sv-field-clash-banner.sv-field-clash-split      { border-color: rgba(122, 188, 255, 0.7); background: linear-gradient(90deg, rgba(122, 188, 255, 0.20), rgba(20, 10, 36, 0.45)); }
+.sv-field-clash-banner.sv-field-clash-fracture   { border-color: rgba(178, 132, 224, 0.7); background: linear-gradient(90deg, rgba(178, 132, 224, 0.22), rgba(20, 10, 36, 0.45)); }
+.sv-field-clash-banner.sv-field-clash-backlash   { border-color: rgba(220, 80, 100, 0.75); background: linear-gradient(90deg, rgba(220, 80, 100, 0.25), rgba(20, 10, 36, 0.45)); }
+.sv-field-clash-banner.sv-field-clash-collapse   { border-color: rgba(150, 130, 200, 0.75); background: linear-gradient(90deg, rgba(150, 130, 200, 0.20), rgba(0, 0, 0, 0.55)); }
+
+@keyframes sv-clash-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 216, 107, 0.0); }
+  50%      { box-shadow: 0 0 14px 2px rgba(255, 216, 107, 0.18); }
+}
+
+/* Arena tag pills for enemy field + clash overlay. */
+.sv-arena-tag.sv-arena-tag-enemy-field {
+  background: rgba(220, 80, 100, 0.18);
+  color: #ffc8c8;
+  border: 1px solid rgba(220, 80, 100, 0.55);
+  font-weight: 800;
+}
+.sv-arena-tag.sv-arena-tag-clash {
+  background: rgba(255, 216, 107, 0.22);
+  color: #fff5d0;
+  border: 1px solid rgba(255, 216, 107, 0.55);
+  font-weight: 800;
+  letter-spacing: .4px;
+}
+.sv-arena-tag.sv-arena-tag-clash-domination { background: rgba(255, 122, 89, 0.22);  border-color: rgba(255, 122, 89, 0.65);  color: #ffd0c0; }
+.sv-arena-tag.sv-arena-tag-clash-split      { background: rgba(122, 188, 255, 0.22); border-color: rgba(122, 188, 255, 0.65); color: #d4e7ff; }
+.sv-arena-tag.sv-arena-tag-clash-fracture   { background: rgba(178, 132, 224, 0.22); border-color: rgba(178, 132, 224, 0.65); color: #e2d3f5; }
+.sv-arena-tag.sv-arena-tag-clash-backlash   { background: rgba(220, 80, 100, 0.25);  border-color: rgba(220, 80, 100, 0.7);   color: #ffc8c8; }
+.sv-arena-tag.sv-arena-tag-clash-collapse   { background: rgba(150, 130, 200, 0.20); border-color: rgba(150, 130, 200, 0.7);   color: #e2d3f5; }
+
+/* Split-field tile shading (alternating chequer using A/B themes). */
+.sv-arena-tile.sv-arena-tile-split-field-a::after,
+.sv-arena-tile.sv-arena-tile-split-field-b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: screen;
+  opacity: 0.30;
+  z-index: 1;
+}
+.sv-arena-tile.sv-arena-tile-split-field-a::after { background: radial-gradient(ellipse at 30% 40%, rgba(122, 188, 255, 0.45), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-field-b::after { background: radial-gradient(ellipse at 70% 60%, rgba(255, 122, 89, 0.45), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-fire::after    { background: radial-gradient(ellipse at 50% 60%, rgba(255, 122, 89, 0.50), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-storm::after   { background: radial-gradient(ellipse at 50% 30%, rgba(122, 188, 255, 0.50), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-shadow::after  { background: radial-gradient(ellipse at 50% 50%, rgba(178, 132, 224, 0.55), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-light::after   { background: radial-gradient(ellipse at 50% 50%, rgba(255, 240, 178, 0.55), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-void::after    { background: radial-gradient(ellipse at 50% 50%, rgba(150, 130, 200, 0.55), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-nature::after  { background: radial-gradient(ellipse at 50% 60%, rgba(140, 209, 122, 0.50), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-water::after   { background: radial-gradient(ellipse at 50% 70%, rgba(122, 188, 255, 0.50), transparent 70%); }
+.sv-arena-tile.sv-arena-tile-split-earth::after   { background: radial-gradient(ellipse at 50% 70%, rgba(196, 168, 122, 0.50), transparent 70%); }
+
+/* Fractured-field tile cracks — sparse, animated. */
+.sv-arena-tile.sv-arena-tile-fractured-field {
+  position: relative;
+}
+.sv-arena-tile.sv-arena-tile-fractured-field::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 47%, rgba(255, 216, 107, 0.38) 50%, transparent 53%),
+    linear-gradient(65deg,  transparent 48%, rgba(178, 132, 224, 0.32) 50%, transparent 52%);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  z-index: 2;
+  animation: sv-fracture-flicker 1.8s ease-in-out infinite;
+}
+@keyframes sv-fracture-flicker {
+  0%, 100% { opacity: 0.32; }
+  50%      { opacity: 0.7;  }
+}
+
+/* Arena root flash on clash. */
+.sv-arena-panel.sv-arena-clash-domination { box-shadow: 0 0 22px rgba(255, 122, 89, 0.32) inset, 0 0 24px rgba(255, 122, 89, 0.18); }
+.sv-arena-panel.sv-arena-clash-split      { box-shadow: 0 0 22px rgba(122, 188, 255, 0.28) inset, 0 0 24px rgba(122, 188, 255, 0.18); }
+.sv-arena-panel.sv-arena-clash-fracture   { box-shadow: 0 0 22px rgba(178, 132, 224, 0.30) inset, 0 0 24px rgba(178, 132, 224, 0.18); }
+.sv-arena-panel.sv-arena-clash-backlash   { box-shadow: 0 0 22px rgba(220, 80, 100, 0.34) inset, 0 0 24px rgba(220, 80, 100, 0.20); }
+.sv-arena-panel.sv-arena-clash-collapse   { box-shadow: 0 0 22px rgba(150, 130, 200, 0.30) inset, 0 0 24px rgba(150, 130, 200, 0.18); }
+
+/* Tactical action cards (anti-field counterplay buttons). */
+.sv-tactical-section .sv-tactical-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+}
+.battle-action-btn.sv-tactical-card {
+  position: relative;
+  transition: transform 80ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+.battle-action-btn.sv-tactical-card:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(255, 216, 107, 0.22);
+  border-color: rgba(255, 216, 107, 0.7) !important;
+}
+.battle-action-btn.sv-tactical-card.is-active {
+  border-color: #ffd86b !important;
+  box-shadow: 0 0 16px rgba(255, 216, 107, 0.32) inset;
+}
+.battle-action-btn.sv-tactical-card:disabled { opacity: 0.55; cursor: not-allowed; }

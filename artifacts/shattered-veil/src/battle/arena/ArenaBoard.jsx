@@ -30,6 +30,9 @@ export default function ArenaBoard({
   showMovementPreview = true,
   veilbreakReady = false, // pulses player tile if Veilbreak is primed
   field = null,           // { name, owner:'player'|'enemy', element, intensity, zones:[{x,y}] }
+  // Pass 8 — Field Clash visuals (purely cosmetic).
+  enemyField = null,      // { name, theme, intensity, remainingTurns }
+  fieldClash = null,      // { active, outcome, turnsRemaining, splitFieldZones, fracturedTiles }
   collapsed = false,
   onToggleCollapsed = null,
   isMobile = false,
@@ -100,7 +103,7 @@ export default function ArenaBoard({
   const hoverInRange = hover ? moveRangeKeys.has(keyOf(hover.x, hover.y)) : false;
 
   return (
-    <div className={"sv-arena-panel cd " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
+    <div className={"sv-arena-panel cd " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (enemyField ? " sv-arena-enemy-field-active sv-arena-enemy-field-" + (enemyField.theme || "void") : "") + (fieldClash && fieldClash.active ? " sv-arena-clash-" + fieldClash.outcome : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
       <div className="sv-arena-head">
         <div className="sv-arena-title">
           <span className="sv-arena-eyebrow">Battlefield Foundation</span>
@@ -109,6 +112,8 @@ export default function ArenaBoard({
         <div className="sv-arena-meta">
           <span className="sv-arena-tag">{arena.cols}×{arena.rows}</span>
           {field && <span className="sv-arena-tag sv-arena-tag-field">{field.name || "Veilbreak Field"}{field.remainingTurns != null ? " · " + field.remainingTurns + "t" : ""}</span>}
+          {enemyField && <span className="sv-arena-tag sv-arena-tag-enemy-field">⚔ {enemyField.name || "Enemy Field"}{enemyField.remainingTurns != null ? " · " + enemyField.remainingTurns + "t" : ""}</span>}
+          {fieldClash && fieldClash.active && <span className={"sv-arena-tag sv-arena-tag-clash sv-arena-tag-clash-" + fieldClash.outcome}>⚡ {String(fieldClash.outcome || "").toUpperCase()}</span>}
           {veilbreakReady && !field && <span className="sv-arena-tag sv-arena-tag-primed">Veilbreak primed</span>}
           {moveMode && <span className="sv-arena-tag sv-arena-tag-move">Select destination</span>}
           {targetingMode && <span className="sv-arena-tag sv-arena-tag-target">Select target</span>}
@@ -169,6 +174,14 @@ export default function ArenaBoard({
                   isOutOfRange     ? "sv-arena-tile-out-of-range" : "",
                   targetingMode && objs.length ? "sv-arena-tile-has-object" : "",
                   inField ? "sv-arena-field-overlay" : "",
+                  // Pass 8 — Field Clash tile flair. Split-field paints
+                  // alternate tiles with the two clashing themes.
+                  fieldClash && fieldClash.active && fieldClash.outcome === "split" && fieldClash.splitFieldZones
+                    ? "sv-arena-tile-split-field-" + (((x + y) % 2 === 0) ? "a" : "b") + " sv-arena-tile-split-" + (((x + y) % 2 === 0) ? (fieldClash.splitFieldZones.a || "void") : (fieldClash.splitFieldZones.b || "void"))
+                    : "",
+                  fieldClash && fieldClash.active && (fieldClash.outcome === "fracture" || fieldClash.outcome === "collapse") && (((x * 7 + y * 11) % 5) === 0)
+                    ? "sv-arena-tile-fractured-field"
+                    : "",
                   isHover ? "is-hover" : "",
                 ].filter(Boolean).join(" ");
                 const handleTileClick = () => {
