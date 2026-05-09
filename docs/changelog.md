@@ -644,3 +644,144 @@ finalize the Tactical tab from Pass 8.
 - Flurry scaling with speed / crit stats.
 - Enemy use of tactical actions; boss counters to Overchannel.
 - Tactical cooldowns; full status-effect cleanup; manual/tutorial updates.
+
+## v83 — Pass 10: Derived Combat Stats + Status Effect Cleanup Foundation
+
+Two foundational systems land together in one pass to keep run count down.
+This pass adds *layers*, not replacements — every existing skill, passive,
+status, save, and battle path keeps working unchanged.
+
+### Section A — Derived Combat Stats
+
+New module: `artifacts/shattered-veil/src/battle/derivedStats.js`.
+
+Every helper takes `(unit, ctx)`, accepts both player (`{ st: { ... } }`) and
+enemy (flat) shapes, falls back to safe defaults, and clamps to a sane range.
+
+| Helper | Range | Formula (TEMPORARY — Pass 11 rebalance) |
+|---|---|---|
+| `getCritChance` | 0..0.6 | `0.05 + min(0.25, LCK×0.012) + armor + (Veilflare ? 0.10 : 0) + passive + terrain` |
+| `getCritDamageMultiplier` | 1.5..3.5 | `1.5 + armor + min(0.20, ATK×0.0008 + LCK×0.0012)` |
+| `getAccuracy` | 0.30..1.0 | `0.90 + min(0.10, SPD×0.003) + min(0.05, LCK×0.002) − (Blind ? 0.30 : 0)` |
+| `getEvasion` | 0..0.40 | `0.02 + SPD×0.003 + LCK×0.002 + passive` |
+| `getMoveStat` | 1..7 | `3 + floor(SPD/30)` ± slow/haste |
+| `getFieldAttunement` | (re-export) | Pass 8 helper, unchanged. |
+| `getStatusPower` | 0..0.35 | `MAG×0.004 + LCK×0.003` |
+| `getStatusResist` | 0..0.65 | `DEF×0.002 + MAG×0.0015 + min(0.10, LVL×0.003) + (boss ? 0.15 : 0)` |
+| `getGuardStrength` | 0..∞ | `DEF×0.5 + max(ATK,MAG)×0.15` |
+| `getHealingPower` | 0..∞ | `MAG×0.6 + LCK×0.2` |
+| `getVeilGenerationModifier` | 0.5..2.0 | `1.0 + MAG×0.003 + LCK×0.002` |
+
+Convenience: `getDerivedCombatStats(unit, ctx)` returns all of the above as
+one bundle. `rollCrit(unit, ctx)` for one-shot tests. `DERIVED_STAT_TOOLTIPS`
+exported for UI.
+
+### Section A — integration points
+
+- `bAct` (Game.jsx ~line 5240) — Pass 9's inline crit helpers now route
+  through `dsGetCritChance` / `dsGetCritDamage`. Steady Strike, Flurry Strike,
+  Veilflare Impact, weapon strike — all share one crit pipeline now.
+- `_critCtx` carries armor crit + Veilflare Focus flag so the helper sees
+  the same context the inline closures used to.
+- Pre-existing weapon-strike inline crit at line ~5111 left as-is for now
+  (it has its own armor-precision-critical sub-roll). Pass 11 will unify.
+
+### Section A — UI
+
+Compact **Combat Profile pill strip** added in the battle HUD, directly under
+the Field Attunement row. Always visible, wraps on narrow screens, 7 pills:
+
+```
+Crit 24% × 1.62 │ Acc 92% │ Eva 7% │ Move 3 │ SP +8% │ SR 14% │ Heal +18
+```
+
+Each pill carries a hover tooltip from `DS_TOOLTIPS`. Color-coded by category
+(crit/evade/move/field/status). No new battle tab — keeps the screen clean.
+
+### Section B — Status Effect Cleanup Foundation
+
+New module: `artifacts/shattered-veil/src/battle/statusEffects.js`.
+
+Existing `FXS` array (24 entries) in Game.jsx is **unchanged** — it already
+covers most of the canonical list and all live skill/passive references.
+The new module is a metadata + helper layer on top.
+
+#### Canonical list (29 entries across 8 categories)
+- **dot**: burn, bleed, poison
+- **control**: slow, stun, silence, blind (+ legacy: freeze, sleep, confuse, taunt)
+- **vulnerability**: weaken, expose, curse
+- **defensive**: shield, barrier, fortify
+- **recovery**: regen, cleanse, haste, empower
+- **reactive**: reflect, thorns, nullify, evasion, **veilflare_focus**
+- **field**: fractured, anchored, overchanneled, braced
+
+#### Aliases (`STATUS_ALIASES`, 22 mappings)
+`burning/scorched/ignited → burn`, `wounded/bleeding → bleed`,
+`envenomed/toxic → poison`, `frail/weakened → weaken`,
+`exposed/cracked → expose`, `rooted/slowed → slow`, `dazed/stunned → stun`,
+`muted/silenced → silence`, `blinded → blind`, `shielded → shield`,
+`barriered → barrier`, `fortified → fortify`, `hasted → haste`,
+`regenerating → regen`, `cursed → curse`. Unknown ids normalize to themselves.
+
+#### Helpers
+- `normalizeStatusEffect(input)` — alias-aware id lookup.
+- `getStatusMeta(input)` / `getStatusTooltip(input)` / `getStatusVisualClass(input)`.
+- `hasStatus(unit, statusId)` — alias-aware.
+- `calculateStatusChance(source, target, status, ctx)` — `base + statusPower − statusResist − (boss hard-control: −0.20)`, clamped 0.05..0.95.
+- `canApplyStatus(...)` — short-circuits on dead targets and consumes Nullify.
+- `applyStatusEffect(target, status, source, ctx)` — refresh-style, no stacking.
+- `removeStatusEffect(unit, statusId)` / `cleanseStatus(unit, categoryOrId)`.
+- `tickStatusEffects(unit, timing, ctx)` — returns event array, doesn't mutate hp.
+- `STATUS_LOG_PHRASES` — short, readable battle-log strings.
+
+The helpers are **wired into the build but not yet routed through every old
+skill/passive call site** — the existing `FX(id)` / `efx.push(...)` pattern
+in Game.jsx is left intact so this pass is fully non-breaking. Pass 11 will
+migrate skill/passive call sites as part of the class rebalance.
+
+### Section B — UI
+
+CSS classes added (`game.css`, ~70 lines):
+- `sv-status-chip` (base) + variants `sv-status-buff`, `sv-status-debuff`,
+  `sv-status-dot`, `sv-status-control`, `sv-status-vulnerability`,
+  `sv-status-defensive`, `sv-status-field`, `sv-status-expiring` (pulse),
+  `sv-status-tooltip`.
+
+The chips are not yet swapped in for the existing `.tg` status pills in the
+battle HUD — that swap is a Pass 11 concern (status display polish + class
+identity rebalance happen together). The CSS is ready.
+
+### Class direction notes (NOT IMPLEMENTED — Pass 11)
+
+Comments in `derivedStats.js` mark class identities to build around:
+- **Monk** — crit, flurry, movement, Veilflare synergy.
+- **Tanks** — HP, DEF, Guard Strength, Fortify, Brace.
+- **Casters** — MAG, Status Power, Veil Generation, Field Attunement.
+- **Supports** — Healing Power, Cleanse, Barrier, hallowed terrain.
+- **Controllers** — Slow, Silence, Blind, terrain manipulation.
+- **Field specialists** — Field Attunement, Veilbreak duration, Field Clash.
+
+### Save shape
+- **Unchanged.** New status helpers operate on the existing `unit.efx[]` array.
+- Old saved efx with legacy ids continue to work (alias map normalizes them).
+- New derived stats are computed from base stats every render — nothing
+  persisted.
+
+### Files modified / created
+
+- **NEW** `artifacts/shattered-veil/src/battle/derivedStats.js` (~150 lines).
+- **NEW** `artifacts/shattered-veil/src/battle/statusEffects.js` (~280 lines).
+- `artifacts/shattered-veil/src/Game.jsx` — imports, Pass 9 inline crit
+  helpers route through `dsGetCritChance`/`dsGetCritDamage`, Combat Profile
+  pill strip in the battle HUD.
+- `artifacts/shattered-veil/src/game.css` — Combat Profile + status chip
+  CSS (~70 lines).
+
+### Out of scope (Pass 11+)
+- Full per-class skill/passive/bloodmark rebalance using derived stats.
+- Migrating every `FX(id)` / `efx.push(...)` call to `seApply(...)`.
+- Swapping the existing `.tg` status pills in battle HUD for `sv-status-chip`.
+- Boss resistance profiles (per-status immunity tables).
+- Gear scaling with derived stats (`critRate` / `critDamage` / `healPower` fields).
+- Manual / tutorial rewrite for the new stat vocabulary.
+- Save migration for any deprecated effect names (none yet).

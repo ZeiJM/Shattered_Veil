@@ -102,6 +102,17 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 10 (v83) — Derived Combat Stats + Status Cleanup Foundation
+
+Two foundational systems landed together to keep run count down. **Save shape unchanged** — both modules are non-breaking layers on top of existing combat.
+
+- **`battle/derivedStats.js`** — central helpers for derived battle stats: `getCritChance`, `getCritDamageMultiplier`, `getAccuracy`, `getEvasion`, `getMoveStat`, `getFieldAttunement` (re-exported from Pass 8), `getStatusPower`, `getStatusResist`, `getGuardStrength`, `getHealingPower`, `getVeilGenerationModifier`. Bundle: `getDerivedCombatStats(unit, ctx)`. All formulas TEMPORARY (commented), full balance is Pass 11.
+- **`battle/statusEffects.js`** — canonical 29-entry status list (`CANONICAL_STATUSES`), 22-entry alias map (`STATUS_ALIASES`), helpers: `normalizeStatusEffect`, `getStatusMeta`, `getStatusTooltip`, `getStatusVisualClass`, `hasStatus`, `calculateStatusChance`, `canApplyStatus` (consumes Nullify), `applyStatusEffect` (refresh, no stacking), `removeStatusEffect`, `cleanseStatus`, `tickStatusEffects` (returns events, doesn't mutate hp), `STATUS_LOG_PHRASES`.
+- **Existing `FXS` array unchanged** — all skills/passives keep working. The new module is metadata + helpers; Pass 11 will migrate call sites.
+- **Combat Profile pill strip** in the battle HUD (under Field Attunement row, always visible, wraps on narrow screens): Crit · Acc · Eva · Move · SP · SR · Heal. Tooltips from `DERIVED_STAT_TOOLTIPS`.
+- **Crit pipeline unified** — Pass 9's inline `getCritChance`/`getCritDamageMultiplier` in `bAct` now route through `dsGetCritChance`/`dsGetCritDamage` (with `_critCtx` carrying armor + Veilflare Focus flag), so Steady/Flurry/Veilflare and the Combat Profile strip all read from one place. Pre-existing weapon-strike inline crit at line ~5111 left as-is — Pass 11 will unify.
+- **New CSS**: `sv-combat-profile-strip`, `sv-combat-profile-pill` (variants `is-crit`/`is-evade`/`is-move`/`is-field`/`is-status`), `sv-status-chip` + category variants (`-buff`/`-debuff`/`-dot`/`-control`/`-vulnerability`/`-defensive`/`-field`/`-expiring`/`-tooltip`).
+
 ## Battle Rework Pass 9 (v82) — Steady Strike, Flurry Strike, Veilflare Impact
 
 - **Steady Strike** (`bAct("steady")`) — free 0 MP basic attack, range 1, ATK×0.6, one crit + one Veilflare roll.

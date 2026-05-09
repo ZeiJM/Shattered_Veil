@@ -39,6 +39,36 @@ import {
   TACTICAL_ACTIONS as VB_TACTICAL_ACTIONS,
   getTacticalAction as vbGetTactical,
 } from './battle/arena/veilbreakChain.js';
+// Pass 10 — Derived Combat Stats + Status Effect Cleanup Foundation.
+import {
+  getCritChance as dsGetCritChance,
+  getCritDamageMultiplier as dsGetCritDamage,
+  getAccuracy as dsGetAccuracy,
+  getEvasion as dsGetEvasion,
+  getMoveStat as dsGetMove,
+  getStatusPower as dsGetStatusPower,
+  getStatusResist as dsGetStatusResist,
+  getGuardStrength as dsGetGuardStrength,
+  getHealingPower as dsGetHealing,
+  getVeilGenerationModifier as dsGetVeilGen,
+  getDerivedCombatStats as dsGetAll,
+  DERIVED_STAT_TOOLTIPS as DS_TOOLTIPS,
+} from './battle/derivedStats.js';
+import {
+  CANONICAL_STATUSES as SE_CANONICAL,
+  STATUS_ALIASES as SE_ALIASES,
+  normalizeStatusEffect as seNormalize,
+  getStatusMeta as seMeta,
+  getStatusTooltip as seTooltip,
+  getStatusVisualClass as seVisualClass,
+  hasStatus as seHasStatus,
+  calculateStatusChance as seCalcChance,
+  applyStatusEffect as seApply,
+  removeStatusEffect as seRemove,
+  cleanseStatus as seCleanse,
+  tickStatusEffects as seTick,
+  STATUS_LOG_PHRASES as SE_LOG,
+} from './battle/statusEffects.js';
 
 
 // ═══════════════════════════════════════════════════
@@ -5204,18 +5234,20 @@ function Game() {
       return true;
     };
 
-    // ── Pass 9 — Crit + Veilflare helpers (temporary, reused by steady/flurry).
-    // Reuses the same baselines as the inline weapon-strike crit at line ~5111
-    // (LCK×0.012 + armor crit), with a small +5% baseline floor and bonuses
-    // from the Veilflare Focus battle buff. TODO Pass 10: full crit rebalance.
+    // ── Pass 10 — Derived crit helpers now route through the shared module
+    // (`battle/derivedStats.js`) so Steady/Flurry, Veilflare, weapon-strike,
+    // and the Combat Profile all read from one place. The inline closures
+    // remain for backward compatibility with Pass 9 call sites in this fn.
+    // TODO Pass 11: full crit/gear rebalance, Monk crit specialization.
     const _hasVeilflareFocus = (np.efx || []).some(ef => ef.id === "veilflare_focus");
-    const _veilflareFocusCritBonus = _hasVeilflareFocus ? 0.10 : 0;
-    const getCritChance = () => {
-      const base = 0.05;
-      const luck = Math.min(0.25, (st.lck || 0) * 0.012);
-      return Math.max(0, Math.min(0.6, base + luck + armorCritChance + _veilflareFocusCritBonus));
+    const _critCtx = {
+      armorCritChance,
+      armorCritDmgBoost,
+      hasVeilflareFocus: _hasVeilflareFocus,
     };
-    const getCritDamageMultiplier = () => 1.5 + armorCritDmgBoost;
+    const _critUnit = { st }; // pass the projected stats so dsGetCritChance picks up LCK
+    const getCritChance = () => dsGetCritChance(_critUnit, _critCtx);
+    const getCritDamageMultiplier = () => dsGetCritDamage(_critUnit, _critCtx);
     const rollCrit = () => Math.random() < getCritChance();
     // Veilflare Impact: 15% per ACTION (not per hit). Returns bonus dmg multiplier.
     // Pushes log lines and applies/refreshes the Veilflare Focus buff. Caller
@@ -9068,6 +9100,56 @@ const buildGroupedBattleLog = (entries) => {
                           {_activeField && <span className="sv-field-attunement-badge is-field" title="Active player field strength.">{_activeField.intensity === "heavy" ? "Heavy" : "Light"} · {_activeField.remainingTurns}t</span>}
                           {_eAtt != null && <span className="sv-field-attunement-badge is-enemy" title="Enemy Field Attunement.">⚔ Foe {_eAtt}</span>}
                         </div>;
+                      })()}
+                      {/* Pass 10 — Combat Profile pill strip. Compact, always-on
+                          row of derived combat stats so the player can read
+                          their build at a glance. Wraps on narrow screens. */}
+                      {(() => {
+                        try {
+                          const _st = effSt(pl);
+                          // Mirror the same wornArmor + gearHas pipeline used in bAct
+                          // (Game.jsx ~line 4960) so the profile and live combat agree.
+                          const _wornArmor = [eq.helm, eq.body, eq.glv, eq.boot].filter(Boolean);
+                          const _critArmor    = _wornArmor.reduce((s, a) => s + (gearHas(a, 'crit_boost')  ? 0.08 : 0), 0);
+                          const _critDmgArmor = _wornArmor.reduce((s, a) => s + (gearHas(a, 'crit_damage') ? 0.15 : 0), 0);
+                          const _hasFocus = (pl.efx || []).some(e => e.id === 'veilflare_focus');
+                          const _profileCtx = { armorCritChance: _critArmor, armorCritDmgBoost: _critDmgArmor, hasVeilflareFocus: _hasFocus };
+                          const _profileUnit = { st: _st };
+                          const _ds = dsGetAll(_profileUnit, _profileCtx);
+                          const _pct = (v) => Math.round(v * 100) + '%';
+                          return <div className="sv-combat-profile-strip">
+                            <span className="sv-combat-profile-pill is-crit" title={DS_TOOLTIPS.critRate}>
+                              <span className="sv-cpp-lab">Crit</span>
+                              <span className="sv-cpp-val">{_pct(_ds.critRate)}</span>
+                              <span className="sv-cpp-lab" style={{ marginLeft: 2 }}>×</span>
+                              <span className="sv-cpp-val">{_ds.critDamage.toFixed(2)}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-evade" title={DS_TOOLTIPS.accuracy}>
+                              <span className="sv-cpp-lab">Acc</span>
+                              <span className="sv-cpp-val">{_pct(_ds.accuracy)}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-evade" title={DS_TOOLTIPS.evasion}>
+                              <span className="sv-cpp-lab">Eva</span>
+                              <span className="sv-cpp-val">{_pct(_ds.evasion)}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-move" title={DS_TOOLTIPS.move}>
+                              <span className="sv-cpp-lab">Move</span>
+                              <span className="sv-cpp-val">{_ds.move}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-status" title={DS_TOOLTIPS.statusPower}>
+                              <span className="sv-cpp-lab">SP</span>
+                              <span className="sv-cpp-val">+{_pct(_ds.statusPower)}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-status" title={DS_TOOLTIPS.statusResist}>
+                              <span className="sv-cpp-lab">SR</span>
+                              <span className="sv-cpp-val">{_pct(_ds.statusResist)}</span>
+                            </span>
+                            <span className="sv-combat-profile-pill is-field" title={DS_TOOLTIPS.healingPower}>
+                              <span className="sv-cpp-lab">Heal</span>
+                              <span className="sv-cpp-val">+{Math.round(_ds.healingPower)}</span>
+                            </span>
+                          </div>;
+                        } catch (_e) { return null; }
                       })()}
                     </>;
                   })()}
