@@ -1057,3 +1057,35 @@ User feedback this pass: (1) world map mobile must center on the character; (2) 
 - **Engine math, save shape, OpenAPI contract** — all untouched.
 
 Files: `artifacts/shattered-veil/src/Game.jsx` (L632 manual copy + ~L3505 mobile-scroll useEffect), `artifacts/shattered-veil/src/game.css` (Pass 18 block appended at EOF, ~250 lines).
+
+## v93 — Pass 19 — Mobile World Map + Battle Screen Layout Repair
+
+Strict layout/responsiveness/usability pass. **No engine, balance, save shape, combat math, Veilbreak, Field Clash, chat, or world-gen changes.** Two source files touched: `Game.jsx` (long-press handlers + refs) and `game.css` (Pass 19 block at EOF, ~150 lines).
+
+### Game.jsx
+- **Refs** at L3666: `tileLongPressTimerRef`, `tileLongPressStartRef`, `tileLongPressFiredRef` for mobile long-press tile inspector.
+- **World tile div** at L9057 — added 5 handlers inline:
+  - `onContextMenu` — desktop right-click → compact tile info popup (coords, terrain, POI label, POI desc).
+  - `onTouchStart` — starts a 520ms timer; on fire shows the same tile info popup + soft `navigator.vibrate(15)`.
+  - `onTouchMove` — cancels the timer if finger slides >12px (squared = 144).
+  - `onTouchEnd` / `onTouchCancel` — clears the pending timer; never interferes with the existing tap-to-walk / double-tap-to-enter behavior.
+  - Popup uses the existing `setPopup` system (non-fullscreen card with a "Close" choice).
+
+### game.css (Pass 19 block, EOF, additive)
+- **(a) Battle top chip strip overflow guard** — `.battle-info-card`, `.battle-info-strip`, `.sv-field-attunement-strip`, `.sv-combat-profile-strip` get `max-width:100%`, `min-width:0`, `flex-wrap:wrap`. Mobile (≤768): `.battle-chain-line` gains `white-space:normal !important` to override the inline `whiteSpace:nowrap` so the Veilbreak requirement chips wrap into the panel instead of triggering horizontal overflow. Smaller chip font sizes at ≤768 and ≤480.
+- **(b) Arena board containment** — `.sv-arena-panel` and `.sv-arena-grid` get `max-width:100%; overflow:hidden; box-sizing:border-box`. At ≤480, hex tile size is clamped to `clamp(22px, 8.4vw, 32px)` (overrides the inline `--svh-tile` from `ArenaBoard.jsx`) so the board never exceeds the screen width on narrow phones.
+- **(c) Battle log + actions card** — at ≤480 re-asserts `.battle-actions-card { max-height:30vh }`, `.battle-log-card { max-height:22vh }`, action buttons get `min-height:44px` for tap target.
+- **(d) World map header compaction pass 2** — at ≤480 tightens `.map-header`, `.map-summary-card`, action buttons (smaller font/padding); at ≤430 trims `.map-quick-row` button padding further.
+- **(e) Long-press feedback** — `.world-tile { -webkit-touch-callout:none; user-select:none }` and `.world-tile:active { transform: scale(0.94) }` for tactile feedback during long press.
+- **(f) Page overflow-x guard** — `@media (max-width:768px) { .battle-bg, .map-bg { overflow-x:hidden } }` prevents stray children from causing accidental horizontal page scroll.
+
+### Verified
+- Workflows: web + api-server both healthy, no console errors at title screen.
+- Visual: title screen renders correctly at 390px and 1200px viewports.
+- Typecheck: `tsc -p` reports the same pre-existing TS7016 (Game.jsx declarations) — unchanged by this pass.
+
+### Not changed (per directive)
+- ArenaBoard.jsx: untouched. tileSize math at L100-103 is overridden via CSS variable on ≤480 only.
+- arenaEngine.js, arenaTargeting.js, veilbreakChain.js: untouched.
+- All combat helpers (`bAct`, `chooseEnemySkill`, `applyBossPhasePressure`, `vbGetAttunement`, etc.): untouched.
+- Save shape: unchanged. No new persisted fields.
