@@ -9066,28 +9066,21 @@ const buildGroupedBattleLog = (entries) => {
               {ent && ent.mmp > 0 && <div className="ent-bar ent-mp"><div style={{ width: mpPct + "%" }} /></div>}
             </div>;
           };
+          // Pass 13 — top 5-lane HUD removed. The hex arena board below is
+          // now the sole source for movement & target selection. The
+          // underlying plLane state and renderRichToken/openEntityInfoPopup
+          // helpers are intentionally retained — combat damage formulas and
+          // dossier popups still consume them. A compact range-readout pill
+          // is kept so players can see distance + move availability at a
+          // glance without the bulky lane tile strip.
           return <>
-            <div className="battle-lane" title="Click an empty allied lane (Vanguard / Front / Mid) to reposition. Click a token for details. Click a foe to target — click again for details.">
-              {tiles.map((t, i) => {
-                const isAllyLane = i <= 2;
-                const isPlayerHere = i === plLane;
-                const canMove = isPT && !btl.moved && isAllyLane && !isPlayerHere;
-                return <div key={i}
-                  className={"battle-lane-tile " + t.role + (canMove ? " lane-clickable" : "") + (isPlayerHere ? " lane-player-here" : "")}
-                  onClick={canMove ? () => bMove(i) : undefined}>
-                  <div className="battle-lane-tokens">
-                    {laneTokens[i].length === 0 ? <div style={{ opacity: 0.25, fontSize: 10 }}>·</div> : laneTokens[i].map(tok => renderRichToken(tok, canMove))}
-                  </div>
-                  <div className="battle-lane-label">{t.label}</div>
-                </div>;
-              })}
-            </div>
             <div className="battle-range-readout">
               <span>📍 Lane: <b>{["Vanguard","Front","Mid"][plLane] || "?"}</b></span>
               {tgtFoe && <span>🎯 Target: <b>{tgtFoe.name}</b> (dist {tgtDist})</span>}
               {tgtFoe && tgtDist === 1 && <span style={{ color: "#ffb066" }}>⚡ Point-blank bonus on melee</span>}
               {tgtFoe && tgtDist >= 3 && <span style={{ color: "#88c5ff" }}>🎯 Long-shot bonus on magic</span>}
               <span style={{ color: btl.moved ? "#9aa1b8" : "#ffd77a" }}>{btl.moved ? "✓ Moved this turn" : "↔ Move available"}</span>
+              <span style={{ color: "#9fb3ff", fontSize: 9 }}>· Click a hex tile to inspect or move</span>
             </div>
           </>;
         })()}
@@ -9304,11 +9297,18 @@ const buildGroupedBattleLog = (entries) => {
             const aUnits = arena.units || {};
             const units = [];
             const playerPos = aUnits.player || ps[0];
+            // Pass 13 — portraits on arena tiles. Player uses custom portrait
+            // (validated) or class portrait fallback; enemies use boss painted
+            // portrait when keyed, otherwise the element icon.
+            const _plPortrait = (pl?.portrait && isValidPortraitURL(pl.portrait))
+              ? pl.portrait.trim()
+              : classPortraitUrl(pl?.cid || cls?.id, pl?.sex);
             units.push({
               id: "player",
               kind: "player",
               label: pl?.nm || "You",
               ic: pl?.ic || cls?.ic || "🗡",
+              portraitSrc: _plPortrait,
               pos: playerPos,
               hpPct: Math.max(0, Math.min(100, (pl?.chp / Math.max(1, effSt(pl).hp)) * 100)),
               isTarget: false,
@@ -9319,17 +9319,20 @@ const buildGroupedBattleLog = (entries) => {
             }
             const allyPos = aUnits.ally || ps[2];
             if (ally && ally.hp > 0 && allyPos) {
-              units.push({ id: "ally", kind: "ally", label: ally.nm, ic: ally.ic || "🤝", pos: allyPos, hpPct: Math.max(0, Math.min(100, (ally.hp / Math.max(1, ally.mhp)) * 100)) });
+              const _allyPortrait = ally.cid ? classPortraitUrl(ally.cid, ally.sex) : null;
+              units.push({ id: "ally", kind: "ally", label: ally.nm, ic: ally.ic || "🤝", portraitSrc: _allyPortrait, pos: allyPos, hpPct: Math.max(0, Math.min(100, (ally.hp / Math.max(1, ally.mhp)) * 100)) });
             }
             livingFoes.forEach((e, i) => {
               const stored = (aUnits.enemies || {})[e.id];
               const slot = stored || es[i % es.length];
               if (!slot) return;
+              const _foePortrait = e.bossKey ? BOSS_PORTRAIT_PATH(e.bossKey) : (e.el ? ELEMENT_ICON_PATH(e.el) : null);
               units.push({
                 id: e.id,
                 kind: "enemy",
                 label: e.name,
                 ic: EL_IC[e.el] || "👾",
+                portraitSrc: _foePortrait,
                 pos: slot,
                 hpPct: Math.max(0, Math.min(100, (e.hp / Math.max(1, e.mhp)) * 100)),
                 isTarget: btlTarget === e.id,

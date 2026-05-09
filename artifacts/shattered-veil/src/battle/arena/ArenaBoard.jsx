@@ -89,9 +89,12 @@ export default function ArenaBoard({
     return m;
   }, [units]);
 
+  // Pass 13 — bigger hex tiles (was square 22-36px). Hex rendering uses
+  // odd-row offset + clip-path; tile size drives both width and height.
   const tileSize = isMobile
-    ? clamp(Math.floor(280 / arena.cols), 14, 22)
-    : clamp(Math.floor(560 / arena.cols), 22, 36);
+    ? clamp(Math.floor(380 / arena.cols), 26, 38)
+    : clamp(Math.floor(820 / arena.cols), 42, 64);
+  const rowOverlap = Math.round(tileSize * 0.18); // pull rows up so hexes tessellate
 
   const handleEnter = useCallback((x, y) => setHover({ x, y }), []);
   const handleLeave = useCallback(() => setHover(null), []);
@@ -133,17 +136,23 @@ export default function ArenaBoard({
             <div className="sv-arena-targeting-banner">{targetingHint}</div>
           )}
           <div
-            className={"sv-arena-grid" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "")}
+            className={"sv-arena-grid sv-arena-grid-hex" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "")}
             style={{
-              gridTemplateColumns: `repeat(${arena.cols}, ${tileSize}px)`,
-              gridAutoRows: `${tileSize}px`,
+              "--svh-tile": tileSize + "px",
+              "--svh-offset": Math.round(tileSize * 0.5) + "px",
+              "--svh-overlap": rowOverlap + "px",
             }}
             onMouseLeave={handleLeave}
           >
             {Array.from({ length: arena.rows }).map((_, y) => (
-              Array.from({ length: arena.cols }).map((__, x) => {
+              <div
+                key={"row_" + y}
+                className={"sv-arena-hex-row " + (y % 2 === 1 ? "is-odd" : "is-even")}
+                style={{ marginTop: y === 0 ? 0 : -rowOverlap }}
+              >
+              {Array.from({ length: arena.cols }).map((__, x) => {
                 const valid = arena.shape[y] && arena.shape[y][x] === 1;
-                if (!valid) return <div key={keyOf(x, y)} className="sv-arena-tile sv-arena-tile-void" />;
+                if (!valid) return <div key={keyOf(x, y)} className="sv-arena-tile sv-arena-tile-void" style={{ width: tileSize, height: tileSize }} />;
                 const k = keyOf(x, y);
                 const terrainKey = arena.terrainMap[k] || "normal";
                 const terrain = TERRAIN[terrainKey] || TERRAIN.normal;
@@ -205,6 +214,7 @@ export default function ArenaBoard({
                   <div
                     key={k}
                     className={cls}
+                    style={{ width: tileSize, height: tileSize }}
                     onMouseEnter={handleEnterCombined}
                     onClick={handleTileClick}
                   >
@@ -217,29 +227,44 @@ export default function ArenaBoard({
                         </span>
                       );
                     })}
-                    {tileUnits.map(u => (
-                      <span
-                        key={u.id}
-                        className={
-                          "sv-arena-unit " +
-                          (u.kind === "enemy" ? "is-enemy" : u.kind === "player" ? "is-player" : "is-friend") +
-                          (u.isTarget ? " is-target" : "") +
-                          (u.kind === "player" && veilbreakReady ? " is-primed" : "")
-                        }
-                        title={u.label}
-                      >
-                        <span className="sv-arena-unit-ic">{u.ic || (u.kind === "enemy" ? "👾" : "🗡")}</span>
-                        {Number.isFinite(u.hpPct) && (
-                          <span className="sv-arena-unit-hp">
-                            <span style={{ width: clamp(u.hpPct, 0, 100) + "%" }} />
-                          </span>
-                        )}
-                      </span>
-                    ))}
+                    {tileUnits.map(u => {
+                      const unitCls = "sv-arena-unit " +
+                        (u.kind === "enemy" ? "is-enemy" : u.kind === "player" ? "is-player" : "is-friend") +
+                        (u.isTarget ? " is-target" : "") +
+                        (u.kind === "player" && veilbreakReady ? " is-primed" : "");
+                      const fallbackGlyph = u.ic || (u.kind === "enemy" ? "👾" : "🗡");
+                      return (
+                        <span key={u.id} className={unitCls} title={u.label}>
+                          {/* Pass 13 — always render the icon underneath; the
+                              portrait <img> sits on top via absolute fill.
+                              If the image errors (or is missing), the icon
+                              remains visible. Mirrors the replit.md gotcha:
+                              "render the fallback first, then layer the
+                              portrait on top". */}
+                          <span className="sv-arena-unit-ic">{fallbackGlyph}</span>
+                          {u.portraitSrc && (
+                            <img
+                              src={u.portraitSrc}
+                              alt={u.label || ""}
+                              draggable={false}
+                              className="sv-arena-unit-portrait"
+                              referrerPolicy="no-referrer"
+                              onError={(ev) => { try { ev.currentTarget.style.display = "none"; } catch(_){} }}
+                            />
+                          )}
+                          {Number.isFinite(u.hpPct) && (
+                            <span className="sv-arena-unit-hp">
+                              <span style={{ width: clamp(u.hpPct, 0, 100) + "%" }} />
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                     {isRare && <span className="sv-arena-rare-glow" aria-hidden="true" />}
                   </div>
                 );
-              })
+              })}
+              </div>
             ))}
           </div>
           <div className="sv-arena-footer">

@@ -877,3 +877,21 @@ range identity defaults.
 - New CSS in `game.css`: `.sv-boss-intro-banner`, `.sv-boss-phase-pulse`, `.sv-boss-warning-telegraph`, `.sv-enemy-archetype-badge` (+ 12 archetype colour variants).
 - Audit doc: `docs/BATTLE_ENEMY_BOSS_REBALANCE_AUDIT.md` covers the per-boss table, gating rules, safeguards, and Pass 13+ risk list.
 - **Additive only** — no engine rewrite, no save-shape change, no rebalancing of existing skills/HP/damage. Existing AI helpers (`chooseEnemySkill`, `chooseBossSignatureSkill`, `BOSS_STYLE_BY_KEY`, `BOSS_PHASE_EFFECTS`, `mkOutpostBoss`, `mkRiftBoss`) all left intact.
+
+## v86 — Battle Rework Pass 13: Hex Arena Grid + Portraits on Tiles + UI Polish (Phase 1)
+- `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx`: square grid replaced with a row-based hex layout. New per-row flex containers with `is-odd` offset, negative `marginTop` (`rowOverlap = ~18% tile`) so hexes tessellate. Tile size formula bumped from `clamp(560/cols, 22, 36)` → `clamp(820/cols, 42, 64)` (mobile: `clamp(380/cols, 26, 38)`). New `sv-arena-grid-hex` modifier carries the layout; original square CSS path retained for safety.
+- Unit tokens now render `<img class="sv-arena-unit-portrait">` when the unit carries `portraitSrc`, with a fallback to the existing icon glyph. Image errors hide gracefully via `onError`.
+- `Game.jsx` units array (line ~9305): each unit now carries `portraitSrc` — player from `pl.portrait` (validated) → `classPortraitUrl(pl.cid, pl.sex)` fallback; ally from `classPortraitUrl(ally.cid, ally.sex)`; enemies from `BOSS_PORTRAIT_PATH(bossKey)` when keyed, otherwise `ELEMENT_ICON_PATH(el)`.
+- `Game.jsx` (line ~9070): top 5-lane HUD strip (`<div className="battle-lane">…Vanguard / Front / Mid / Skirmish / Backline</div>`) **removed**. The hex board is now the sole source for movement & target selection. Underlying `plLane` state, `bMove`, `renderRichToken`, and `openEntityInfoPopup` helpers are intentionally retained — combat damage formulas and dossier popups still consume them. Compact `battle-range-readout` pill kept below the field banner.
+- `game.css` Pass 13 block (additive, ~210 lines):
+  - Hex tile shape via `clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0 50%)` — flat-top hex.
+  - Tessellated row layout (`.sv-arena-hex-row.is-odd { margin-left: var(--svh-offset) }`).
+  - Painted parchment/navy radial gradient backdrop on `.sv-arena-grid-hex`.
+  - Pulsing glow rings for movement-valid, target-valid, target-selected, target tiles, plus animated `is-target` foe ring.
+  - Unit portrait fills the hex via `clip-path` + `object-fit: cover`; per-kind ring colours (player blue, enemy crimson, friend green, primed gold).
+  - Battle tabs (`.battle-tab.v66`) restyled — flex strip, gold "active" treatment, hover lift, mention badge in corner.
+  - `.battle-action-grid` upgraded to `repeat(auto-fill, minmax(150px, 1fr))` with hover lift + gold inner ring on action buttons.
+  - Layout overflow fix: `.battle-actions-card { max-height: 52vh; overflow-y: auto }` and same on `.battle-log-card` — stops cards from being cut off.
+  - Defensive `.battle-bg .battle-lane { display: none !important }` in case the lane HUD is rendered elsewhere.
+- **Additive only** — no changes to combat math, save shape, or arena coordinate system. Cartesian (x,y) coords still drive all engine math (movement range, LoS, AoE shapes); only the visual layer is hex.
+- **Phase 1 of Pass 13** — does NOT include AI-generated arena background images, full hex distance/AoE math overhaul, or per-class action card colour overhaul. Those are queued for Pass 13 Phase 2.

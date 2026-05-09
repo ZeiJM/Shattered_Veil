@@ -102,6 +102,16 @@ Lore-framed always-on global chat (a shared scrying basin — works in dungeons/
 - The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
 - Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
 
+## Battle Rework Pass 13 (v86) — Hex Arena Grid + Portraits on Tiles + UI Polish (Phase 1)
+
+Massive battle UI redesign — visual hex grid (offset rows + clip-path), portraits on tiles, removal of the top 5-lane HUD strip, larger arena tiles, layout overflow fixes, and cleaner action button chrome. **Additive only** — no save shape change, no engine math changes, no rebalance. Cartesian `(x,y)` coordinates still drive all combat (movement range, LoS, AoE); only the rendering layer is hex.
+
+- **`battle/arena/ArenaBoard.jsx`** — row-by-row hex layout (`.sv-arena-grid-hex` modifier). Tile size bumped from `clamp(560/cols, 22, 36)` → `clamp(820/cols, 42, 64)` (mobile `clamp(380/cols, 26, 38)`). Each unit now renders `<img class="sv-arena-unit-portrait">` from `unit.portraitSrc` (with icon fallback). Old square code path preserved for safety.
+- **`Game.jsx` units array** — each unit carries `portraitSrc`: player → `pl.portrait` (validated) or `classPortraitUrl(pl.cid, pl.sex)`; ally → `classPortraitUrl(ally.cid, ally.sex)`; enemy → `BOSS_PORTRAIT_PATH(bossKey)` or `ELEMENT_ICON_PATH(el)`.
+- **`Game.jsx` lane HUD removed** (line ~9070) — the bulky 5-tile Vanguard/Front/Mid/Skirmish/Backline strip is gone. Hex board is now the sole source for movement & targeting. `plLane`, `bMove`, `renderRichToken`, `openEntityInfoPopup` helpers retained — damage formulas and dossier popups still consume them. A compact `battle-range-readout` pill (lane + target distance + move availability + hex-click hint) lives where the strip was.
+- **`game.css` Pass 13 block** (additive, ~210 lines): clip-path hex tiles, painted parchment/navy radial-gradient backdrop, animated glow rings (move-valid, target-valid, target-selected, foe `is-target`), portrait `object-fit: cover` inside hex clip with per-kind ring colours. Restyled `.battle-tab.v66` (gold active state, hover lift, corner badge) and `.battle-action-grid` (`auto-fill minmax(150px, 1fr)`, hover lift + gold inner ring). Layout overflow fix: `.battle-actions-card { max-height: 52vh; overflow-y: auto }`. Defensive `.battle-bg .battle-lane { display: none !important }`.
+- **Phase 1 only** — does NOT include AI-generated arena background images, full hex-distance/AoE math overhaul, or per-class action card colour overhaul. Those land in Pass 13 Phase 2.
+
 ## Battle Rework Pass 12 (v85) — Enemy & Boss Identity Layer
 
 40 boss identities (20 outpost + 20 rift), 12 archetype families, 12 shared boss-field templates routed through the existing Pass 8 Field Clash engine, per-boss arena preference, and dramatic battle-log narration. **Additive only** — no engine rewrite, no save-shape change, no rebalance of existing skills/HP/damage. Existing AI helpers left intact (`chooseEnemySkill`, `chooseBossSignatureSkill`, `BOSS_STYLE_BY_KEY`, `BOSS_PHASE_EFFECTS`, `mkOutpostBoss`, `mkRiftBoss`).
