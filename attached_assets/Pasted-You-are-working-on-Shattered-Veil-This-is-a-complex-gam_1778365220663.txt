@@ -1,0 +1,541 @@
+You are working on Shattered Veil. This is a complex game. Be careful, surgical, and cost-conscious.
+
+TASK NAME:
+World Map UX Rework + Battle Arena Square-Tile Rebuild + Battle Command UI Rework + Range Tag Standardization
+
+BEFORE STARTING:
+Create or rely on a safe Replit checkpoint before making changes.
+
+CRITICAL RULES:
+- This is a focused frontend/system rework pass.
+- You may rewrite the WORLD MAP UI system and the BATTLE ARENA PRESENTATION / BATTLE ACTION UI system.
+- Preserve core game mechanics and data where possible.
+- Do not rewrite unrelated systems such as marriage, heirs, bloodmarks, backend, chat, account logic, economy, or non-battle world generation unless required for compatibility.
+- Do not remove movement, range, terrain, Veilbreak, tactical actions, items, or battle logs.
+- Do not copy code, layouts, names, text, or assets from any reference game.
+- You MAY replace the current battle hex presentation with a clean square-tile tactical presentation.
+- Use local SVG/CSS/gradient UI assets only. Do not depend on external assets or CDNs.
+- Prioritize mobile usability first, then desktop polish.
+
+FILES TO INSPECT FIRST:
+- artifacts/shattered-veil/src/Game.jsx
+- artifacts/shattered-veil/src/game.css
+- artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx if it exists
+- artifacts/shattered-veil/src/battle/arena/arenaEngine.js if it exists
+- artifacts/shattered-veil/src/battle/arena/arenaMaps.js if it exists
+- any world map UI components
+- any battle HUD/action components
+
+PRIMARY GOAL:
+The current world map and battle screen are visually messy, poorly spaced, and not mobile-friendly.
+
+This pass must:
+1. Condense the world screen above the map.
+2. Reliably center the world map around the player on mobile.
+3. Add long-press mobile tile info and hover/press details.
+4. Rework the world map presentation into cleaner square tiles.
+5. Replace the messy battle hex display with a clean square-tile tactical arena.
+6. Redesign the battle action buttons under the arena into a proper command dock/action sheet system.
+7. Standardize all player-facing range labels to Close Range, Mid Range, and Long Range.
+
+==================================================
+SECTION A — WORLD MAP FULL UX REWORK
+==================================================
+
+1. Redesign the world screen layout for mobile-first usability.
+
+Current problems:
+- too much wasted space above the map
+- HP/MP/fishing and other utility controls feel bulky and scattered
+- town/location/event info consumes too much vertical space
+- the map does not stay centered around the player
+- tile inspection is weak on mobile
+
+Rebuild the world page using this structure:
+
+A. Compact top ribbon / utility bar
+B. Condensed world summary card
+C. World map viewport
+D. Small contextual footer/help strip if needed
+
+2. Create a compact top ribbon.
+
+Replace bulky stacked controls with a tighter horizontal or wrapped compact control ribbon.
+
+Requirements:
+- HP, MP, fishing, and similar utility controls should become compact icon-button pills or mini cards
+- show icon + short label/value where needed
+- far less vertical height than now
+- visually consistent with the game’s dark fantasy theme
+- mobile-friendly tap targets
+- on desktop, can expand slightly
+- if there are 5+ controls, allow wrapping into 2 tight rows on narrow screens
+- avoid large blank gaps between controls
+
+3. Condense the world summary area.
+
+The section above the map should be much tighter.
+
+Requirements:
+- keep only the most important info visible by default:
+  - current area name
+  - area type
+  - coordinates
+  - nearby points of interest
+  - current event snippet
+- secondary info should be collapsible or tucked into compact rows
+- reduce vertical padding and oversized button heights
+- “Legend” and “Controls” should be compact chips/buttons or collapsible drawers, not giant blocks
+- Enter/Idle/main interaction button should be visually clear but not oversized
+- the world map should appear much sooner on mobile
+
+4. Always center the world map around the player on mobile.
+
+Implement reliable player-centering behavior.
+
+Requirements:
+- the visible map viewport should initially center on the player tile
+- after movement, keep the player within a comfortable center zone
+- if the player moves near viewport edges, recenter smoothly
+- do not constantly snap every render
+- avoid infinite effect loops
+- use refs and post-layout measurement safely
+- preserve desktop usability
+- add a visible “Center” or “Find Me” button if helpful
+
+Implementation suggestion:
+- use a scrollable map viewport container
+- center the player tile in the viewport after render and after movement
+- expose a helper such as centerWorldMapOnPlayer()
+- use requestAnimationFrame or a safe layout effect so measurements happen after render
+- center based on tile coordinates, tile size, container width, and container height
+
+5. Improve world map tile interaction.
+
+Add a proper tile inspector system.
+
+Requirements:
+- tap = normal selection/action if that behavior already exists
+- long-press on mobile = open tile info card
+- hover on desktop = tooltip preview
+- long-press duration around 500ms
+- cancel long-press if finger moves too much or touch ends early
+- tile info should show available data such as:
+  - tile type
+  - terrain
+  - coordinates
+  - landmark/town/resource/enemy/event
+  - explored/unexplored info if available
+- dismiss by tapping elsewhere or closing the popover
+- do not block movement unless needed
+
+Add helpers if useful:
+- useLongPress()
+- getTileInfo(tile)
+- openTileInfo(tile, source)
+- closeTileInfo()
+- handleTileLongPressStart(tile, event)
+- handleTileLongPressEnd()
+
+6. Improve the world map rendering system.
+
+The current world map is still visually messy. Rework the world map presentation so it feels cleaner and more legible.
+
+Requirements:
+- keep square tiles
+- improve tile readability and hierarchy
+- player tile must stand out immediately
+- important tiles should be distinct but not noisy
+- avoid visual clutter from too many tiny competing icons
+- use a cleaner tile art language
+- use consistent tile borders/frames
+- support different map shapes through:
+  - blocked/void/nonexistent cells
+  - irregular map footprints
+  - special terrain clusters
+- use a cleaner viewport/minimap feel without changing world progression logic
+
+7. Generate simple new world map UI visuals.
+
+Create local CSS/SVG treatments for:
+- compact utility icons
+- player marker
+- enemy/POI/resource markers
+- tile highlight states
+- tile info popover styling
+- compact legend icons
+- Center/Find Me button
+
+Do not add external image dependencies.
+
+==================================================
+SECTION B — BATTLE ARENA VISUAL SYSTEM REBUILD
+==================================================
+
+8. Replace the current messy battle arena presentation with a cleaner square-tile tactical arena.
+
+The current hex presentation is visually broken and ugly on mobile.
+Replace the BATTLE VISUAL GRID system with square tiles.
+
+Important:
+- preserve the underlying combat concepts where possible:
+  - movement
+  - skill ranges, displayed as Close Range / Mid Range / Long Range
+  - target areas
+  - destructible objects
+  - terrain bonuses
+  - Veilbreak/field effects
+- adapt them to square tactical tiles
+
+9. Build a new square-tile battle arena renderer.
+
+Requirements:
+- use square tiles in a CSS grid or equivalent
+- support variable arena sizes
+- support irregular shapes via blocked/void cells
+- support different terrain/arena themes
+- support objects/destructibles/cover
+- support movement highlights
+- support range previews
+- support area previews
+- support player/enemy token placement
+- support field overlays in a clean, readable way
+- support battlefield backgrounds clipped within the arena frame
+
+10. Make the arena visually clean and contained.
+
+Requirements:
+- arena must stay inside its panel
+- no broken overflow
+- no giant layers spilling across the page
+- all tiles align correctly
+- tokens align correctly
+- overlays are readable
+- background art is clipped properly inside the arena frame
+- mobile tile size should clamp down intelligently
+- if necessary, the battlefield panel may have its own internal scroll/pan behavior
+- prioritize clarity over spectacle
+- remove or disable the previous broken hex visual layer once the square grid works
+
+11. Improve battlefield readability.
+
+Requirements:
+- distinguish walkable, blocked, destructible, rare, field-affected, and special tiles clearly
+- player unit and enemy units should stand out
+- selected tile, hovered tile, valid target tiles, move range, and AoE preview should all have distinct visual states
+- rare terrain bonus tiles should be readable but not visually overwhelming
+- active field/Veilbreak overlays should feel premium, not chaotic
+- keep the arena beautiful but understandable
+
+==================================================
+SECTION C — BATTLE ACTION UI FULL REWORK
+==================================================
+
+12. Completely redesign the action controls under the battle map.
+
+Current problems:
+- buttons feel terrible
+- poor use of space
+- unclear information hierarchy
+- weak interaction model
+- bad mobile feel
+
+Replace the current system with a cleaner command interface.
+
+13. Build a new battle command dock.
+
+Create a below-arena “Command Dock” with large, clean, icon-supported buttons.
+
+Recommended top-level commands:
+- Combat
+- Veil Magic
+- Tactical
+- Items
+- Guard / Utility if appropriate
+
+Requirements:
+- each top-level command should be a clean button/tab with icon
+- mobile-friendly tap size
+- visually premium and consistent
+- selected state clear
+- disabled state clear
+- no cluttered tiny buttons
+- no giant empty cards with only icons and no purpose
+- use compact button text and tooltips for detail
+
+14. Build contextual action panels.
+
+When the player taps a top-level command:
+- open a contextual action panel / tray / sheet
+- show relevant abilities/cards/buttons in a cleaner layout
+- do not dump everything at once
+- action cards should be readable
+- show:
+  - name
+  - cost
+  - range tag
+  - shape
+  - short effect summary
+  - cooldown/status if applicable
+
+On mobile:
+- action panel can appear as a stacked section or bottom sheet
+- must remain readable and scrollable
+- should not crush the battle log or push essential content into unusable space
+
+15. Add press-and-hold / hover details for battle actions.
+
+Requirements:
+- long-press on mobile or hover on desktop shows richer action details
+- details may include:
+  - fuller description
+  - status effects
+  - scaling notes
+  - target rules
+  - interactions
+  - Veilbreak requirement contribution
+- do not force the player to permanently open a giant modal for basic understanding
+- keep it fast and ergonomic
+
+16. Clean up the battle top HUD.
+
+The current top section is overcrowded and breaks layout.
+
+Rebuild it into a better “Battle Status Header”.
+
+Requirements:
+- compact Veilbreak progress display
+- compact battle stat chips
+- Attunement clearly visible
+- key stats visible without overflow
+- chips wrap cleanly
+- move less important details into expandable/collapsible detail section if needed
+- keep Tactical Readout but make it cleaner and less bulky
+- no chips should spill out of the container
+- no top buttons should float outside the panel
+
+17. Improve battle log placement and presentation.
+
+Requirements:
+- battle log should remain visible and readable
+- it should not dominate the screen
+- it should have a scrollable contained panel
+- preserve Copy button if present
+- round headers and action summaries should be clearer
+- mobile font sizing and spacing should improve
+- no log card should overflow or overlap action controls
+
+18. Generate new UI assets for battle controls.
+
+Create local CSS/SVG treatments for:
+- command dock icons
+- action category icons
+- button states
+- tooltip/detail popovers
+- compact stat chips
+- field/Veilbreak indicators
+- tile highlight overlays
+- player/enemy token framing if needed
+
+Do not depend on external assets.
+
+==================================================
+SECTION D — RANGE TAG LANGUAGE STANDARDIZATION
+==================================================
+
+19. Standardize all player-facing range labels.
+
+All character, class, skill, enemy, and battle UI range labels should use Shattered Veil’s own range language.
+
+Use these player-facing range tags only:
+- Close Range
+- Mid Range
+- Long Range
+
+Do not use “melee” as a player-facing range tag.
+Do not use “ranged” as a player-facing range tag.
+Do not use “projectile” as a player-facing range tag unless describing a specific visual effect, not a range category.
+
+Range tag definitions:
+- Close Range: short-distance attacks and abilities, usually adjacent or near-adjacent tiles.
+- Mid Range: flexible skills that can target several tiles away.
+- Long Range: far-reaching skills, beams, shots, rituals, or large-distance abilities.
+
+20. Add a display helper for range tags.
+
+Add a helper if needed:
+getDisplayRangeTag(skillOrAction)
+
+Suggested mapping:
+- range 0–1 = Close Range
+- range 2–4 = Mid Range
+- range 5+ = Long Range
+- self-only actions = Self
+- global/arena-wide effects = Field / Arena-Wide, only for Veilbreaks, fields, or boss mechanics
+
+Important:
+- “Self” and “Arena-Wide” are allowed special cases.
+- Normal class/skill range identity should still use Close Range, Mid Range, or Long Range.
+- Do not break range calculations. This is mainly a player-facing wording and UI clarity change.
+
+21. Update UI text to use the new range tags.
+
+Update:
+- battle action cards
+- skill tooltips
+- class summaries
+- enemy/boss skill cards where range labels appear
+- manual/help text if it uses melee/ranged labels
+- any range badges in the battle UI
+
+If internal code uses variables like melee/ranged and renaming them is risky:
+- keep internal variable names for now
+- convert them through getDisplayRangeTag()
+- only change player-facing text
+
+==================================================
+SECTION E — RESPONSIVE DESIGN RULES
+==================================================
+
+22. Use a mobile-first responsive structure.
+
+Support at least:
+- ~390px width
+- ~430px width
+- ~768px width
+- desktop around 1200px+
+
+Requirements:
+- no severe horizontal overflow
+- no broken containment
+- no hidden essential controls
+- no unusable tiny tap targets
+- reduce empty space
+- keep map/battle focus high
+
+23. Add CSS safeguards.
+
+Add or update CSS for:
+- overflow handling
+- max-width and min-width
+- grid/flex layouts
+- responsive card stacking
+- compact padding on mobile
+- consistent typography
+- stable tile sizing using CSS variables and clamp()
+- smooth scroll containers where needed
+- popover positioning
+- command dock responsiveness
+
+==================================================
+SECTION F — IMPLEMENTATION SAFETY
+==================================================
+
+24. Preserve mechanics while reworking presentation.
+
+You may refactor UI components and presentation logic, but do not casually break:
+- movement
+- targeting
+- Veilbreak progress
+- field logic
+- tactical actions
+- item use
+- battle log generation
+- world movement
+- world tile actions
+
+25. If the current battle hex logic is deeply tied to mechanics:
+- create a compatibility layer or adapter
+- or safely migrate to square tile coordinates if feasible
+- but do not leave the system half-broken
+- if full migration is too risky, prioritize a clean square visual system with safe mapping from underlying coordinates
+
+26. Add helpers/components if needed.
+
+Possible new components/helpers:
+- WorldTopRibbon
+- WorldSummaryCard
+- WorldMapViewport
+- TileInfoPopover
+- BattleStatusHeader
+- BattleArenaGrid
+- BattleCommandDock
+- BattleActionSheet
+- useLongPress
+- centerViewportOnTile
+- getDisplayRangeTag
+- mapTileVisual helpers
+- battleTileVisual helpers
+
+Use good component boundaries if the codebase supports it.
+
+==================================================
+SECTION G — VALIDATION
+==================================================
+
+After changes, verify:
+
+WORLD:
+- game starts
+- world page loads
+- HP/MP/fishing/utility controls are more compact
+- world info above map is condensed
+- map appears higher on the page
+- world map centers around the player on mobile
+- moving around keeps player visible/centered
+- long-press on a tile opens info on mobile
+- hover or equivalent detail preview works on desktop if supported
+- player tile is visually obvious
+- map is cleaner and easier to read
+- no major horizontal overflow
+
+BATTLE:
+- battle starts
+- new square-tile battle arena renders
+- old broken hex visuals are gone or safely disabled
+- arena remains contained
+- square tiles align correctly
+- movement highlighting works
+- targeting highlighting works
+- player and enemy tokens display correctly
+- command dock works
+- Combat actions open correctly
+- Veil Magic actions open correctly
+- Tactical actions open correctly
+- Items open correctly if applicable
+- long-press/hover action details work
+- battle top HUD does not overflow
+- battle log is readable and scrollable
+- Steady Strike still works
+- Flurry Strike still works
+- Guard still works
+- at least one Veil Magic skill works
+- at least one Tactical action works
+- range labels display as Close Range, Mid Range, Long Range, Self, or Arena-Wide only
+- no player-facing “melee” or “ranged” range labels remain
+- no blank screen
+- no console errors
+
+==================================================
+SECTION H — REPORT BACK
+==================================================
+
+At the end, report:
+- every file modified
+- every new file created
+- how the world top section was condensed
+- how player-centering on the world map was implemented
+- how long-press tile info was implemented
+- whether the world map rendering system was refactored or rewritten
+- how the battle arena was rebuilt
+- whether hexes were fully replaced by square tiles or adapted through a compatibility layer
+- how the battle command dock works
+- how long-press/hover action detail works
+- how range tag standardization was implemented
+- what new icons/assets were generated locally
+- what viewport sizes were tested
+- what could not be tested
+- known remaining issues, if any
+
+IMPORTANT FINAL NOTE:
+This is a significant but focused UI/system rework pass for the world map and battle-screen experience. Prioritize clarity, containment, mobile usability, compact layout, premium presentation, and clean square-tile tactical readability. The result should feel like a much cleaner tactical RPG, not a pile of stacked boxes.
