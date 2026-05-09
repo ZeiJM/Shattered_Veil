@@ -1,0 +1,115 @@
+# Shattered Veil — Chronicles of the Rift
+
+A rich, single-page browser RPG with a 300×300 procedurally-generated world, 16 classes, 8 Bloodmarks, 5 Covenants, 7 Ranks, 16 elements, towns, rifts, turn-based combat, spellbooks, pets, equipment, dynasty succession, relic crafting, and story quests — all in one React component.
+
+> **Changelog history** lives in [`docs/changelog.md`](docs/changelog.md). This file holds the living architecture, systems, and preferences only.
+
+## Run & Operate
+
+- `pnpm --filter @workspace/shattered-veil run dev` — run the game (workflow: `artifacts/shattered-veil: web`)
+- `pnpm run typecheck` — full typecheck across all packages
+- `pnpm run build` — typecheck + build all packages
+
+## Stack
+
+- pnpm workspaces, Node.js 24, TypeScript 5.9
+- Game: React 18 + Vite 7 (port from `PORT` env, default 21515)
+- API server: Express (Veilcourt chat backend) — see `artifacts/api-server`
+- Saves: localStorage (3 slots)
+- Fonts: Cinzel (headers), Crimson Text (body narrative), Nunito (UI)
+
+## Where things live
+
+- `artifacts/shattered-veil/src/Game.jsx` — entire game logic + JSX (~8800 lines)
+- `artifacts/shattered-veil/src/game.css` — complete visual stylesheet (~5800 lines), parchment/navy/crimson aesthetic
+- `artifacts/shattered-veil/src/music.js` — procedural music + SFX engine
+- `artifacts/shattered-veil/src/App.tsx` — renders `<Game />`
+- `artifacts/shattered-veil/src/main.tsx` — React entry point
+- `artifacts/shattered-veil/public/` — painted assets (`title-veil.png`, `class/`, `boss/`, `el/`, `bm/`, `biome/`, `poi/`, `sky/`, `res/`, `ui/`, `forge-hall.png`, `swim-icon.png`, `battle-arena.png`, `battle-rift.png`, `battle-forest.png`)
+- `artifacts/api-server/src/routes/veilcourt.ts` — global chat + DM threads + roster + presence
+
+## Architecture decisions
+
+- Single massive component: all game state (player, map, battle, UI) lives in one `Game` component using many `useState`/`useCallback`/`useMemo` hooks.
+- Theme object `T` controls inline style colors throughout: parchment palette (`bg:#f5ead0`, `tx:#18120a`, etc.) for non-battle screens; battle screen forced dark via `!important` CSS.
+- No build-time CSS-in-JS — theme colors are applied inline via JSX, with `game.css` setting structural/layout rules and using `!important` to override inline styles for context-specific sections (`.battle-bg`, `.hud-shell`).
+- Map: 300×300 tile grid (90000 tiles), biome-based generation, stored in state.
+- Saves: JSON-serialized to `localStorage` (`sv_save_0/1/2`).
+
+## Game Systems
+
+### Bloodmarks
+- 8 ancestral lineage traits: Veil-Veined, Stormborn, Ashblood, Ironblooded, Rootbound, Voidtouched, Goldensoul, Mirrorborn — stat traits only, no passive (`BLOODMARKS` array, helpers `getBM(id)`).
+- 4 class-innate bloodmarks per class (`CLASS_BM_TEMPLATES` × `buildClassBloodmarks(cls)` → ids `cs_<classId>_<slot>`) — passive only, 0 stats.
+- Applied in `projectedEffStatsFor` (stat bonuses) and on passive-check hooks in battle.
+- Chosen at character creation (step 2 of 3-step flow). Skipping is allowed.
+- **Inherited by heirs** at succession with ~1-in-7 chance of mutation.
+- Displayed in HUD badge + Stats panel card. Painted PNG sigils in `public/bm/<id>.png`.
+
+### Ranks
+- 7 progression tiers: Wanderer → Acolyte → Disciple → Seeker → Warden → Archon → Fractured.
+- Defined in `RANKS` array, helpers `getRank(level)` / `getNextRankLevel(level)`.
+- Rank-up triggered in `giveXP` level-up loop; applies bonus stats directly to `pl.st`.
+
+### Covenants
+- 5 factions: Veilwatch, Iron Crown, Embersong Circle, Silkweb Guild, Tidecall Conclave.
+- Defined in `COVENANTS` array, helper `getCV(id)`. Joined/renounced at the **Covenant Hall** town service (200G to renounce).
+- Each generation starts without a covenant — must pledge anew.
+
+### Relic Crafting
+- 8 recipes using shards and fragments → consumable items at the **Relic Crafting** town service.
+- Recipes: Veil Tonic, Mana Crystal, Elixir of Iron, Void Draught, Cleansing Dust, Repel Incense, War Talisman, Void Shard Bomb.
+
+### Story Quests
+- 11-quest spine in playable order. Final chapter is `s7` Dream Devourer.
+- JJK-flavored milestones: `s8` Schoolyard Assessment (pledge a Covenant + win 3 sanctioned duels), `s9` Echoes Across the Veil (win 5 Duelist's Circle matches), `s10` The Inherited Technique (Warden grade + bloodmark expressions), `s11` Unfolded Territory (survive a domain expansion encounter).
+
+### Duelist's Circle (PvP-prep)
+- Town service `duel` (icon 🤺) — sanctioned 1-on-1 sparring vs an AI sorcerer. `pl.duelTier` (0+) scales opponent level + reward (gold/XP/relic shard). Wins progress `s8` (with Covenant) and `s9`.
+- Same client-side battle engine, same `startBattle([e], "duel")` entrypoint — only the opponent payload changes (AI rolled now, real-player snapshot later).
+- Server contract (TBD): match request `{ tier, covenant, level }` → opponent snapshot `{ class, stats, skills, bloodmark }`. Result POST: `{ winnerId, turns, finalEf, opponentId }` for ladder/rank updates.
+
+### The Veilcourt — global chat + DMs
+Lore-framed always-on global chat (a shared scrying basin — works in dungeons/rifts too).
+
+- **Backend** (`artifacts/api-server/src/routes/veilcourt.ts`): public messages (in-memory ring buffer of 200), `threads` Map for 1-on-1 and group DMs (1–8 participants, find-or-reuse by sorted participantsKey, leaving = dissolving server-side), presence/roster (online <90s window), name lookup, @mention resolution, 1.5s/player rate limit, zod-validated identity (portraits ≤800 chars, SVG rejected). Endpoints: `GET/POST /messages`, `GET /roster`, `POST /presence`, `GET /lookup?name=`, `GET /dm?pid=`, `POST /dm/thread`, `POST /dm/thread/:id/message`, `POST /dm/thread/:id/leave`.
+- **Frontend** (`Game.jsx`): single 3.5s open / 9s closed `setInterval` calls messages + DM + presence in lockstep. Stable identity in `localStorage["sv_chat_id"]`. Public + Private tabs in chat header. `chatThreads` (full thread objects) + `chatDmThreadId` (UUID) drive DM views. `chatDmReadUpTo` map persisted to `localStorage["sv_chat_thread_read"]` (keyed by threadId). @mentions render as `.veil-mention` pills (gold default, crimson `is-self`); messages with self-mention get `.is-mention-me` row treatment + separate `chatMentions` badge. `chatEl` mounted alongside `{popupEl}` at 5 sites.
+- **Future**: DB persistence (drizzle+postgres), per-covenant sub-channels (data model already carries `covenant`), WebSocket upgrade, moderation queue.
+
+## Visual Aesthetic (Veilbound-inspired)
+
+- **Background**: Deep navy/void starfield with crimson + gold aurora glows
+- **Panels**: Parchment gradient cards (`#f5ead0 → #ecdfc0`) with tan borders and dark ink text
+- **HUD**: Always dark navy (overrides parchment context via `!important`)
+- **Battle screen**: Dark navy/void with crimson borders, forced via `!important` on `.battle-bg .cd`
+- **Map screen**: Time-of-day painted sky background (`public/sky/h00.png ... h23.png`), refreshed every 60s, with crossfade. Phase indicator pill (Midnight / Sunrise / Golden hour / etc) sits inline beside the "World" heading.
+- **Fonts**: Cinzel 900 for titles, Cinzel 600 for section headers, Crimson Text for narrative, Nunito for UI
+
+## User preferences
+
+- Visual style: parchment + navy + crimson (Veilbound-inspired)
+- Keep single-artifact architecture — all in one `Game.jsx`
+- JJK-flavor lore (innate techniques, sorcerer grades, domain expansions / unfolded territory) but kept subtle — no curse-energy or curse-user terminology
+- End goal is a multiplayer PvP adventure — design new systems with PvP in mind even while single-player remains the default
+
+## Gotchas
+
+- `Game.jsx` exceeds Babel's 500KB deoptimization threshold — HMR is slower than normal, be patient after edits.
+- Battle screen colors must use `!important` in CSS to override inline `T.*` parchment colors.
+- `hud-shell` must use `!important` — it's inside `.shell-bg .cd` which would otherwise apply parchment styling.
+- `startSuccession` must be declared before line ~3550 (was a TDZ bug when first migrated).
+- `index.css` is intentionally minimal — no Tailwind (the original template had placeholder `red` values).
+- The local `covenant` useState is declared but the live covenant is tracked inside `pl.covenant` — safe to leave as-is.
+- Custom portrait fallback: always render the fallback first then layer `portraitOverlay(url)` on top; never short-circuit with `portrait ? <img> : <fallback>` — the overlay needs the fallback underneath in case the URL fails.
+
+## Future combat hooks (queued, not built)
+
+- Crit damage modifier from gear/passives (`critDamage` field), crit-on-status passives (Phoenix burns always crit, etc).
+- Per-skill `range` overrides (finer than the current el-based heuristic).
+- Veilcourt covenant sub-channels + WebSocket upgrade.
+- A11y on new clickable HUD spans (Enter/Space + `tabIndex`).
+
+## Pointers
+
+- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+- See [`docs/changelog.md`](docs/changelog.md) for the full v29–v74 implementation history.

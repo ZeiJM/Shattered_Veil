@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "m5mstvMVxL9Xm85Xdg8HR"
@@ -1092,3 +1091,9 @@ id = "nH1L3q7tjThcpdrfG2yXj"
 uri = "file://artifacts/shattered-veil/public/poi/dev.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "oHcuzrzx3IvN4lj_022nD"
+uri = "file://GAME_REVIEW_PACK.zip"
+type = "unspecified"
+title = "GAME_REVIEW_PACK.zip"

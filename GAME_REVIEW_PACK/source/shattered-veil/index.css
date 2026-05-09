@@ -1,0 +1,3 @@
+/* Game styles are in game.css — no Tailwind needed */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; padding: 0; }
