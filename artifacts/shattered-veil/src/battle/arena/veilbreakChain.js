@@ -132,15 +132,17 @@ export function buildRequirementsForUlt(ult) {
     }
   }
   if (total >= 4) {
+    // v100 — "Take the field" removed. Replaced with a meaningful action
+    // requirement (crit) that the player has to pursue intentionally.
     reqs.push({
-      id: "tactical_move",
-      label: "Take the field",
-      type: "useTacticalAction",
+      id: "crit_hit",
+      label: "Land a critical hit",
+      type: "crit",
       payload: {},
       fulfilled: false,
       fulfilledAtRound: null,
       fulfilledByAction: null,
-      description: "Use Tactical Step to reposition on the arena.",
+      description: "Land at least one critical hit this battle.",
     });
   }
   return reqs;

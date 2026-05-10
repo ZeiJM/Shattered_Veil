@@ -1186,3 +1186,31 @@ Comprehensive in-place upgrade to the battle action layer (Spec §A–§J). Save
 
 **Known non-regression**
 - Pre-existing typecheck error `App.tsx(1,18) TS7016 Could not find a declaration file for module './Game.jsx'` is unrelated to v96 (Game.jsx has always been imported as `.jsx` from the TypeScript entry). Vite/Babel run the project fine; HMR is unaffected.
+
+## v100 — Mobile UX repair pass (world swipe lock, Legend rebuild, Veilbreak detail popover, Break-the-Veil chip)
+
+Targeted fixes on top of v99 to address the remaining mobile pain points reported on a 390px phone.
+
+**World map**
+- **Touch-lock on the map grid.** `Game.jsx` swipe `useEffect` now also attaches a `touchmove` listener with `{passive:false}`. Once a finger has moved >12px on `.battle-world-grid` we set `locked=true` and call `e.preventDefault()` for the rest of the gesture, so the page no longer scrolls during a swipe-move. CSS adds `touch-action: none; overscroll-behavior: contain;` to the grid as belt-and-suspenders. Quick taps (≤12px) are unaffected — tile click and 520ms long-press still fire.
+- **Legend rebuilt as a controlled button.** The `<details>/<summary>` element was unreliable on mobile inside the rail flex container — the touch tap often hit the summary's pseudo-marker zone instead of the toggle. Replaced with `mapLegendOpen` `useState` + a real `<button>` (`.map-rail-legend-btn`) that toggles a sibling `.map-rail-legend-row-open` div. `data-noswipe="1"` on the wrapper prevents the swipe handler from claiming taps inside the legend popover.
+- **Find Me removed.** The map already auto-centers on the player every move; the helper was a confusing hint rather than a real feature. JSX node deleted; CSS gets a `display:none !important` safety rule.
+
+**Battle — Combat Ribbon polish**
+- **Whole Veilbreak chain is tappable.** `.battle-chain-line` now wears `sv-veilbreak-clickable`, gets `role="button"`/`tabIndex={0}`, and opens a richer detail popover via the new `veilbreakDetailText(ult, reqs, ready)` helper — name, element, effect, and a per-requirement ✓/○ list with the description hint, plus a final ready/locked status line. The inline ℹ button still works (stops propagation) and re-uses the same helper.
+- **Glowing "Break the Veil" launch chip.** When `pl.ult.ready`, the chain row appends `.sv-veilbreak-launch-chip` — a gold `Cinzel` chip with `svVbLaunchPulse` animation that fires `bAct("ult")` on tap. Disabled on enemy turns. Players never have to hunt for the Veilbreak inside the Combat tab once it's ready.
+- **Combat Ribbon further compacted.** ≤768px CSS standardises Field Attunement font to 9px across all children, tightens the chain to 9.5px / 3-4px padding, and slims the meta row gaps. ≤480px nudges everything one notch smaller.
+
+**Veilbreak chain change**
+- **"Take the field" requirement removed** from `buildRequirementsForUlt` (the chain's final slot for chain≥6). Replaced with `crit` ("Land a critical hit") — meaningful, intentional, and in line with the rest of the unordered-action set. `evaluateRequirementMatch` already handles `crit` via `ctx.wasCrit`, so no plumbing changes needed.
+
+**Files touched**
+- `artifacts/shattered-veil/src/Game.jsx` — `mapLegendOpen` state, swipe touchmove + touchcancel handlers, Legend JSX rewrite, Find Me JSX deletion, clickable Veilbreak chain wrapper, `sv-veilbreak-launch-chip` ready chip, new `veilbreakDetailText` helper.
+- `artifacts/shattered-veil/src/battle/arena/veilbreakChain.js` — `buildRequirementsForUlt` swaps tactical_move → crit_hit.
+- `artifacts/shattered-veil/src/game.css` — appended v100 block (~165 lines): `.battle-world-grid` touch-action, legend button chrome + open row, Find Me hide, clickable chain styles, launch-chip animation, ribbon compaction at 768/480.
+
+**Preserved**
+- Combat math, save shape, world generation, chat backend, all of v99's collapsible Stats/Readout layout, ArenaBoard fit math.
+
+**Known non-regression**
+- Pre-existing `App.tsx(1,18) TS7016 Could not find a declaration file for module './Game.jsx'` is unchanged from prior versions — Game.jsx has always been imported as `.jsx` from the TS entry. Vite serves fine, HMR works.

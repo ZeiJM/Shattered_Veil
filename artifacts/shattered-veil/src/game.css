@@ -9501,3 +9501,170 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-action-btn { font-size: 9px !important; }
 }
 /* end v99 */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v100 — MOBILE UX REPAIR PASS
+   - World map: lock touch (no page scroll during swipe), Legend rebuilt as a
+     state-driven button (replaces flaky <details>), Find Me button removed.
+   - Battle: clickable Veilbreak chain → detail popover, glowing
+     "Break the Veil" launch chip when ready, Combat Ribbon further compacted,
+     attunement font normalised, action picker tightened.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── World map: hard-disable browser pan-zoom on the grid so our own swipe
+   handler owns the gesture. Without this the page also scrolls during a
+   horizontal/vertical drag and the camera feels broken. */
+.battle-world-grid {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* ── Legend (rebuilt). Visually consistent with the Help button next to it. */
+.map-bg .map-rail-legend-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+}
+.map-bg .map-rail-legend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(40,28,18,0.92), rgba(28,20,14,0.92));
+  border: 1px solid rgba(242,196,92,0.45);
+  color: #f3e3b6;
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.map-bg .map-rail-legend-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.55), 0 0 12px rgba(242,196,92,0.35);
+  border-color: rgba(242,196,92,0.7);
+}
+.map-bg .map-rail-legend-btn:active { transform: translateY(0); }
+.map-bg .map-rail-legend-btn[aria-expanded="true"] {
+  background: linear-gradient(180deg, rgba(60,42,18,0.95), rgba(40,28,14,0.95));
+  border-color: rgba(242,196,92,0.85);
+}
+.map-bg .map-rail-legend-icon { font-size: 12px; line-height: 1; }
+.map-bg .map-rail-legend-label { flex: 1; text-align: left; }
+.map-bg .map-rail-legend-caret { font-size: 10px; opacity: 0.85; }
+
+.map-bg .map-rail-legend-row-open {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(20,14,10,0.85);
+  border: 1px solid rgba(242,196,92,0.28);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* ── Hide all legacy Find Me CSS / nodes if any stragglers remain. */
+.map-rail-find-me-btn { display: none !important; }
+
+/* ── Veilbreak — clickable strip + ready glow. */
+.battle-bg .battle-chain-line.sv-veilbreak-clickable {
+  border-radius: 8px;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+  position: relative;
+}
+.battle-bg .battle-chain-line.sv-veilbreak-clickable:hover {
+  background: rgba(242,196,92,0.06);
+  box-shadow: inset 0 0 0 1px rgba(242,196,92,0.22);
+}
+.battle-bg .battle-chain-line.sv-veilbreak-clickable.is-ready {
+  background: linear-gradient(90deg, rgba(242,196,92,0.10), rgba(242,196,92,0.18), rgba(242,196,92,0.10));
+  box-shadow: inset 0 0 0 1px rgba(242,196,92,0.55), 0 0 14px rgba(242,196,92,0.25);
+}
+
+/* "Break the Veil" launch chip — only rendered when ready. */
+.battle-bg .sv-veilbreak-launch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(242,196,92,0.85);
+  background: linear-gradient(180deg, #f3c75c, #c98a2a);
+  color: #1a0e02 !important;
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: svVbLaunchPulse 1.4s ease-in-out infinite;
+  white-space: nowrap;
+}
+.battle-bg .sv-veilbreak-launch-chip:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 16px rgba(242,196,92,0.75);
+}
+.battle-bg .sv-veilbreak-launch-chip:active { transform: translateY(1px); }
+.battle-bg .sv-veilbreak-launch-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  animation: none;
+  filter: grayscale(0.4);
+}
+@keyframes svVbLaunchPulse {
+  0%,100% { box-shadow: 0 0 6px rgba(242,196,92,0.5), 0 0 0 rgba(242,196,92,0.3); }
+  50%     { box-shadow: 0 0 18px rgba(242,196,92,0.95), 0 0 28px rgba(242,196,92,0.45); }
+}
+
+/* ── Compact Combat Ribbon — tighter top header on phones. */
+@media (max-width: 768px) {
+  /* Move the timer / round meta up next to the chain on the same row by
+     making them inline-flex with negligible vertical gap. */
+  .battle-bg .battle-info-meta {
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+    margin-top: 2px !important;
+    margin-bottom: 0 !important;
+  }
+  .battle-bg .battle-info-meta .tg {
+    font-size: 9px !important;
+    padding: 1px 5px !important;
+    line-height: 1.4 !important;
+  }
+  /* Standardise Field Attunement strip text size across both badges and the
+     surrounding label so it reads as one chip row. */
+  .battle-bg .sv-field-attunement-strip .sv-field-attunement-badge,
+  .battle-bg .sv-field-attunement-strip > * {
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+  }
+  /* Veilbreak chain — slightly larger so the player can tap-target it. */
+  .battle-bg .battle-info-card .battle-chain-line {
+    font-size: 9.5px !important;
+    padding: 3px 4px !important;
+  }
+  .battle-bg .sv-veilbreak-launch-chip {
+    font-size: 9px !important;
+    padding: 3px 9px !important;
+    margin-left: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-bg .map-rail-legend-btn { font-size: 9px; padding: 4px 8px; }
+  .map-bg .map-rail-legend-row-open { padding: 5px; gap: 3px; }
+  .battle-bg .sv-veilbreak-launch-chip {
+    font-size: 8.5px !important;
+    padding: 2px 7px !important;
+    margin-left: 4px !important;
+  }
+  .battle-bg .battle-info-card .battle-chain-line { font-size: 9px !important; }
+}
+/* end v100 */

@@ -1905,6 +1905,20 @@ function veilExpansionDetailText(ult) {
   return "🌟 " + ult.name + "\n\nElement: " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\nChain: " + chainText + "\n\nYour Motto is uttered before this Veilbreak is unleashed in battle.";
 }
 
+// v100 — In-battle Veilbreak detail popover. Shows the equipped Veilbreak's
+// name, element, effect, and the live state of every requirement (✓/○) so
+// the player understands exactly what's left before they can break the Veil.
+function veilbreakDetailText(ult, reqs, ready) {
+  if (!ult) return "No Veilbreak equipped.";
+  const effectLine = ult.fx ? ((FX(ult.fx)?.ic || "⚡") + " " + (FX(ult.fx)?.nm || ult.fx) + (ult.fxDur ? " · " + ult.fxDur + " Turns" : "")) : "No secondary effect";
+  const list = Array.isArray(reqs) ? reqs : [];
+  const reqLines = list.length
+    ? list.map(r => (r.fulfilled ? "✓ " : "○ ") + (r.label || r.id || "Requirement") + (r.description ? "\n   " + r.description : "")).join("\n")
+    : "No requirements (auto-ready).";
+  const status = ready ? "🌟 READY — tap “Break the Veil” to unleash." : "Locked — finish the open requirements to break the Veil.";
+  return "🌟 " + ult.name + "  ·  " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\n\nRequirements:\n" + reqLines + "\n\n" + status;
+}
+
 function petPassiveTemplate(el) {
   const map = {
     Fire:{ nm:"Cinder Instinct", bonus:"damage", mult:1.14 }, Water:{ nm:"Mist Guard", bonus:"support", mult:1.16 }, Ice:{ nm:"Frostbite Rhythm", bonus:"fx", mult:1.12 }, Lightning:{ nm:"Quick Charge", bonus:"speed", mult:1.18 },
@@ -3553,6 +3567,9 @@ function Game() {
   // so Zone A stays short and the arena gets more vertical room.
   const [battleStatsOpen, setBattleStatsOpen] = useState(false);
   const [battleReadoutOpen, setBattleReadoutOpen] = useState(false);
+  // v100 — controlled state for the world Legend dropdown (replaces the
+  // <details> element that was unreliable on mobile inside the rail flex).
+  const [mapLegendOpen, setMapLegendOpen] = useState(false);
   // BIG ARENA FOUNDATION — collapsed state for the new battlefield preview panel.
   const [arenaCollapsed, setArenaCollapsed] = useState(false);
   // Pass 3 — Tactical Step movement mode (player picks a destination tile on the arena).
@@ -4786,26 +4803,52 @@ function Game() {
     // a swipe move. Long-press tile info still wins (timer fires at 520ms
     // on the tile child element; we early-exit if it has fired). Modal/popup
     // open also early-exits (popup overlay covers the grid above us).
+    let locked = false;
     const start = (e) => {
       if (popup) return;
-      if (e.target && (e.target.closest('button') || e.target.closest('[data-noswipe="1"]'))) return;
+      if (e.target && (e.target.closest('button') || e.target.closest('a') || e.target.closest('[data-noswipe="1"]'))) return;
       const t = e.touches ? e.touches[0] : e;
-      sx = t.clientX; sy = t.clientY; active = true;
+      sx = t.clientX; sy = t.clientY; active = true; locked = false;
+    };
+    // v100 — Touch-lock. Once a finger has moved >12px on the map we treat
+    // it as a swipe gesture and call preventDefault so the page doesn't
+    // also scroll. Below the threshold we do nothing, so quick taps still
+    // hit tile onClick / long-press handlers on the children. {passive:false}
+    // is required for preventDefault to actually cancel page scroll.
+    const moveTouch = (e) => {
+      if (!active) return;
+      const t = e.touches ? e.touches[0] : e;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (!locked && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) {
+        locked = true;
+      }
+      if (locked && e.cancelable) e.preventDefault();
     };
     const end = (e) => {
       if (!active) return; active = false;
-      if (tileLongPressFiredRef.current) return; // long-press tile info just fired — don't also move.
-      if (popup) return;
+      if (tileLongPressFiredRef.current) { locked = false; return; }
+      if (popup) { locked = false; return; }
       const t = e.changedTouches ? e.changedTouches[0] : e;
       const dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) < 38 && Math.abs(dy) < 38) return;
+      locked = false;
+      // v100 — lowered from 38→20 so the dead-zone between "lock page scroll"
+      // (12px) and "commit a move" is only 8px, not 26. Keeps tap vs swipe
+      // discrimination intact while making swipes feel responsive.
+      if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return;
       if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0);
       else move(0, dy > 0 ? 1 : -1);
     };
     el.addEventListener("touchstart", start, {passive:true});
+    el.addEventListener("touchmove", moveTouch, {passive:false});
     el.addEventListener("touchend", end, {passive:true});
-    return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchend", end); };
-  }, [scr, move]);
+    el.addEventListener("touchcancel", end, {passive:true});
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", moveTouch);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
+  }, [scr, move, popup]);
 
   useEffect(() => {
     const el = subSwipeRef.current;
@@ -9068,36 +9111,39 @@ const buildGroupedBattleLog = (entries) => {
                 <div>{paidRumor}</div>
               </div>}
             </div>
-            <details className="map-legend-details map-rail-legend"><summary className="map-legend-toggle">📖 Legend</summary><div className="map-legend-row">{[
-              {k:"beast", lbl:"Beast"},
-              {k:"dev", lbl:"Roaming Boss"},
-              {k:"hostile", lbl:"Camp"},
-              {k:"den", lbl:"Den"},
-              {k:"treasure", lbl:"Loot"},
-              {k:"outpost", lbl:"Outpost"},
-              {k:"rift", lbl:"Rift"},
-              {k:"ruin", lbl:"Ruin"},
-              {k:"shrine", lbl:"Shrine"},
-              {k:"town", lbl:"Town"},
-            ].map(function(item){return <span key={item.lbl} className="legend-pill legend-pill-art"><span className="legend-pill-art-img" style={{ backgroundImage: `url('${poiArtUrl(item.k)}')` }} /><span className="legend-pill-art-lbl">{item.lbl}</span></span>;})}</div></details>
+            {/* v100 — Legend rebuilt as a controlled state-driven dropdown.
+                The previous <details> element was sometimes unreachable on
+                mobile inside the rail flex container (touch tap hit the
+                summary's pseudo-marker zone instead of the toggle). A real
+                <button> is rock-solid and clearly stops swipe propagation. */}
+            <div className="map-rail-legend-wrap" data-noswipe="1">
+              <button
+                type="button"
+                className="map-rail-legend-btn"
+                aria-expanded={mapLegendOpen}
+                onClick={(ev) => { ev.stopPropagation(); setMapLegendOpen(v => !v); }}
+              >
+                <span className="map-rail-legend-icon">📖</span>
+                <span className="map-rail-legend-label">Legend</span>
+                <span className="map-rail-legend-caret">{mapLegendOpen ? "▾" : "▸"}</span>
+              </button>
+              {mapLegendOpen && <div className="map-legend-row map-rail-legend-row-open">{[
+                {k:"beast", lbl:"Beast"},
+                {k:"dev", lbl:"Roaming Boss"},
+                {k:"hostile", lbl:"Camp"},
+                {k:"den", lbl:"Den"},
+                {k:"treasure", lbl:"Loot"},
+                {k:"outpost", lbl:"Outpost"},
+                {k:"rift", lbl:"Rift"},
+                {k:"ruin", lbl:"Ruin"},
+                {k:"shrine", lbl:"Shrine"},
+                {k:"town", lbl:"Town"},
+              ].map(function(item){return <span key={item.lbl} className="legend-pill legend-pill-art"><span className="legend-pill-art-img" style={{ backgroundImage: `url('${poiArtUrl(item.k)}')` }} /><span className="legend-pill-art-lbl">{item.lbl}</span></span>;})}</div>}
+            </div>
             <button className="map-rail-help-btn" type="button" title="Controls" onClick={() => setPopup({ text: "🎮 Controls\n\n• WASD or Arrow Keys — step one tile\n• Click any tile — auto-walk to it\n• Double-click a POI — walk there and enter on arrival\n• Space — Enter/Interact with the POI on your current tile\n• Action button (left rail) — context-aware: Enter, Interact, Fish, or Stop auto-walk\n• Esc — close most popups", choices: [{ label: "Got it", action: () => setPopup(null) }] })}>? Controls</button>
-            {/* v98 — mobile camera helper. The map is always rendered centered
-                on player (15×9 viewport, hfX=7/hfY=4). On mobile the map is
-                pushed below the rail; this scrolls it back into view so the
-                player tile is visibly centered on the screen. */}
-            <button
-              className="map-rail-find-me-btn"
-              type="button"
-              title="Center the map viewport on your character"
-              onClick={() => {
-                try {
-                  const el = swipeRef && swipeRef.current;
-                  if (el && typeof el.scrollIntoView === "function") {
-                    el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
-                  }
-                } catch (_e) { /* no-op */ }
-              }}
-            >🎯 Find Me</button>
+            {/* v100 — Find Me removed. The map already auto-centers on the
+                player every move; the helper button was a confusing UI hint
+                rather than a real feature. Removed entirely. */}
           </aside>
           <div className="map-main-area">
           <div ref={swipeRef} className="battle-world-grid" style={{ display: "grid", gridTemplateColumns: "repeat(" + VW + ",1fr)", gap: 1, marginBottom: 0, width: "100%", background: T.bg, borderRadius: 6, overflow: "hidden", border: "1px solid " + T.bd, animation: "mapMove .15s ease" }} key={pos.x + "," + pos.y}>
@@ -9308,8 +9354,22 @@ const buildGroupedBattleLog = (entries) => {
                     const _ready = !!pl.ult.ready;
                     const _activeField = btl?.activeField || null;
                     return <>
-                      <div className={"battle-chain-line" + (_ready ? " is-ready" : "")} style={{ whiteSpace: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-                        <span className="tg" style={{ background: _ready ? T.gd + "22" : T.c2, color: _ready ? T.gd : T.dm, marginRight: 4 }}>{_vbSum.done + "/" + _vbSum.total}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={() => setPopup({ text: veilExpansionDetailText(pl.ult) })}>ℹ</button><span style={{ color: T.dm }}> — </span>
+                      {/* v100 — Whole chain line is now a clickable strip
+                          that opens a Veilbreak detail popover (name, effect,
+                          requirement state, ready/locked). The inline ℹ
+                          button still works (stopPropagation). When ready,
+                          a glowing "Break the Veil" launch chip is appended
+                          and fires bAct("ult") on tap so the player never
+                          has to dig for it. */}
+                      <div
+                        className={"battle-chain-line sv-veilbreak-clickable" + (_ready ? " is-ready" : "")}
+                        style={{ whiteSpace: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch", cursor: "pointer" }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(ev) => { if (ev.target.closest && ev.target.closest('button')) return; setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); }}
+                        onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); } }}
+                      >
+                        <span className="tg sv-vb-progress-tag" style={{ background: _ready ? T.gd + "22" : T.c2, color: _ready ? T.gd : T.dm, marginRight: 4 }}>{_vbSum.done + "/" + _vbSum.total}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button type="button" className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={(ev) => { ev.stopPropagation(); setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); }}>ℹ</button><span style={{ color: T.dm }}> — </span>
                         {_vbReqs.map((r, i) => {
                           const meta = VB_REQ_TYPES[r.type] || { ic: "✦" };
                           const stepCls = "veilbreak-req-step" + (_ready ? " is-ready" : r.fulfilled ? " is-complete" : "");
@@ -9318,6 +9378,13 @@ const buildGroupedBattleLog = (entries) => {
                             <span className="vbqs-label">{r.label}</span>
                           </span>;
                         })}
+                        {_ready && <button
+                          type="button"
+                          className="sv-veilbreak-launch-chip"
+                          disabled={!isPT}
+                          onClick={(ev) => { ev.stopPropagation(); if (isPT) bAct("ult"); }}
+                          title={isPT ? "Unleash your Veilbreak" : "Wait for your turn"}
+                        >🌟 Break the Veil</button>}
                       </div>
                       {_activeField && <div className={"sv-veilbreak-field-banner sv-arena-field-" + (_activeField.visualTheme || "void")} style={{ marginTop: 3 }}>
                         <span className="sv-vfb-name">✦ Active Field: {_activeField.fieldName}</span>
