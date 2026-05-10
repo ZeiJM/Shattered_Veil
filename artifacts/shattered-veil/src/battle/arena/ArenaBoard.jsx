@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useLayoutEffect, useEffect } from "react";
 import {
   TERRAIN,
   OBJECTS,
@@ -108,9 +108,51 @@ export default function ArenaBoard({
   // disabled here in favor of a clean square grid — coords were already
   // cartesian (movement, range, LoS, AoE), so this is a render-only
   // change. Hex CSS is preserved at game.css L6981+ for fallback.
-  const tileSize = isMobile
-    ? clamp(Math.floor(380 / arena.cols), 26, 40)
-    : clamp(Math.floor(820 / arena.cols), 44, 64);
+  // v97 (Hard Repair Pass §D) — fit-to-container tile sizing. Replaces the
+  // old hard-coded 380/820 width assumptions with a real ResizeObserver on
+  // the panel. The grid now genuinely fills its card and tokens never clip.
+  const wrapRef = useRef(null);
+  const [boxW, setBoxW] = useState(0);
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const node = wrapRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      const w = node.clientWidth;
+      if (w && Math.abs(w - boxW) > 1) setBoxW(w);
+    };
+    measure();
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(measure);
+      ro.observe(node);
+    } else {
+      window.addEventListener("resize", measure);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      else window.removeEventListener("resize", measure);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Reserve a sensible viewport-height ceiling so the grid never grows
+  // past the visible card on tall arenas. Falls back to the legacy clamp
+  // until the panel has measured itself.
+  const _vh = (typeof window !== "undefined" && window.innerHeight) ? window.innerHeight : 720;
+  const _maxBoardH = isMobile
+    ? Math.min(_vh * 0.46, 360)
+    : Math.min(_vh * 0.56, 560);
+  const _availW = boxW > 0 ? Math.max(0, boxW - 12) : (isMobile ? 360 : 800);
+  const _byW = Math.floor(_availW / Math.max(1, arena.cols));
+  const _byH = Math.floor(_maxBoardH / Math.max(1, arena.rows));
+  const _measured = Math.min(_byW, _byH);
+  const _floor = isMobile ? 22 : 28;
+  const _ceil  = isMobile ? 46 : 72;
+  const tileSize = boxW > 0
+    ? clamp(_measured, _floor, _ceil)
+    : (isMobile
+        ? clamp(Math.floor(380 / arena.cols), 26, 40)
+        : clamp(Math.floor(820 / arena.cols), 44, 64));
   const rowOverlap = 0; // square layout — no row tessellation overlap.
 
   const handleEnter = useCallback((x, y) => setHover({ x, y }), []);
@@ -123,7 +165,7 @@ export default function ArenaBoard({
   const hoverInRange = hover ? moveRangeKeys.has(keyOf(hover.x, hover.y)) : false;
 
   return (
-    <div className={"sv-arena-panel cd " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (enemyField ? " sv-arena-enemy-field-active sv-arena-enemy-field-" + (enemyField.theme || "void") : "") + (fieldClash && fieldClash.active ? " sv-arena-clash-" + fieldClash.outcome : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
+    <div ref={wrapRef} className={"sv-arena-panel cd sv-arena-panel-fit " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (enemyField ? " sv-arena-enemy-field-active sv-arena-enemy-field-" + (enemyField.theme || "void") : "") + (fieldClash && fieldClash.active ? " sv-arena-clash-" + fieldClash.outcome : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
       <div className="sv-arena-head">
         <div className="sv-arena-title">
           <span className="sv-arena-eyebrow">Battlefield Foundation</span>

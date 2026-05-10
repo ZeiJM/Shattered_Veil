@@ -8832,3 +8832,207 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .sv-action-card-intent-bar { height: 1px; bottom: 1px; }
   .sv-arena-card-badge.is-intent { font-size: 7px; padding: 0 4px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v97 — HARD REPAIR PASS
+   Goals: (B) compact battle/world headers, (D) ArenaBoard genuinely fills
+   its container, (E) battlefield bg painted behind grid, (G) action card
+   grid no longer awkward to scroll on mobile, (A) world map rail stacks as
+   a horizontal strip on phones so the player tile reads visibly centered.
+   No combat math / save shape / handler signatures touched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── (D) Arena fit-to-container ─────────────────────────────────────────── */
+.sv-arena-panel.sv-arena-panel-fit {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 8px 10px 10px !important;
+  margin-bottom: 6px !important;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-head {
+  margin-bottom: 4px !important;
+  gap: 4px !important;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-eyebrow {
+  font-size: 8px !important; letter-spacing: 0.08em; opacity: 0.8;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-name {
+  font-size: 12px !important;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-tag {
+  font-size: 8px !important; padding: 1px 5px !important; line-height: 1.45;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-toggle {
+  font-size: 8px !important; padding: 2px 6px !important;
+}
+/* Grid centers within the panel and never overflows. */
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq {
+  margin: 0 auto !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  padding: 4px !important;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq .sv-arena-hex-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 2px;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq .sv-arena-hex-row + .sv-arena-hex-row {
+  margin-top: 2px !important;
+}
+/* Tokens stay inside their square no matter the size. */
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-tile {
+  position: relative;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq .sv-arena-unit {
+  width: 92% !important; height: 92% !important;
+  left: 4% !important; top: 4% !important;
+  position: absolute !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq .sv-arena-unit-portrait {
+  width: 100% !important; height: 100% !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+}
+
+/* ── (E) Battlefield background — keep painted bg visible behind tiles ──── */
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq.sv-arena-grid-has-bg {
+  position: relative;
+  isolation: isolate;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq.sv-arena-grid-has-bg::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background-image: var(--sv-arena-bg-img, none);
+  background-size: cover; background-position: center;
+  opacity: 0.32; filter: saturate(0.95) contrast(1.05);
+  pointer-events: none;
+}
+.sv-arena-panel.sv-arena-panel-fit .sv-arena-grid.sv-arena-grid-sq .sv-arena-hex-row {
+  position: relative; z-index: 1;
+}
+
+/* ── (B) Compact battle top header ──────────────────────────────────────── */
+.battle-bg .battle-combat-title {
+  font-size: 11px !important;
+  margin-bottom: 3px !important;
+  letter-spacing: 0.32em;
+  opacity: 0.85;
+}
+.battle-bg .battle-actions-card {
+  padding: 6px 8px !important;
+}
+.battle-bg .battle-turn-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* ── (G) Action card grid — paged, no cramped scroll on mobile ─────────── */
+.battle-bg .battle-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)) !important;
+  gap: 6px !important;
+  padding: 2px !important;
+  align-content: start;
+}
+.battle-bg .battle-action-card-wrap {
+  min-width: 0 !important;
+  display: flex; flex-direction: column;
+}
+.battle-bg .battle-action-btn {
+  min-height: 70px;
+  padding: 6px 6px 7px !important;
+  border-radius: 8px !important;
+}
+.battle-bg .battle-action-btn > div { word-break: keep-all; hyphens: none; }
+@media (max-width: 480px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+  .battle-bg .battle-action-btn { min-height: 64px; }
+  .sv-arena-panel.sv-arena-panel-fit { padding: 6px 6px 8px !important; }
+  .sv-arena-panel.sv-arena-panel-fit .sv-arena-name { font-size: 11px !important; }
+}
+@media (min-width: 481px) and (max-width: 768px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── (A) Mobile world rail collapses to a strip above the map ──────────── */
+@media (max-width: 720px) {
+  .map-bg .page-panel {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto 1fr !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+  }
+  .map-bg .map-side-rail {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+    padding: 0 !important;
+  }
+  .map-bg .map-main-area {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+  }
+  .map-bg .map-side-rail > .rail-action-btn {
+    flex: 1 1 100%;
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+  }
+  .map-bg .map-side-rail > .map-rail-quick {
+    flex: 1 1 36%;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  .map-bg .map-side-rail > .map-rail-tile {
+    flex: 2 1 60%;
+    padding: 4px 6px !important;
+    border-radius: 8px;
+    background: rgba(20,16,38,0.55);
+  }
+  .map-bg .map-side-rail > .map-rail-compass,
+  .map-bg .map-side-rail > .veil-quick-open-btn,
+  .map-bg .map-side-rail > .map-rail-events,
+  .map-bg .map-side-rail > .map-rail-meta {
+    flex: 1 1 48%;
+    min-width: 0;
+  }
+  .map-bg .map-side-rail > .map-rail-legend,
+  .map-bg .map-side-rail > .map-rail-help-btn { flex: 1 1 48%; margin-top: 0 !important; }
+  .map-bg .battle-world-grid {
+    max-height: min(54dvh, 460px) !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ── Targeting preview color tokens (Spec §H) — gentle nudges ──────────── */
+.sv-arena-grid.is-fx-damage    .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(220, 80, 80, 0.55), 0 0 8px rgba(220, 80, 80, 0.35);
+}
+.sv-arena-grid.is-fx-heal      .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(120, 220, 140, 0.55), 0 0 8px rgba(120, 220, 140, 0.35);
+}
+.sv-arena-grid.is-fx-veilbreak .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(255, 200, 90, 0.65), 0 0 10px rgba(255, 200, 90, 0.45);
+}
+.sv-arena-grid.is-fx-object    .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(255, 150, 80, 0.55), 0 0 8px rgba(255, 150, 80, 0.35);
+}
+/* end v97 */
