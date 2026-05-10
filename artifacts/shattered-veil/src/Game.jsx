@@ -12,6 +12,14 @@ import {
   describeShape as arenaDescribeShape,
   describeTarget as arenaDescribeTarget,
 } from './battle/arena/arenaTargeting.js';
+// v96 — Spec §C/§D/§F: intent classification + effect-tag shim + click validation.
+import {
+  getActionIntent as v96Intent,
+  getEffectTags as v96EffectTags,
+  describeEffectTags as v96DescribeTags,
+  getIntentBorderColor as v96BorderColor,
+  validateClickedUnit as v96ValidateUnit,
+} from './battle/actionIntent.js';
 import {
   getTerrainKeyAt as arenaGetTerrainKeyAt,
   getTerrainBonusForUnit as arenaGetTerrainBonusForUnit,
@@ -5068,6 +5076,29 @@ function Game() {
   const confirmArenaTarget = useCallback((tile) => {
     const t = arenaTargeting;
     if (!t || !btl?.arena) { setArenaTargeting(null); return; }
+    // v96 (Spec §F.19) — validate the click against the action's target
+    // profile BEFORE committing. Bail out with a clear notify on invalid.
+    const meta = arenaActionMetaFor(t.act, t.idx);
+    if (meta) {
+      const enemiesById0 = btl.arena.units?.enemies || {};
+      const aUnits0 = btl.arena.units || {};
+      let clickedKind = "tile";
+      if (aUnits0.player && aUnits0.player.x === tile.x && aUnits0.player.y === tile.y) clickedKind = "player";
+      else if (aUnits0.ally && aUnits0.ally.x === tile.x && aUnits0.ally.y === tile.y) clickedKind = "ally";
+      else if (aUnits0.pet && aUnits0.pet.x === tile.x && aUnits0.pet.y === tile.y) clickedKind = "pet";
+      else {
+        Object.values(enemiesById0).forEach(p => {
+          if (p && p.x === tile.x && p.y === tile.y) clickedKind = "enemy";
+        });
+      }
+      if (clickedKind !== "tile") {
+        const v = v96ValidateUnit(clickedKind, meta);
+        if (!v.ok) {
+          notify(v.reason || "Invalid target.");
+          return; // keep targeting active so player can re-aim
+        }
+      }
+    }
     // If a real enemy stands on the target tile, lift its id into the
     // aim-override ref. bAct reads this ref synchronously at the top of
     // its body so closures don't need to see the latest btlTarget state.
@@ -9457,6 +9488,7 @@ const buildGroupedBattleLog = (entries) => {
             let losBlockedKeys = null;
             let selectedTargetKey = null;
             let targetingHint = null;
+            let targetingFx = null; // v96 — Spec §D color foreshadowing.
             if (arenaTargeting && isPT && aUnits.player) {
               try {
                 const meta = arenaActionMetaFor(arenaTargeting.act, arenaTargeting.idx);
@@ -9472,7 +9504,22 @@ const buildGroupedBattleLog = (entries) => {
                   affectedKeys = new Set(affected.map(t => t.x + "," + t.y));
                   const shapeLbl = arenaDescribeShape(meta);
                   const tgtLbl = arenaDescribeTarget(meta);
-                  targetingHint = "Aim — " + shapeLbl + " · " + tgtLbl + (meta.requiresLineOfSight ? " · needs line of sight" : "");
+                  // v96 — derive intent for the v95 .is-fx-* preview color.
+                  let _payload = null;
+                  if (arenaTargeting.act === "skill") {
+                    const _list = pl ? pl.skills.filter(s => s.equipped && s.unlocked) : [];
+                    _payload = _list[arenaTargeting.idx] || null;
+                  } else if (arenaTargeting.act === "copy") {
+                    _payload = copied || null;
+                  } else if (arenaTargeting.act === "ult") {
+                    _payload = pl?.ult || null;
+                  } else if (arenaTargeting.act === "strike" || arenaTargeting.act === "w2") {
+                    _payload = arenaTargeting.act === "w2" ? eq.w2 : (eq.w1 || eq.w2);
+                  }
+                  const _intent = v96Intent(arenaTargeting.act, meta, _payload);
+                  targetingFx = _intent;
+                  const _tagsTxt = v96DescribeTags(v96EffectTags(arenaTargeting.act, meta, _payload));
+                  targetingHint = "Aim — " + shapeLbl + " · " + tgtLbl + (meta.requiresLineOfSight ? " · needs line of sight" : "") + (_tagsTxt ? " · " + _tagsTxt : "");
                 }
               } catch (e) { targetingActive = false; }
             }
@@ -9519,6 +9566,12 @@ const buildGroupedBattleLog = (entries) => {
                 onTargetSelect={targetingActive ? confirmArenaTarget : null}
                 onTargetHover={targetingActive ? previewArenaTarget : null}
                 targetingHint={targetingHint}
+                targetingFx={targetingFx}
+                onInvalidTargetClick={targetingActive ? (info) => {
+                  const meta2 = arenaActionMetaFor(arenaTargeting.act, arenaTargeting.idx);
+                  const v = v96ValidateUnit(info?.kind, meta2);
+                  notify(v.reason || "Invalid target.");
+                } : null}
                 onUnitClick={(u) => {
                   // Pass 15 — tap any unit on the hex board to open a
                   // dossier popup. Tapping a fresh enemy just sets target;
@@ -9645,14 +9698,21 @@ const buildGroupedBattleLog = (entries) => {
                               }
                             }
                           } catch (e) { terrainBadge = null; }
+                          // v96 — intent dot + effect-tag micro-summary on each card.
+                          const _intent = v96Intent("skill", m, sk);
+                          const _intentColor = v96BorderColor(_intent);
                           return (
+                          <>
                           <div className="sv-arena-card-badges">
+                            <span className="sv-arena-card-badge is-intent" style={{ background: _intentColor + "22", color: _intentColor, borderColor: _intentColor + "55" }}>{_intent.charAt(0).toUpperCase() + _intent.slice(1)}</span>
                             <span className="sv-arena-card-badge is-range">R{m.range}</span>
                             <span className="sv-arena-card-badge is-shape">{arenaDescribeShape(m)}</span>
                             <span className="sv-arena-card-badge is-target">{arenaDescribeTarget(m)}</span>
                             {m.requiresLineOfSight && <span className="sv-arena-card-badge is-los">LoS</span>}
                             {terrainBadge}
                           </div>
+                          <div className="sv-action-card-intent-bar" style={{ background: _intentColor }} aria-hidden="true" />
+                          </>
                         ); })()}
                       </button>
                       <button type="button" className="battle-help-chip" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPopup({ text: battleMatchupPopupText(sk.n, sk.el), fullscreen: true }); }}>?</button>

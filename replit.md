@@ -144,4 +144,4 @@ Engine is cartesian-coord battle on a square-tile renderer. Save shape unchanged
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
-- See [`docs/changelog.md`](docs/changelog.md) for the full v29–v95 implementation history (per-pass details for v80 Field Foundation, v81 Field Attunement/Clash, v82 Steady/Flurry/Veilflare, v83 Derived Stats, v84 Class Roles, v85 Boss Identity, v86 Hex→Square, v87 20-Bloodmark/Heir Timer, v88 Pass 14, v89–v95 mobile/UX repairs).
+- See [`docs/changelog.md`](docs/changelog.md) for the full v29–v96 implementation history (per-pass details for v80 Field Foundation, v81 Field Attunement/Clash, v82 Steady/Flurry/Veilflare, v83 Derived Stats, v84 Class Roles, v85 Boss Identity, v86 Hex→Square, v87 20-Bloodmark/Heir Timer, v88 Pass 14, v89–v95 mobile/UX repairs, v96 Targeting/Intent/Effect-Tag/Card-UI rebuild).

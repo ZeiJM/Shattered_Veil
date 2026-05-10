@@ -1145,3 +1145,44 @@ Surgical CSS-only pass triggered by user mobile screenshots. Three concrete bugs
 - **Target foreshadow color tokens** — additive `.is-fx-damage` (red), `.is-fx-debuff` (orange), `.is-fx-support` / `.is-fx-heal` / `.is-fx-buff` (green), `.is-fx-move` (blue), `.is-fx-veilbreak` / `.is-fx-field` (gold→purple blend), `.is-fx-invalid` / `.is-fx-blocked` (greyed) — and matching `.sv-arena-targeting-banner.is-fx-*` modifiers. **CSS-only**: dormant until the targeting JSX in `Game.jsx` adds the class on previewed tiles. Architect-approved. Adds zero specificity conflicts.
 
 Architect (code review) flagged only low-severity items: redundant `!important` inside an already-narrow media query (safe) and a note that on a 320px-wide screen with 5+ command tabs the dock may wrap to two lines (acceptable trade vs. icon-only). No regressions identified.
+
+## v96 — Clean-Room Combat Targeting / Effect-Tag / Action-Preview / Command-UI
+
+Comprehensive in-place upgrade to the battle action layer (Spec §A–§J). Save shape unchanged; combat math (`bAct`) untouched. Additive-only: every existing system (bloodmarks, heirs, world-gen, Veilbreaks, Field Attunement/Clash, terrain, destructibles, tactical actions, statuses, battle logs, Steady/Flurry/Veilflare, chat, save/load) preserved verbatim.
+
+**New file: `src/battle/actionIntent.js` (~210 lines)**
+- `getActionIntent(act, meta, payload)` — classifies any action into one of 9 intents (`damage`, `heal`, `buff`, `support`, `debuff`, `move`, `field`, `veilbreak`, `neutral`) by inspecting `meta.targetTeam`, `meta.shape`, `payload.fx/fx2`, and the act key.
+- `getFxClassFromIntent(intent)` — maps intent → v95 `.is-fx-*` token (`is-fx-red/green/blue/gold/violet`).
+- `getIntentBorderColor(intent)` — hex color for inline chrome on action cards.
+- `getEffectTags(act, meta, payload)` — **shim**: derives a small list of `{category, polarity, targetBinding}` tag objects from existing skill metadata without touching the 200+ skill `inter[]` blocks.
+- `describeEffectTags(tags)` — human-readable summary string ("Damages target · Buffs caster").
+- `validateClickedUnit(kind, meta)` → `{ ok, reason }` — boundary check for token clicks against the action's target profile.
+
+**`src/battle/arena/ArenaBoard.jsx`**
+- New props `targetingFx` and `onInvalidTargetClick`.
+- `is-fx-{intent}` class applied to the grid container plus all valid/affected tiles so the v95 color tokens light up the preview in the right hue.
+- `is-fx-blocked` class added to LoS-blocked tiles.
+- `handleUnitClick` rewritten: in `targetingMode` a token tap routes through `onTargetSelect` (when valid) or `onInvalidTargetClick({ kind, reason })` (when not) instead of falling through to the dossier popup.
+- New CSS hook `sv-arena-unit-targetable` for click affordance.
+
+**`src/Game.jsx`**
+- Imports the v96 helpers as `v96Intent / v96EffectTags / v96DescribeTags / v96BorderColor / v96ValidateUnit`.
+- `confirmArenaTarget` (Spec §F.19): now validates the clicked unit kind via `v96ValidateUnit` **before** committing. Invalid clicks `notify(reason)` and keep targeting active so the player can re-aim — no more silent miss-fires.
+- Arena mount: computes the action payload from `act/idx/copied/pl.ult/eq` to derive `targetingFx` (passed to `ArenaBoard`), and appends an effect-tag micro-summary to `targetingHint` ("Aim — Beam line · Single enemy · needs line of sight · Damages target").
+- Mount also wires `onInvalidTargetClick` → `notify(v96ValidateUnit(...).reason)`.
+- Skill action cards: a new `is-intent` badge (Damage / Heal / Buff / …) leads the badge row, and a thin colored intent bar runs along the bottom of each card.
+
+**`src/game.css` (additive only, after L8676)**
+- `.sv-arena-card-badge.is-intent` typography; `.sv-action-card-intent-bar` chrome.
+- Intent-aware override for valid-target tiles: `.sv-arena-grid.is-fx-{heal|buff|support}` glow green; `is-fx-move` glows blue; `is-fx-veilbreak` / `is-fx-field` glow gold/violet; `is-fx-debuff` glows orange — all using the v95 token names.
+- `.sv-arena-unit.sv-arena-unit-targetable` gains a 1.4s pulse animation + intent-tinted drop-shadow.
+- Mobile compaction at ≤720px.
+
+**Design decisions locked**
+- Effect tags use a derivation **shim**, not a rewrite of the per-skill `inter[]` payloads — zero risk to combat math.
+- Intent is computed at use-site (Game.jsx + ArenaBoard.jsx), never stored on `meta` or saved.
+- Validation runs only at the `confirmArenaTarget` boundary; `bAct` is left completely alone.
+- `targetingFx` is purely cosmetic — it drives the v95 color tokens and nothing else.
+
+**Known non-regression**
+- Pre-existing typecheck error `App.tsx(1,18) TS7016 Could not find a declaration file for module './Game.jsx'` is unrelated to v96 (Game.jsx has always been imported as `.jsx` from the TypeScript entry). Vite/Babel run the project fine; HMR is unaffected.

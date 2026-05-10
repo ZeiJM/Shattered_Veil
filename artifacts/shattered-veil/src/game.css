@@ -8754,3 +8754,81 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
 @media (max-width: 380px) {
   .map-rail-quick .map-rail-quick-btn .ui-icon-tip { display: none !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * v96 — ACTION CARD INTENT + INVALID-TARGET CHROME (Spec §E + §F.19)
+ * Additive only. The Pass 4 .sv-arena-card-badges chrome already
+ * existed; this layer adds: (1) the leading "Damage/Heal/Buff" intent
+ * pill, (2) a thin colored intent bar at the bottom of the action
+ * card, (3) intent-aware override for valid-target tiles when the
+ * action's intent is friendly (so heal/buff tiles glow green instead
+ * of the v95 default red), and (4) a subtle pulse for unit tokens
+ * the player can tap to commit the current aim. */
+
+.sv-arena-card-badge.is-intent {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sv-action-card-intent-bar {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 1px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.battle-action-card-wrap { position: relative; }
+
+/* When the action's intent is friendly (heal / buff / support / move),
+ * override the v95 default red preview so the tile glows the right
+ * color. Specificity: parent grid carries `.is-fx-<intent>`, child tile
+ * carries `.sv-arena-tile-target-valid`. This wins over the L8641 rule. */
+.sv-arena-grid.is-fx-heal .sv-arena-tile.sv-arena-tile-target-valid,
+.sv-arena-grid.is-fx-buff .sv-arena-tile.sv-arena-tile-target-valid,
+.sv-arena-grid.is-fx-support .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(110,230,150,0.95), 0 0 14px rgba(110,230,150,0.45) !important;
+}
+.sv-arena-grid.is-fx-move .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(120,200,255,0.95), 0 0 14px rgba(120,200,255,0.45) !important;
+}
+.sv-arena-grid.is-fx-veilbreak .sv-arena-tile.sv-arena-tile-target-valid,
+.sv-arena-grid.is-fx-field    .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow:
+    inset 0 0 0 2px rgba(212,173,64,0.95),
+    inset 0 0 14px rgba(168,80,255,0.40),
+    0 0 14px rgba(168,80,255,0.45) !important;
+}
+.sv-arena-grid.is-fx-debuff .sv-arena-tile.sv-arena-tile-target-valid {
+  box-shadow: inset 0 0 0 2px rgba(255,140,90,0.95), 0 0 12px rgba(255,140,90,0.45) !important;
+}
+
+/* Unit token currently a valid target — gentle pulse + click cursor. */
+.sv-arena-unit.sv-arena-unit-targetable {
+  cursor: pointer;
+  animation: sv-pulse-target 1.4s ease-in-out infinite;
+}
+@keyframes sv-pulse-target {
+  0%, 100% { transform: scale(1.0); filter: drop-shadow(0 0 2px rgba(255,255,255,0.4)); }
+  50%      { transform: scale(1.06); filter: drop-shadow(0 0 8px rgba(255,255,255,0.85)); }
+}
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-heal,
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-buff,
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-support {
+  filter: drop-shadow(0 0 6px rgba(110,230,150,0.85));
+}
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-veilbreak,
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-field {
+  filter: drop-shadow(0 0 6px rgba(212,173,64,0.95));
+}
+.sv-arena-unit.sv-arena-unit-targetable.is-fx-debuff {
+  filter: drop-shadow(0 0 6px rgba(255,140,90,0.85));
+}
+
+/* Mobile: ensure the intent bar + new badge don't push card height. */
+@media (max-width: 720px) {
+  .sv-action-card-intent-bar { height: 1px; bottom: 1px; }
+  .sv-arena-card-badge.is-intent { font-size: 7px; padding: 0 4px; }
+}

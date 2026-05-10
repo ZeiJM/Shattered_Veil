@@ -10,6 +10,7 @@ import {
   getObjectsAt,
   getMovementRange,
 } from "./arenaEngine.js";
+import { getFxClassFromIntent } from "../actionIntent.js";
 
 // ─────────────────────────────────────────────────────────────────────────
 // BIG ARENA FOUNDATION — VISUAL COMPONENT (Pass 2, foundation only)
@@ -51,6 +52,14 @@ export default function ArenaBoard({
   targetingHint = null,   // optional banner text shown above the grid in targeting mode.
   // Pass 15 — tap a unit token to open its dossier (handled by Game.jsx).
   onUnitClick = null,     // (unit) => void — fires when a unit token is tapped.
+  // v96 (Spec §D / §H) — intent class for tile-preview color foreshadowing.
+  // One of: 'damage'|'debuff'|'heal'|'buff'|'support'|'move'|'veilbreak'|'field'|'object'|'mixed'.
+  // When set, applies `is-fx-<intent>` to the grid + each affected tile.
+  targetingFx = null,
+  // v96 (Spec §A.4 / §F.19) — invalid-click feedback. Fires when player taps
+  // a unit token in targeting mode whose unit kind doesn't satisfy the
+  // current action's targetType. Game.jsx surfaces a toast/notify.
+  onInvalidTargetClick = null, // ({ kind, reason }) => void
 }) {
   const [hover, setHover] = useState(null);
 
@@ -144,7 +153,7 @@ export default function ArenaBoard({
             <div className="sv-arena-targeting-banner">{targetingHint}</div>
           )}
           <div
-            className={"sv-arena-grid sv-arena-grid-sq" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "") + (bgUrl ? " sv-arena-grid-has-bg" : "")}
+            className={"sv-arena-grid sv-arena-grid-sq" + (moveMode ? " sv-arena-movement-mode" : "") + (targetingMode ? " sv-arena-targeting-mode" : "") + (bgUrl ? " sv-arena-grid-has-bg" : "") + (targetingMode && targetingFx ? " " + getFxClassFromIntent(targetingFx) : "")}
             style={{
               "--svh-tile": tileSize + "px",
               "--svh-offset": Math.round(tileSize * 0.5) + "px",
@@ -190,6 +199,9 @@ export default function ArenaBoard({
                   isTargetAffected ? "sv-arena-tile-area-preview" : "",
                   isLosBlocked     ? "sv-arena-tile-los-blocked" : "",
                   isOutOfRange     ? "sv-arena-tile-out-of-range" : "",
+                  // v96 — paint each valid/affected tile with the action's intent color.
+                  (isTargetValid || isTargetAffected) && targetingFx ? getFxClassFromIntent(targetingFx) : "",
+                  isLosBlocked ? "is-fx-blocked" : "",
                   targetingMode && objs.length ? "sv-arena-tile-has-object" : "",
                   inField ? "sv-arena-field-overlay" : "",
                   // Pass 8 — Field Clash tile flair. Split-field paints
@@ -241,14 +253,32 @@ export default function ArenaBoard({
                       );
                     })}
                     {tileUnits.map(u => {
+                      const tileKey = keyOf(u.pos.x, u.pos.y);
+                      const unitTileValid = targetingMode && validTargetKeys ? validTargetKeys.has(tileKey) : false;
+                      const unitClickableTarget = targetingMode && unitTileValid;
                       const unitCls = "sv-arena-unit " +
                         (u.kind === "enemy" ? "is-enemy" : u.kind === "player" ? "is-player" : "is-friend") +
                         (u.isTarget ? " is-target" : "") +
                         (u.kind === "player" && veilbreakReady ? " is-primed" : "") +
-                        (typeof onUnitClick === "function" && !moveMode && !targetingMode ? " is-clickable" : "");
+                        ((typeof onUnitClick === "function" && !moveMode && !targetingMode) || unitClickableTarget ? " is-clickable" : "") +
+                        (unitClickableTarget ? " sv-arena-unit-targetable " + getFxClassFromIntent(targetingFx || "damage") : "");
                       const fallbackGlyph = u.ic || (u.kind === "enemy" ? "👾" : "🗡");
                       const handleUnitClick = (ev) => {
-                        if (!onUnitClick || moveMode || targetingMode) return;
+                        // v96 — in targeting mode, a tap on a unit token routes
+                        // to onTargetSelect when the unit's tile is a valid
+                        // target. If invalid (e.g. clicked an ally during an
+                        // enemy-targeting action), surface an invalid-click
+                        // event so Game.jsx can show clear feedback. (Spec §A.3 / §F.19)
+                        if (targetingMode) {
+                          ev.stopPropagation();
+                          if (unitTileValid && typeof onTargetSelect === "function") {
+                            try { onTargetSelect({ x: u.pos.x, y: u.pos.y }); } catch(_) {}
+                          } else if (typeof onInvalidTargetClick === "function") {
+                            try { onInvalidTargetClick({ kind: u.kind, unit: u }); } catch(_) {}
+                          }
+                          return;
+                        }
+                        if (!onUnitClick || moveMode) return;
                         ev.stopPropagation();
                         try { onUnitClick(u); } catch(_){}
                       };
