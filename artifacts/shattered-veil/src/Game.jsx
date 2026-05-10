@@ -1912,11 +1912,21 @@ function veilbreakDetailText(ult, reqs, ready) {
   if (!ult) return "No Veilbreak equipped.";
   const effectLine = ult.fx ? ((FX(ult.fx)?.ic || "⚡") + " " + (FX(ult.fx)?.nm || ult.fx) + (ult.fxDur ? " · " + ult.fxDur + " Turns" : "")) : "No secondary effect";
   const list = Array.isArray(reqs) ? reqs : [];
+  // v101 — sequential chain. Show step numbers and mark the one currently
+  // active (next in line). Earlier steps are ✓; later ones are locked until
+  // the current one is satisfied.
+  let firstOpen = list.findIndex(r => r && !r.fulfilled);
   const reqLines = list.length
-    ? list.map(r => (r.fulfilled ? "✓ " : "○ ") + (r.label || r.id || "Requirement") + (r.description ? "\n   " + r.description : "")).join("\n")
+    ? list.map((r, i) => {
+        const mark = r.fulfilled ? "✓" : (i === firstOpen ? "▶" : "○");
+        const tag  = r.fulfilled ? "" : (i === firstOpen ? "  (active step)" : "  (locked — earlier step first)");
+        return "Step " + (i + 1) + " " + mark + " " + (r.label || r.id || "Requirement") + tag + (r.description ? "\n   " + r.description : "");
+      }).join("\n")
     : "No requirements (auto-ready).";
-  const status = ready ? "🌟 READY — tap “Break the Veil” to unleash." : "Locked — finish the open requirements to break the Veil.";
-  return "🌟 " + ult.name + "  ·  " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\n\nRequirements:\n" + reqLines + "\n\n" + status;
+  const status = ready
+    ? "🌟 READY — tap “Break the Veil” to unleash."
+    : "Locked — complete the steps in order. Unrelated actions never reset your progress.";
+  return "🌟 " + ult.name + "  ·  " + ult.el + "\nPower: " + ult.pow + " + MAG×2\nEffect: " + effectLine + "\n\nVeilbreak Chain (sequential):\n" + reqLines + "\n\n" + status;
 }
 
 function petPassiveTemplate(el) {
@@ -3565,8 +3575,10 @@ function Game() {
   // Mobile hides the Combat Profile pill strip and Tactical Readout chip
   // row by default and surfaces them via [📊 Stats] / [📜 Readout] toggles
   // so Zone A stays short and the arena gets more vertical room.
-  const [battleStatsOpen, setBattleStatsOpen] = useState(false);
-  const [battleReadoutOpen, setBattleReadoutOpen] = useState(false);
+  // v101 — battleStatsOpen / battleReadoutOpen retired. The stats panel
+  // moved into the character-token popup and the Tactical Readout strip
+  // was replaced by the new "Skill Interaction" chip; their toggle buttons
+  // were removed alongside the deleted info-meta strip.
   // v100 — controlled state for the world Legend dropdown (replaces the
   // <details> element that was unreliable on mobile inside the rail flex).
   const [mapLegendOpen, setMapLegendOpen] = useState(false);
@@ -9057,7 +9069,8 @@ const buildGroupedBattleLog = (entries) => {
                     const cdSec = fishingCD ? Math.ceil((fishCD - timerNow)/1000) : 0;
                     const fishLabel = !canFishHere ? "Fish" : fishingCD ? ("Fish · " + cdSec + "s") : "Fish";
                     const fishHint = !canFishHere ? "stand next to or in water to fish" : fishingCD ? ("ready in " + cdSec + "s") : "cast a line";
-                    const fishCls = "rail-quick-fish" + (!canFishHere ? " is-disabled" : "") + (fishingCD ? " is-cd" : "");
+                    // v101 — fish button glows when usable (water nearby + off cooldown).
+                    const fishCls = "rail-quick-fish" + (!canFishHere ? " is-disabled" : "") + (fishingCD ? " is-cd" : "") + ((canFishHere && !fishingCD) ? " is-ready" : "");
                     return (
                       <button key="fish" type="button" className={"bt bs map-rail-quick-btn ui-icon-btn ui-icon-btn-rail " + fishCls} data-label={fishLabel} title={fishLabel + " — " + fishHint} aria-label={fishLabel} onClick={() => { if (canFishHere && !fishingCD) runFishing(); else if (!canFishHere) notify("No water nearby."); }}>
                         <span className="ui-icon-fb" style={{ display: "inline" }}>🎣</span>
@@ -9068,13 +9081,16 @@ const buildGroupedBattleLog = (entries) => {
                 ];
               })()}
             </div>
-            <div className="map-rail-tile">
+            {/* v101 — coords moved to top-right of the tile card on the same
+                row as the location name (CSS-positioned absolute). The same
+                JSX still renders both lines; only the layout changes. */}
+            <div className="map-rail-tile sv-map-rail-tile-v101">
+              <div className="map-rail-tile-coords sv-mrt-coords-tr"><span className="mrtc-ic">📍</span><span className="mrtc-val">{pos.x}, {pos.y}</span></div>
               {tile && tile.poi ? (
                 <><div className="map-rail-tile-name">{tile.poi.ic} {tile.poi.nm || tile.poi.type}</div><div className="map-rail-tile-type">{tile.poi.type}</div></>
               ) : (
                 <><div className="map-rail-tile-name map-rail-tile-name-bio">{tile ? tile.bio.charAt(0).toUpperCase() + tile.bio.slice(1) : "..."}</div><div className="map-rail-tile-type map-rail-tile-type-bio">terrain</div></>
               )}
-              <div className="map-rail-tile-coords"><span className="mrtc-ic">📍</span><span className="mrtc-val">{pos.x}, {pos.y}</span></div>
             </div>
             <div className="map-rail-compass" title="Nearest landmarks from your position">
               <div className="mrc-row"><span className="mrc-ic">🧭</span><span className="mrc-val">{nearestTownCompass || "—"}</span></div>
@@ -9111,12 +9127,18 @@ const buildGroupedBattleLog = (entries) => {
                 <div>{paidRumor}</div>
               </div>}
             </div>
+            {/* v101 — Input Help button hoisted above the Legend so the
+                Veilcourt button + Input Help form a tight "controls" row,
+                with Legend pushed beneath them as the side rail's last
+                block. Label renamed Controls → Input Help for clarity. */}
+            <button className="map-rail-help-btn sv-input-help-btn-v101" type="button" title="Input Help" onClick={() => setPopup({ text: "🎮 Input Help\n\n• WASD or Arrow Keys — step one tile\n• Click any tile — auto-walk to it\n• Double-click a POI — walk there and enter on arrival\n• Space — Enter/Interact with the POI on your current tile\n• Action button (left rail) — context-aware: Enter, Interact, Fish, or Stop auto-walk\n• Esc — close most popups", choices: [{ label: "Got it", action: () => setPopup(null) }] })}>❔ Input Help</button>
             {/* v100 — Legend rebuilt as a controlled state-driven dropdown.
                 The previous <details> element was sometimes unreachable on
                 mobile inside the rail flex container (touch tap hit the
                 summary's pseudo-marker zone instead of the toggle). A real
-                <button> is rock-solid and clearly stops swipe propagation. */}
-            <div className="map-rail-legend-wrap" data-noswipe="1">
+                <button> is rock-solid and clearly stops swipe propagation.
+                v101 — Moved below Input Help as the rail's bottom block. */}
+            <div className="map-rail-legend-wrap sv-rail-legend-bottom-v101" data-noswipe="1">
               <button
                 type="button"
                 className="map-rail-legend-btn"
@@ -9140,7 +9162,6 @@ const buildGroupedBattleLog = (entries) => {
                 {k:"town", lbl:"Town"},
               ].map(function(item){return <span key={item.lbl} className="legend-pill legend-pill-art"><span className="legend-pill-art-img" style={{ backgroundImage: `url('${poiArtUrl(item.k)}')` }} /><span className="legend-pill-art-lbl">{item.lbl}</span></span>;})}</div>}
             </div>
-            <button className="map-rail-help-btn" type="button" title="Controls" onClick={() => setPopup({ text: "🎮 Controls\n\n• WASD or Arrow Keys — step one tile\n• Click any tile — auto-walk to it\n• Double-click a POI — walk there and enter on arrival\n• Space — Enter/Interact with the POI on your current tile\n• Action button (left rail) — context-aware: Enter, Interact, Fish, or Stop auto-walk\n• Esc — close most popups", choices: [{ label: "Got it", action: () => setPopup(null) }] })}>? Controls</button>
             {/* v100 — Find Me removed. The map already auto-centers on the
                 player every move; the helper button was a confusing UI hint
                 rather than a real feature. Removed entirely. */}
@@ -9343,7 +9364,7 @@ const buildGroupedBattleLog = (entries) => {
             </div>
           </div>
         </div>
-        <div className={"cd battle-info-card" + (battleStatsOpen ? " is-stats-open" : "") + (battleReadoutOpen ? " is-readout-open" : "") + (battleHelpOpen ? " is-tags-open" : "")} style={{ padding: 6 }}>
+        <div className={"cd battle-info-card" + (battleHelpOpen ? " is-tags-open" : "")} style={{ padding: 6 }}>
               <div className="battle-info-strip">
                 <div>
                   {(() => {
@@ -9369,15 +9390,11 @@ const buildGroupedBattleLog = (entries) => {
                         onClick={(ev) => { if (ev.target.closest && ev.target.closest('button')) return; setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); }}
                         onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); } }}
                       >
-                        <span className="tg sv-vb-progress-tag" style={{ background: _ready ? T.gd + "22" : T.c2, color: _ready ? T.gd : T.dm, marginRight: 4 }}>{_vbSum.done + "/" + _vbSum.total}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button type="button" className="bt bs" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={(ev) => { ev.stopPropagation(); setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); }}>ℹ</button><span style={{ color: T.dm }}> — </span>
-                        {_vbReqs.map((r, i) => {
-                          const meta = VB_REQ_TYPES[r.type] || { ic: "✦" };
-                          const stepCls = "veilbreak-req-step" + (_ready ? " is-ready" : r.fulfilled ? " is-complete" : "");
-                          return <span key={r.id || i} className={stepCls} style={{ marginRight: 4 }}>
-                            <span className="vbqs-icon">{r.fulfilled ? "✓" : (meta.ic || "•")}</span>
-                            <span className="vbqs-label">{r.label}</span>
-                          </span>;
-                        })}
+                        {/* v101 — Header now a compact summary chip only.
+                            The full sequential checklist (with active/locked
+                            step markers) lives in the popover that opens
+                            when the strip is tapped. */}
+                        <span className="tg sv-vb-progress-tag" style={{ background: _ready ? T.gd + "22" : T.c2, color: _ready ? T.gd : T.dm, marginRight: 4 }}>{_vbSum.done + "/" + _vbSum.total}</span><span style={{ color: T.tx }}>Veilbreak: </span><span style={{ color: T.gd, fontWeight: 700 }}>{pl.ult.name}</span><button type="button" className="bt bs sv-vb-info-chip" style={{ background: T.c2, padding: "1px 5px", marginLeft: 4, fontSize: 7 }} onClick={(ev) => { ev.stopPropagation(); setPopup({ text: veilbreakDetailText(pl.ult, _vbReqs, _ready) }); }}>ℹ Chain</button>
                         {_ready && <button
                           type="button"
                           className="sv-veilbreak-launch-chip"
@@ -9425,6 +9442,9 @@ const buildGroupedBattleLog = (entries) => {
                           {(btl?.tacticalBuffs?.braceTurns || 0) > 0 && <span className="sv-field-attunement-badge is-brace" title="Bracing — incoming field pressure halved.">🛡 Brace {btl.tacticalBuffs.braceTurns}t</span>}
                           {_activeField && <span className="sv-field-attunement-badge is-field" title="Active player field strength.">{_activeField.intensity === "heavy" ? "Heavy" : "Light"} · {_activeField.remainingTurns}t</span>}
                           {_eAtt != null && <span className="sv-field-attunement-badge is-enemy" title="Enemy Field Attunement.">⚔ Foe {_eAtt}</span>}
+                          {/* v101 — Tags glossary toggle inlined into the
+                              Attunement strip so they share one row. */}
+                          <button type="button" className={"sv-field-attunement-badge sv-tags-chip-inline" + (battleHelpOpen ? " is-active" : "")} onClick={() => setBattleHelpOpen(v => !v)} title="Tag glossary">🏷️ Tags</button>
                         </div>;
                       })()}
                       {/* Pass 10 — Combat Profile pill strip. Compact, always-on
@@ -9479,28 +9499,52 @@ const buildGroupedBattleLog = (entries) => {
                       })()}
                     </>;
                   })()}
-                  {isPT && <div className="battle-tactical-inline">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <div style={{ color: T.gd, fontWeight: 700 }}>⚔ Tactical Readout</div>
-                      <div className="battle-combo-tools">
-                        {battleBonus && <div style={{ color: T.ok, fontSize: 8 }}>✦ {battleBonus.label.replace(/(\d+)t/g, "$1 Turns")}</div>}
-                        <button className="bt bs" style={{ background: battleHelpOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleHelpOpen(v => !v)}>🏷️ Tags</button>
-                        <button type="button" className="bt bs sv-mobile-info-toggle" style={{ background: battleStatsOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleStatsOpen(v => !v)}>📊 Stats</button>
-                        <button type="button" className="bt bs sv-mobile-info-toggle" style={{ background: battleReadoutOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleReadoutOpen(v => !v)}>📜 Readout</button>
-                      </div>
-                    </div>
-                    <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 1, marginTop: 2 }}>
-                      <div style={{ fontSize: 7, color: "#97a7d5", marginBottom: 2 }}>Tap an interaction name for its trigger and effect.</div>{getReadyInteractions(pl.inter, btl, btl.en?.find(e => e.hp > 0)).map((x,i) => {
-                      const isReady = x.isReady;
-                      return <button type="button" key={i} className={"battle-ready-chip" + (isReady ? " is-ready" : "")} onClick={() => setPopup({ text: interactionPopupText(x) })} style={{ display: "inline-block", color: isReady ? "#ffd600" : T.ok, background: isReady ? "#ffd60022" : "transparent", lineHeight: 1.45, whiteSpace: "nowrap", border: "1px solid " + (isReady ? "#ffd60055" : "transparent"), boxShadow: isReady ? "0 0 10px #ffd60055" : "none", cursor: "pointer" }}>★ {x.nm || interactionDisplayName(x.k, x.ds)}{isReady ? " ⚡" : ""}</button>;
-                    })}
-                    </div>
-                  </div>}
+                  {/* v101 — "Tactical Readout" → "Skill Interaction".
+                      Single chip that opens a popup detailing every kit
+                      interaction (trigger + effect). Glows when any
+                      interaction is currently primed (battleBonus active or
+                      a ready interaction is on deck). Replaces the old
+                      Tactical Readout / Stats / Readout / inline interaction
+                      chip strip — all of which crowded the mobile HUD. */}
+                  {isPT && (() => {
+                    const _readyIns = getReadyInteractions(pl.inter || [], btl, btl.en?.find(e => e.hp > 0)) || [];
+                    const _hasReady = _readyIns.some(x => x.isReady);
+                    const _primed = !!battleBonus || _hasReady;
+                    const _badge = battleBonus ? "✦" : (_hasReady ? "⚡" : null);
+                    return <div className="sv-skill-interaction-row">
+                      <button
+                        type="button"
+                        className={"sv-skill-interaction-chip" + (_primed ? " is-primed" : "")}
+                        aria-haspopup="dialog"
+                        aria-label={_primed ? "Skill interaction primed — open details" : "Open skill interaction details"}
+                        onClick={() => {
+                          const lines = ["🔁 Skill Interaction"];
+                          if (battleBonus) lines.push("\nActive bonus: ✦ " + String(battleBonus.label || "").replace(/(\d+)t/g, "$1 Turns"));
+                          if (_readyIns.length === 0) {
+                            lines.push("\nNo skill interactions on your kit.");
+                          } else {
+                            lines.push("\nInteractions on your kit:");
+                            _readyIns.forEach(x => {
+                              const split = splitInteractionDescription(x.ds || "");
+                              lines.push((x.isReady ? "\n⚡ " : "\n★ ") + (x.nm || interactionDisplayName(x.k, x.ds)) + (x.isReady ? "  (primed)" : ""));
+                              if (split.trigger) lines.push("   Trigger: " + split.trigger);
+                              if (split.effect)  lines.push("   Effect: "  + split.effect);
+                            });
+                          }
+                          setPopup({ text: lines.join("\n") });
+                        }}
+                        title={_primed ? "Skill interaction primed — tap for details" : "Tap to review your active skill interactions"}
+                      >
+                        <span className="ssi-ic">🔁</span>
+                        <span className="ssi-lbl">Skill Interaction</span>
+                        {_badge && <span className="ssi-spark">{_badge}</span>}
+                      </button>
+                    </div>;
+                  })()}
                 </div>
-                <div className="battle-info-meta">
-                  {pl.ult.ready && <span className="tg" style={{ background: T.gd + "22", color: T.gd }}>Ready</span>}
-                  <span className="tg" style={{ background: btlTimer <= 20 ? T.bad + "22" : T.ok + "22", color: btlTimer <= 20 ? T.bad : T.ok, fontWeight: 700 }}>⏱ {Math.floor(btlTimer/60)}:{String(btlTimer%60).padStart(2,"0")}</span>
-                </div>
+                {/* v101 — battle-info-meta removed. The Ready badge is now
+                    redundant (the launch chip already telegraphs readiness)
+                    and the timer was moved up to the "Your Turn" header. */}
               </div>
               {isPT && battleHelpOpen && <div style={{ marginTop: 4 }}>
                   {TAG_INFO.map(tag => <div key={tag.id} style={{ fontSize: 8, marginBottom: 1 }}><span style={{ color: T.gd, fontWeight: 700 }}>{tag.nm}:</span> {tag.ds}</div>)}
@@ -9731,6 +9775,36 @@ const buildGroupedBattleLog = (entries) => {
                           {pBar(ent.mp, ent.mmp, T.mp)}
                         </div>}
                         <div style={{ fontSize: 11 }}>SPD: <span style={{ color: spdColor(ent.spd), fontWeight: 700 }}>{ent.spd}</span></div>
+                        {/* v101 — Derived combat profile (Crit / Acc / Eva /
+                            Move / SP / SR / Heal) lives inside the player's
+                            character-token popup now that the in-HUD Stats
+                            chip was removed. Mirrors the same dsGetAll +
+                            armor/Veilflare context used by the on-screen
+                            Combat Profile pill strip so values agree. */}
+                        {u.kind === "player" && (() => {
+                          try {
+                            const _st = effSt(pl);
+                            const _eqSafe = eq || {};
+                            const _wornArmor = [_eqSafe.helm, _eqSafe.body, _eqSafe.glv, _eqSafe.boot].filter(Boolean);
+                            const _critArmor    = _wornArmor.reduce((s, a) => s + (gearHas(a, 'crit_boost')  ? 0.08 : 0), 0);
+                            const _critDmgArmor = _wornArmor.reduce((s, a) => s + (gearHas(a, 'crit_damage') ? 0.15 : 0), 0);
+                            const _hasFocus = (pl.efx || []).some(e => e.id === 'veilflare_focus');
+                            const _ds = dsGetAll({ st: _st }, { armorCritChance: _critArmor, armorCritDmgBoost: _critDmgArmor, hasVeilflareFocus: _hasFocus });
+                            const _pct = (v) => Math.round(v * 100) + '%';
+                            return <div className="sv-token-derived-panel">
+                              <div className="sv-token-derived-head">Combat Profile</div>
+                              <div className="sv-token-derived-grid">
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.critRate}><b>Crit</b> {_pct(_ds.critRate)} ×{_ds.critDamage.toFixed(2)}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.accuracy}><b>Acc</b> {_pct(_ds.accuracy)}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.evasion}><b>Eva</b> {_pct(_ds.evasion)}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.move}><b>Move</b> {_ds.move}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.statusPower}><b>SP</b> +{_pct(_ds.statusPower)}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.statusResist}><b>SR</b> {_pct(_ds.statusResist)}</span>
+                                <span className="sv-tdp-cell" title={DS_TOOLTIPS.healingPower}><b>Heal</b> +{Math.round(_ds.healingPower)}</span>
+                              </div>
+                            </div>;
+                          } catch (_e) { return null; }
+                        })()}
                         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                           <div style={{ fontSize: 11 }}><span style={{ color: "#bfc9ef" }}>Passive: </span><span style={{ color: T.gd, fontWeight: 700 }}>{ent.passiveName}</span></div>
                           {ent.passiveDs && <div style={{ fontSize: 10, color: "#cdd5ee", lineHeight: 1.4 }}>{ent.passiveDs}</div>}
@@ -9753,8 +9827,10 @@ const buildGroupedBattleLog = (entries) => {
         <div className="battle-lower-grid">
           <div className="battle-main-stack">
             <div className="cd battle-actions-card" style={{ padding: 6 }}>
-              <div className="battle-turn-head">
+              <div className="battle-turn-head sv-turn-head-v101">
                 <span style={{ fontSize: 10, fontWeight: 700, color: isPT ? T.ok : T.bad }}>{isPT ? "Your Turn" : "Enemy Turn..."}</span>
+                {/* v101 — Turn-clock moved here from the deleted info-meta strip. */}
+                <span className="sv-turn-timer" style={{ fontSize: 9, fontWeight: 700, color: btlTimer <= 20 ? T.bad : T.ok, background: btlTimer <= 20 ? T.bad + "22" : T.ok + "22", padding: "1px 6px", borderRadius: 999 }}>⏱ {Math.floor(btlTimer/60)}:{String(btlTimer%60).padStart(2,"0")}</span>
                 <span style={{ fontSize: 9, color: T.dm }}>{isPT ? "" : "Await enemy actions."}</span>
               </div>
               {(() => { const hasItems = !!(eq.c1 || eq.c2); const tabs = [

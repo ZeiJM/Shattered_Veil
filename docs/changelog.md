@@ -1214,3 +1214,37 @@ Targeted fixes on top of v99 to address the remaining mobile pain points reporte
 
 **Known non-regression**
 - Pre-existing `App.tsx(1,18) TS7016 Could not find a declaration file for module './Game.jsx'` is unchanged from prior versions — Game.jsx has always been imported as `.jsx` from the TS entry. Vite serves fine, HMR works.
+
+## v101 — World UI polish + Mobile battle structural rework + Sequential Veilbreak chain
+
+**World rail polish**
+- **Fishing button glow.** When `canFishHere && !fishingCD`, the rail-quick-fish button gets `is-ready` — pulsing teal-blue glow so players know fishing is available without scanning the action label.
+- **Coords on the location-card name line.** Tile coords moved out of their own row and into the top-right of the location card via `sv-mrt-coords-tr` (absolute-positioned gold pill). Frees one rail row.
+- **"Controls" → "Input Help".** Clearer label, ❔ icon, hoisted above the Legend so Veilcourt + chat sit higher in the rail. Legend pinned underneath via `sv-rail-legend-bottom-v101`.
+- **Compass POI rows truncate** instead of forcing rail width: `.mrc-row { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }`.
+
+**Battle — mobile structural rework**
+- **Full board visible on 390/430px phones.** ArenaBoard `_maxBoardH` raised to `Math.min(_vh*0.72, 540)` on mobile; `_floor` lowered to 16px so 13×11 still renders 11 rows. Paired with a CSS rule that hides `.sv-arena-head/.sv-arena-meta/.sv-arena-footer` on phone widths — the same info lives elsewhere in the HUD.
+- **"Tactical Readout" → "Skill Interaction" chip.** The legacy 4-button strip (Tags / Stats / Readout / inline interaction chips) collapsed into one chip that opens a popup detailing every kit interaction (trigger + effect via `splitInteractionDescription`). Glows gold (`is-primed` + `svSsiPulse`) when `battleBonus` is active or any interaction is currently primed. `aria-haspopup="dialog"` + `aria-label`.
+- **Tags + Field Attunement on the same line.** New `sv-tags-chip-inline` button lives inside the existing field-attunement strip.
+- **Header decluttered.** Persistent VB "Ready" badge + redundant `_vbReqs.map` chip strip removed from the battle-info-meta row (the chain detail popup + glowing launch chip already telegraph readiness). The whole `.battle-info-meta` strip is gone.
+- **Turn-clock moved up to "Your Turn" header.** New `sv-turn-head-v101` flex row with `sv-turn-timer` chip — tabular-nums, red below 20s.
+- **Stats panel relocated into the character-token tap popup.** `onUnitClick` for `u.kind === "player"` now renders a `sv-token-derived-panel` (Crit/Acc/Eva/Move/SP/SR/Heal) using the same `dsGetAll` + armor/Veilflare context as the in-HUD pill strip, so values agree. Defensive `eq || {}` guard for fresh-battle edge cases.
+- **Combat / Veil Magic / Tactical category buttons shrunk on mobile** (4×8px padding, 10px font, 26px min-height) so all three plus their badges fit one row without wrapping.
+- **Orphaned state cleaned up.** `battleStatsOpen` / `battleReadoutOpen` useStates and their classNames removed — their toggle buttons disappeared with the deleted strip; CSS gating is now dead but harmless.
+
+**Veilbreak chain — SEQUENTIAL fulfillment**
+- `applyActionToRequirements` rewritten to `findIndex(r => !r.fulfilled)` and evaluate **only that first open requirement**. Once fulfilled, never resets. All existing trigger types (`useElement`, `useSkillType`, `dealDamage`, `applyStatus`, `crit`, range, …) still flow through the unchanged `evaluateRequirementMatch`.
+- `veilbreakDetailText` rewritten to render the chain as `Step N ▶/✓/○` with active vs locked markers so players can see which requirement is currently "on deck".
+
+**Files touched**
+- `artifacts/shattered-veil/src/Game.jsx` — orphan state retired; battle-info-card className simplified; rail Input Help button + coord chip + legend reorder + fish glow class; battle-info-meta deletion; Skill Interaction chip with a11y; turn-head timer; player popup derived-stats panel.
+- `artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx` — mobile board ceiling/floor bump.
+- `artifacts/shattered-veil/src/battle/arena/veilbreakChain.js` — sequential `applyActionToRequirements`.
+- `artifacts/shattered-veil/src/game.css` — appended ~205-line v101 block.
+
+**Preserved**
+- Combat math, save shape, world generation, chat backend, targeting color tokens, Veilbreak launch chip + chain detail popover from v100.
+
+**Known non-regression**
+- Same pre-existing `App.tsx(1,18) TS7016` (Game.jsx has no .d.ts) — unchanged from v100, Vite serves and HMR works.

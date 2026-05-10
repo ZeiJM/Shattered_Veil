@@ -213,21 +213,20 @@ export function evaluateRequirementMatch(req, ctx) {
 }
 
 // ── Apply an action to the requirements list. PURE — returns new array. ──
+// v101: SEQUENTIAL evaluation. Only the FIRST not-yet-fulfilled requirement
+// is checked against the action. Unrelated actions are no-ops (and never
+// reset prior progress). This makes the Veilbreak chain feel like an actual
+// chain — step 1 must be done before step 2 can register.
 export function applyActionToRequirements(reqs, ctx, round) {
   if (!Array.isArray(reqs) || !reqs.length) return { reqs: reqs || [], newlyFulfilled: [], anyChange: false };
-  const newlyFulfilled = [];
-  let anyChange = false;
-  const updated = reqs.map(r => {
-    if (!r || r.fulfilled) return r;
-    if (evaluateRequirementMatch(r, ctx)) {
-      anyChange = true;
-      const next = { ...r, fulfilled: true, fulfilledAtRound: round || 0, fulfilledByAction: (ctx && ctx.act) || null };
-      newlyFulfilled.push(next);
-      return next;
-    }
-    return r;
-  });
-  return { reqs: updated, newlyFulfilled, anyChange };
+  const firstOpenIdx = reqs.findIndex(r => r && !r.fulfilled);
+  if (firstOpenIdx < 0) return { reqs, newlyFulfilled: [], anyChange: false };
+  const r = reqs[firstOpenIdx];
+  if (!evaluateRequirementMatch(r, ctx)) return { reqs, newlyFulfilled: [], anyChange: false };
+  const filled = { ...r, fulfilled: true, fulfilledAtRound: round || 0, fulfilledByAction: (ctx && ctx.act) || null };
+  const updated = reqs.slice();
+  updated[firstOpenIdx] = filled;
+  return { reqs: updated, newlyFulfilled: [filled], anyChange: true };
 }
 
 export function isReadyFromRequirements(reqs) {

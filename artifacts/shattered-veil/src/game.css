@@ -9668,3 +9668,208 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-info-card .battle-chain-line { font-size: 9px !important; }
 }
 /* end v100 */
+
+/* === v101 — World rail polish + mobile battle structural rework === */
+
+/* World rail — fishing button glow when usable. is-ready is added by
+   Game.jsx whenever the player is on water and not mid-fishing. */
+.rail-quick-fish.is-ready {
+  background: linear-gradient(180deg, #1d3a64, #14284a) !important;
+  border-color: #5fc7ff !important;
+  color: #e8f6ff !important;
+  box-shadow: 0 0 12px rgba(95, 199, 255, 0.55), inset 0 0 6px rgba(95, 199, 255, 0.25);
+  animation: sv-fish-pulse 2.4s ease-in-out infinite;
+}
+@keyframes sv-fish-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(95, 199, 255, 0.45), inset 0 0 6px rgba(95, 199, 255, 0.25); }
+  50%      { box-shadow: 0 0 16px rgba(95, 199, 255, 0.85), inset 0 0 8px rgba(95, 199, 255, 0.40); }
+}
+
+/* World rail — coords moved to the top-right of the location card so name
+   and coordinate sit on the same row. Position relative so absolute coords
+   anchor inside the tile card. */
+.sv-map-rail-tile-v101 { position: relative; }
+.sv-mrt-coords-tr {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #c9b97a;
+  letter-spacing: 0.04em;
+  background: rgba(20, 14, 6, 0.55);
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 173, 64, 0.35);
+  pointer-events: none;
+}
+
+/* World rail — Input Help button hoisted above the Legend (was buried under
+   it in v100). Same parchment-button vibe as nearby controls. */
+.sv-input-help-btn-v101 {
+  width: 100%;
+  margin: 4px 0 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2a1d10;
+  background: linear-gradient(180deg, #f1e4c4, #e3d2a8);
+  border: 1px solid #b89a5d;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 1px 2px rgba(0,0,0,0.18);
+}
+.sv-input-help-btn-v101:hover { background: linear-gradient(180deg, #f7eccd, #ead9b2); }
+.sv-input-help-btn-v101:active { transform: translateY(1px); }
+
+/* World rail — Legend pinned underneath the Veilcourt/Controls/Input-Help
+   stack so Veilcourt + chat sit higher in the rail (as requested). */
+.sv-rail-legend-bottom-v101 { margin-top: 8px; }
+
+/* World rail — compass POI rows must stay one-line; long names ellipsize
+   instead of forcing a wider rail. */
+.mrc-row {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* === Battle — header decluttering + Skill Interaction chip === */
+
+/* The legacy field-foundation "eyebrow" + arena meta strip duplicated the
+   same info exposed elsewhere on mobile and ate vertical space. Hide on
+   phone widths so the 10×8 board can claim the freed pixels. */
+@media (max-width: 720px) {
+  .battle-bg .sv-arena-head,
+  .battle-bg .sv-arena-meta,
+  .battle-bg .sv-arena-footer {
+    display: none !important;
+  }
+}
+
+/* Inline Tags chip (now lives next to the Field Attunement strip on the
+   same line as Tags + Attunement instead of in the deleted tactical
+   readout row). Same visual language as the existing attunement badge. */
+.sv-tags-chip-inline {
+  font-size: 9px !important;
+  padding: 1px 6px !important;
+  margin-left: 4px;
+  background: rgba(40, 28, 14, 0.55);
+  border: 1px solid rgba(212, 173, 64, 0.45);
+  color: #f0e2b2;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.sv-tags-chip-inline.is-active {
+  background: rgba(212, 173, 64, 0.32);
+  color: #fff5c8;
+}
+
+/* Skill Interaction — single chip replacing the v100 Tactical Readout
+   strip. Glows gold while a kit interaction is primed (battleBonus active
+   or any ready interaction on deck). */
+.sv-skill-interaction-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+.sv-skill-interaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #d6e1ff;
+  background: rgba(28, 22, 56, 0.55);
+  border: 1px solid rgba(120, 130, 200, 0.45);
+  border-radius: 999px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+.sv-skill-interaction-chip:hover { background: rgba(40, 30, 80, 0.7); }
+.sv-skill-interaction-chip .ssi-ic { font-size: 10px; line-height: 1; }
+.sv-skill-interaction-chip .ssi-spark {
+  margin-left: 2px;
+  font-size: 10px;
+  color: #ffd87a;
+  text-shadow: 0 0 6px rgba(255, 216, 122, 0.6);
+}
+.sv-skill-interaction-chip.is-primed {
+  color: #ffe27a;
+  background: linear-gradient(180deg, rgba(60, 40, 6, 0.7), rgba(36, 24, 4, 0.7));
+  border-color: rgba(255, 214, 96, 0.85);
+  box-shadow: 0 0 12px rgba(255, 214, 96, 0.55);
+  animation: sv-ssi-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sv-ssi-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 214, 96, 0.45); }
+  50%      { box-shadow: 0 0 18px rgba(255, 214, 96, 0.85); }
+}
+
+/* "Your Turn" header — turn-clock pinned inline next to the heading
+   (moved from the deleted info-meta strip). */
+.sv-turn-head-v101 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sv-turn-head-v101 .sv-turn-timer {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Combat / Veil Magic / Tactical category buttons — shrunk on phone widths
+   so all three plus their badges fit on one row without wrapping. */
+@media (max-width: 720px) {
+  .battle-bg .battle-tab.v66 {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+    min-height: 26px !important;
+  }
+  .battle-bg .battle-tab.v66 .battle-tab-ic {
+    font-size: 11px !important;
+    margin-right: 3px !important;
+  }
+}
+
+/* Character-token popup — derived combat profile panel (Crit/Acc/Eva/etc).
+   Compact two-column grid so it fits the dossier without scrolling. */
+.sv-token-derived-panel {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: rgba(20, 26, 50, 0.55);
+  border: 1px solid rgba(120, 130, 200, 0.35);
+  border-radius: 8px;
+}
+.sv-token-derived-head {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d4ad40;
+  margin-bottom: 4px;
+}
+.sv-token-derived-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px 8px;
+}
+.sv-token-derived-grid .sv-tdp-cell {
+  font-size: 10px;
+  color: #cdd5ee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sv-token-derived-grid .sv-tdp-cell b {
+  color: #ffd87a;
+  font-weight: 800;
+  margin-right: 3px;
+}
+
+/* end v101 */
