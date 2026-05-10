@@ -9063,6 +9063,23 @@ const buildGroupedBattleLog = (entries) => {
               {k:"town", lbl:"Town"},
             ].map(function(item){return <span key={item.lbl} className="legend-pill legend-pill-art"><span className="legend-pill-art-img" style={{ backgroundImage: `url('${poiArtUrl(item.k)}')` }} /><span className="legend-pill-art-lbl">{item.lbl}</span></span>;})}</div></details>
             <button className="map-rail-help-btn" type="button" title="Controls" onClick={() => setPopup({ text: "🎮 Controls\n\n• WASD or Arrow Keys — step one tile\n• Click any tile — auto-walk to it\n• Double-click a POI — walk there and enter on arrival\n• Space — Enter/Interact with the POI on your current tile\n• Action button (left rail) — context-aware: Enter, Interact, Fish, or Stop auto-walk\n• Esc — close most popups", choices: [{ label: "Got it", action: () => setPopup(null) }] })}>? Controls</button>
+            {/* v98 — mobile camera helper. The map is always rendered centered
+                on player (15×9 viewport, hfX=7/hfY=4). On mobile the map is
+                pushed below the rail; this scrolls it back into view so the
+                player tile is visibly centered on the screen. */}
+            <button
+              className="map-rail-find-me-btn"
+              type="button"
+              title="Center the map viewport on your character"
+              onClick={() => {
+                try {
+                  const el = swipeRef && swipeRef.current;
+                  if (el && typeof el.scrollIntoView === "function") {
+                    el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+                  }
+                } catch (_e) { /* no-op */ }
+              }}
+            >🎯 Find Me</button>
           </aside>
           <div className="map-main-area">
           <div ref={swipeRef} className="battle-world-grid" style={{ display: "grid", gridTemplateColumns: "repeat(" + VW + ",1fr)", gap: 1, marginBottom: 0, width: "100%", background: T.bg, borderRadius: 6, overflow: "hidden", border: "1px solid " + T.bd, animation: "mapMove .15s ease" }} key={pos.x + "," + pos.y}>

@@ -9036,3 +9036,297 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   box-shadow: inset 0 0 0 2px rgba(255, 150, 80, 0.55), 0 0 8px rgba(255, 150, 80, 0.35);
 }
 /* end v97 */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v98 — MOBILE-ONLY REPAIR PASS
+   Scope: ≤768px. Desktop is the working reference and is NOT touched.
+   Goals (from spec sections):
+     A. World map camera — make the map visibly centered on phones by
+        collapsing the rail above and adding a Find Me scroll button.
+     B. Compact world header — chip row of [Veilcourt][Legend][Controls][Find Me]
+        instead of stacked full-width blocks.
+     C. World map viewport — clear card height + visible player tile.
+     D/E. Compact mobile battle header — collapse Tactical Readout & stat strip.
+     F. Battle grid fit-to-viewport (paired with v97 ResizeObserver in JSX).
+     G. Battlefield underlay preserved (already wired in v97).
+     H. Action button optimization — true 2-col tile layout on phones.
+     I. Targeting colors preserved.
+     J. Responsive rules at 480 / 540 / 768.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Find Me button (always defined; mobile-only positioning below) ───── */
+.map-rail-find-me-btn {
+  appearance: none;
+  border: 1px solid rgba(212,173,64,0.55);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgba(58,48,98,0.95), rgba(28,22,52,0.98));
+  color: #f2c45c;
+  font-family: 'Cinzel', serif;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  transition: transform .1s ease, box-shadow .12s ease;
+  display: none; /* desktop: hidden — desktop already centers correctly */
+}
+.map-rail-find-me-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.55), 0 0 12px rgba(242,196,92,0.45); }
+.map-rail-find-me-btn:active { transform: translateY(0); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOBILE ≤ 768px — WORLD MAP REWRITE
+   Restructures the world rail into a compact chip row above the map so the
+   map appears sooner and the player tile sits visibly inside the viewport.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Show Find Me on mobile only */
+  .map-rail-find-me-btn { display: inline-flex; align-items: center; gap: 4px; }
+
+  /* Page layout — single column stack: head, rail-strip, map. */
+  .map-bg .page-panel {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto !important;
+    gap: 6px !important;
+    padding: 6px 8px 8px !important;
+  }
+  .map-bg .map-side-rail {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+    margin: 0 !important; padding: 0 !important;
+  }
+  .map-bg .map-main-area {
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Action button — primary row, full width, but compact height. */
+  .map-bg .map-side-rail > .rail-action-btn {
+    flex: 1 1 100% !important;
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    border-radius: 10px !important;
+    margin: 0 !important;
+    order: 1;
+  }
+
+  /* Quick row (HP/MP/sound icons) — slim 5/6 across, no card padding. */
+  .map-bg .map-side-rail > .map-rail-quick {
+    flex: 1 1 100% !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+    margin: 0 !important;
+    order: 2;
+  }
+  .map-bg .map-side-rail > .map-rail-quick .map-rail-quick-btn {
+    font-size: 13px !important;
+    padding: 4px 0 !important;
+    min-height: 32px !important;
+  }
+
+  /* Tile/Compass/Meta condensed into a single info row. */
+  .map-bg .map-side-rail > .map-rail-tile {
+    flex: 1 1 100% !important;
+    padding: 5px 8px !important;
+    margin: 0 !important;
+    border-radius: 8px;
+    order: 3;
+    min-height: 0 !important;
+  }
+  .map-bg .map-side-rail > .map-rail-tile .map-rail-tile-name { font-size: 13px !important; }
+  .map-bg .map-side-rail > .map-rail-tile .map-rail-tile-type { font-size: 9px !important; }
+  .map-bg .map-side-rail > .map-rail-tile .map-rail-tile-coords { font-size: 10px !important; }
+
+  .map-bg .map-side-rail > .map-rail-compass {
+    flex: 1 1 100% !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+    order: 4;
+  }
+  .map-bg .map-side-rail > .map-rail-meta {
+    flex: 1 1 100% !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+    order: 5;
+  }
+  .map-bg .map-side-rail > .map-rail-meta:empty { display: none !important; }
+
+  /* Events — compact slim card. */
+  .map-bg .map-side-rail > .map-rail-events {
+    flex: 1 1 100% !important;
+    padding: 4px 6px !important;
+    border-radius: 6px;
+    background: rgba(20,16,38,0.55);
+    order: 6;
+    max-height: 56px;
+    overflow: hidden;
+  }
+  .map-bg .map-side-rail > .map-rail-events .mre-head { font-size: 8px !important; }
+  .map-bg .map-side-rail > .map-rail-events .mre-pill { font-size: 10px !important; padding: 2px 6px !important; }
+
+  /* CHIP ROW: [Veilcourt] [Legend] [Controls] [Find Me] — 2×2 grid on phones. */
+  .map-bg .map-side-rail > .veil-quick-open-btn,
+  .map-bg .map-side-rail > .map-rail-legend,
+  .map-bg .map-side-rail > .map-rail-help-btn,
+  .map-bg .map-side-rail > .map-rail-find-me-btn {
+    flex: 1 1 calc(50% - 3px) !important;
+    margin: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    border-radius: 999px !important;
+    min-height: 34px !important;
+    text-align: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px;
+    order: 7;
+    box-sizing: border-box;
+  }
+  .map-bg .map-side-rail > .veil-quick-open-btn .veil-quick-open-online { font-size: 9px !important; padding: 1px 4px !important; }
+  .map-bg .map-side-rail > .map-rail-legend > .map-legend-toggle {
+    padding: 0 !important; font-size: 11px !important; cursor: pointer; list-style: none;
+  }
+  .map-bg .map-side-rail > .map-rail-legend > .map-legend-toggle::-webkit-details-marker { display: none; }
+  /* Expanded legend: appears below as a wrapping pill row when opened. */
+  .map-bg .map-side-rail > .map-rail-legend[open] {
+    flex: 1 1 100% !important;
+    border-radius: 10px !important;
+    padding: 6px 8px !important;
+    background: rgba(20,16,38,0.55);
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .map-bg .map-side-rail > .map-rail-legend[open] .map-legend-row {
+    margin-top: 4px !important;
+    display: flex; flex-wrap: wrap; gap: 3px;
+  }
+  .map-bg .map-side-rail > .map-rail-legend[open] .legend-pill { font-size: 9px !important; padding: 2px 5px !important; }
+
+  /* Map viewport — clear card with sensible height, player tile visible. */
+  .map-bg .battle-world-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: clamp(360px, 58dvh, 620px) !important;
+    aspect-ratio: 15 / 9 !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* ── Phone-narrow tweaks (≤480px) ───────────────────────────────────────── */
+@media (max-width: 480px) {
+  .map-bg .page-panel { padding: 4px 6px 6px !important; }
+  .map-bg .map-side-rail > .rail-action-btn { font-size: 12px !important; padding: 7px 8px !important; }
+  .map-bg .map-side-rail > .veil-quick-open-btn,
+  .map-bg .map-side-rail > .map-rail-legend,
+  .map-bg .map-side-rail > .map-rail-help-btn,
+  .map-bg .map-side-rail > .map-rail-find-me-btn {
+    font-size: 10px !important;
+    min-height: 32px !important;
+    padding: 5px 6px !important;
+  }
+  .map-bg .battle-world-grid { max-height: clamp(320px, 52dvh, 520px) !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOBILE ≤ 768px — BATTLE PAGE COMPACTION
+   Collapses Tactical Readout, shrinks the stat strip, stacks
+   actions/log vertically, and forces 2-col action grid on phones so the
+   arena board gets meaningfully more room.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Stack actions then log vertically — desktop split layout would steal half the width. */
+  .battle-bg .battle-lower-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    margin-top: 4px !important;
+  }
+  .battle-bg .battle-main-stack,
+  .battle-bg .battle-side-stack {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  /* Battle log: short readable scroll instead of growing tall. */
+  .battle-bg .battle-log-card {
+    max-height: 28vh !important;
+    overflow-y: auto !important;
+    padding: 4px 6px !important;
+  }
+
+  /* Compact battle title. */
+  .battle-bg .battle-combat-title { font-size: 10px !important; margin-bottom: 2px !important; }
+
+  /* Compact battle-info-card: shrink Tactical Readout & combat profile pills. */
+  .battle-bg .battle-info-card { padding: 5px 6px !important; }
+  .battle-bg .sv-combat-profile-pill {
+    font-size: 8px !important;
+    padding: 1px 5px !important;
+    line-height: 1.4 !important;
+  }
+  .battle-bg .sv-combat-profile-pill .sv-cpp-lab { font-size: 7px !important; }
+  /* Tactical Readout: collapsed-peek by default — header + 1 row of chips, swipe-able. */
+  .battle-bg .battle-tactical-inline {
+    max-height: 64px !important;
+    overflow: hidden !important;
+    padding: 2px 0 !important;
+    font-size: 9px !important;
+    position: relative;
+  }
+  .battle-bg .battle-tactical-inline::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0; height: 14px;
+    background: linear-gradient(to bottom, rgba(8,14,30,0), rgba(8,14,30,0.85));
+    pointer-events: none;
+  }
+  .battle-bg .battle-tactical-inline .battle-ready-chip {
+    font-size: 9px !important; padding: 1px 5px !important;
+  }
+  .battle-bg .battle-info-meta {
+    gap: 4px !important;
+  }
+  .battle-bg .battle-info-meta .tg { font-size: 9px !important; padding: 1px 5px !important; }
+
+  /* Action grid: real 2-column tiles on phones; 3 cols on small tablets.
+     Keep the in-card scroll escape hatch — outer .battle-viewport hides
+     overflow, so removing this would clip cards on classes with large
+     toolkits. Cap at 50dvh so the arena above stays meaningful. */
+  .battle-bg .battle-actions-card { padding: 5px !important; max-height: 50dvh !important; overflow-y: auto !important; }
+  .battle-bg .battle-action-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+  .battle-bg .battle-action-btn {
+    min-height: 64px !important;
+    padding: 6px 6px 7px !important;
+    font-size: 10px !important;
+    word-break: keep-all; hyphens: none;
+  }
+  .battle-bg .battle-action-btn > div { line-height: 1.2; }
+  /* Tabs: keep text labels visible at all phone widths. */
+  .battle-bg .battle-tab-nm { display: inline !important; font-size: 11px !important; }
+}
+
+@media (max-width: 540px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .battle-bg .battle-action-btn { min-height: 60px !important; }
+  .battle-bg .battle-tactical-inline { max-height: 58px !important; font-size: 8px !important; }
+  .battle-bg .sv-combat-profile-pill { font-size: 7px !important; padding: 1px 4px !important; }
+}
+
+@media (max-width: 480px) {
+  .battle-bg .battle-action-btn { min-height: 56px !important; padding: 5px 5px 6px !important; font-size: 9.5px !important; }
+  .battle-bg .battle-tactical-inline { max-height: 52px !important; }
+  .battle-bg .battle-info-card { padding: 4px 5px !important; }
+}
+/* end v98 */
