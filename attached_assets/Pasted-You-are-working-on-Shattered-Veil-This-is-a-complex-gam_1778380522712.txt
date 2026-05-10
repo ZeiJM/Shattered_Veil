@@ -1,0 +1,584 @@
+You are working on Shattered Veil. This is a complex game. Be careful, surgical, and cost-conscious.
+
+TASK NAME:
+Clean-Room Combat Targeting, Effect Tag, Action Preview, and Command UI Rebuild Inspired by Reference Architecture
+
+BEFORE STARTING:
+Create or rely on a safe Replit checkpoint before making changes.
+
+CRITICAL RULES:
+- Do not copy code, text, names, UI, styling, or assets from the Ninja RPG reference.
+- Use the reference only as a design/architecture inspiration.
+- Build an original Shattered Veil implementation.
+- Do not rewrite unrelated game systems.
+- Do not change bloodmarks, heirs, world generation, backend, chat, or save/load unless absolutely required for compatibility.
+- Preserve existing combat features where possible: arena movement, Veilbreaks, Field Attunement, Field Clash, terrain, destructible objects, tactical actions, statuses, battle logs, Steady Strike, Flurry Strike, and Veilflare Impact.
+- This pass is specifically for targeting, effect tags, action intent, previews, and battle command usability.
+
+FILES TO INSPECT FIRST:
+- artifacts/shattered-veil/src/Game.jsx
+- artifacts/shattered-veil/src/game.css
+- artifacts/shattered-veil/src/battle/arena/ArenaBoard.jsx if it exists
+- artifacts/shattered-veil/src/battle/arena/arenaEngine.js if it exists
+- artifacts/shattered-veil/src/battle/arena/arenaMaps.js if it exists
+- any battle action, battle log, skill, status, or targeting helper files
+
+PRIMARY GOAL:
+Rebuild Shattered Veil’s combat targeting and action UI into a clean, tactical system.
+
+The system should support:
+- clicking enemies when targeting enemies
+- clicking self when targeting self
+- clicking allies when targeting allies
+- clicking tiles only when the action targets ground, empty ground, movement, field zones, or terrain
+- clear previews before confirming actions
+- clean effect tags that make skills easier to build, balance, and explain
+- beautiful, readable battle buttons/action cards
+- mobile long-press and desktop hover details
+
+==================================================
+SECTION A — CLEAN TARGETING MODEL
+==================================================
+
+1. Add a unified target model for all combat actions.
+
+Every battle action/skill/item/tactical action should support a target profile like:
+
+{
+  targetKind: "self" | "enemy" | "ally" | "anyUnit" | "ground" | "emptyGround" | "object" | "field" | "arenaWide",
+  shape: "single" | "line" | "cone" | "burst" | "wall" | "ring" | "aura" | "zone" | "self" | "arenaWide",
+  range: number,
+  radius: number,
+  requiresLineOfSight: boolean,
+  canTargetSelf: boolean,
+  canTargetAllies: boolean,
+  canTargetEnemies: boolean,
+  canTargetGround: boolean,
+  canTargetObjects: boolean,
+  intent: "damageEnemy" | "debuffEnemy" | "healAlly" | "supportAlly" | "selfBuff" | "movement" | "field" | "object" | "mixed"
+}
+
+If existing skills already have range/shape metadata, adapt it rather than duplicating it.
+
+2. Add target validation helpers.
+
+Create or update helpers such as:
+
+- getActionTargetProfile(action)
+- getActionIntentType(action)
+- getDisplayRangeTag(action)
+- getValidTargetTiles(action, caster, arenaState)
+- getValidTargetUnits(action, caster, arenaState)
+- getAffectedTiles(action, caster, target, arenaState)
+- getAffectedUnits(action, caster, target, arenaState)
+- validateActionTarget(action, caster, target, arenaState)
+- canActionTargetUnit(action, caster, targetUnit)
+- canActionTargetTile(action, caster, targetTile)
+- clearActionTargetingState()
+
+Target validation rules:
+- Enemy-targeting actions must require clicking/tapping an enemy token or a tile containing an enemy.
+- Ally-targeting actions must require clicking/tapping an ally token or a tile containing an ally.
+- Self-targeting actions must allow clicking/tapping the player’s own token.
+- Self-only actions may also show a clear “Use on Self” confirmation button.
+- Ally-support actions may target self unless the action explicitly excludes self.
+- Ground actions may target terrain tiles.
+- Empty-ground actions may target only empty walkable tiles.
+- Object actions may target destructible objects.
+- Arena-wide or Field actions should not require a normal unit click unless specifically designed.
+
+3. Make token clicking reliable.
+
+The player should not need to guess whether to click a tile or a unit.
+
+Requirements:
+- Enemy token click selects enemy target for enemy-targeting actions.
+- Ally token click selects ally target for ally-targeting actions.
+- Player token click selects self for self-targeting/self-buff actions.
+- If the player clicks an invalid target, show a clear short message and do not execute.
+- Empty tile clicks should not accidentally target enemies unless the action is ground/empty-ground/movement/field based.
+- Mobile taps should work.
+- Desktop clicks should work.
+- Long press/hover should show details, not immediately execute.
+
+4. Add a targeting state machine.
+
+Use a clear targeting flow:
+
+IDLE
+→ ACTION_SELECTED
+→ TARGET_PREVIEW
+→ TARGET_CONFIRMED
+→ RESOLVE_ACTION
+→ CLEAR_TARGETING
+
+The battle UI should show:
+- selected action
+- valid targets
+- affected area
+- confirm/cancel controls where needed
+- reason if target is invalid
+
+Do not instantly fire complex actions without showing preview unless the action is simple self-only or explicitly safe.
+
+==================================================
+SECTION B — ACTION SHAPES AND AREA TARGETING
+==================================================
+
+5. Rebuild action shapes cleanly for square tactical arenas.
+
+Support these shapes:
+
+- single: one target tile/unit
+- line: straight line from caster or target direction
+- cone: fan area from caster
+- burst: area around selected tile
+- wall: horizontal/vertical blocking or strike line
+- ring: outer circle/square ring around center
+- aura: area around caster
+- zone: persistent area on the battlefield
+- self: caster only
+- arenaWide: whole arena
+
+6. Add square-grid affected tile helpers.
+
+Add helpers such as:
+
+- getSingleTile(target)
+- getLineTiles(origin, target, range)
+- getConeTiles(origin, target, range, width)
+- getBurstTiles(center, radius)
+- getWallTiles(center, orientation, length)
+- getRingTiles(center, radius)
+- getAuraTiles(casterPosition, radius)
+- getZoneTiles(center, radiusOrShape)
+- getArenaWideTiles(arena)
+
+These should:
+- respect arena bounds
+- respect void/blocked cells where appropriate
+- avoid crashing if position data is missing
+- support variable map sizes
+- support irregular map shapes
+
+7. Add range tag display language.
+
+Player-facing range labels must use:
+
+- Close Range
+- Mid Range
+- Long Range
+
+Allowed special cases:
+- Self
+- Field
+- Arena-Wide
+
+Suggested mapping:
+- range 0–1 = Close Range
+- range 2–4 = Mid Range
+- range 5+ = Long Range
+- self-only = Self
+- field/Veilbreak/global = Field or Arena-Wide
+
+Do not use “melee” or “ranged” as player-facing range tags.
+
+==================================================
+SECTION C — EFFECT TAG SYSTEM
+==================================================
+
+8. Create a clean Shattered Veil effect tag model.
+
+Every effect applied by an action should use a clear tag structure like:
+
+{
+  id,
+  type,
+  category,
+  polarity,
+  targetBinding,
+  timing,
+  power,
+  scaling,
+  duration,
+  stackRule,
+  maxStacks,
+  statusId,
+  terrainInteraction,
+  fieldInteraction,
+  logTemplate,
+  visualTheme
+}
+
+Definitions:
+- category: "damage" | "healing" | "buff" | "debuff" | "control" | "movement" | "field" | "terrain" | "object" | "summon" | "utility"
+- polarity: "positive" | "negative" | "neutral" | "mixed"
+- targetBinding: "chosenTarget" | "caster" | "affectedEnemies" | "affectedAllies" | "affectedUnits" | "affectedTiles" | "fieldArea"
+- timing: "instant" | "startTurn" | "endTurn" | "onHit" | "onMove" | "onFieldTick" | "onExpire"
+
+9. Add canonical Shattered Veil effect tags.
+
+Support or map to these effect types:
+
+Damage / pressure:
+- damage
+- pierce
+- bleed
+- burn
+- poison
+- drain
+- recoil
+- lifesteal
+
+Healing / support:
+- heal
+- regen
+- cleanse
+- shield
+- barrier
+- fortify
+
+Buff/debuff:
+- increaseDamage
+- decreaseDamage
+- increaseDefense
+- decreaseDefense
+- increaseCrit
+- decreaseAccuracy
+- expose
+- weaken
+- curse
+- haste
+- slow
+
+Control:
+- stun
+- silence
+- blind
+- root
+- displacement
+- pull
+- push
+
+Field/terrain:
+- createField
+- strengthenField
+- severField
+- fractureTile
+- transformTerrain
+- terrainBonus
+- fieldClashPressure
+
+Object/arena:
+- objectDamage
+- destroyObject
+- createObstacle
+- clearObstacle
+
+Special:
+- veilflareFocus
+- overchannel
+- anchored
+- braced
+- reflect
+- thorns
+- nullify
+- summon
+
+10. Add effect target inheritance.
+
+Effects should not all blindly apply to the clicked unit.
+
+Rules:
+- If effect targetBinding is "chosenTarget", apply to the selected target.
+- If targetBinding is "caster", apply to the caster, even if the action targeted an enemy.
+- If targetBinding is "affectedEnemies", apply only to enemies in the affected area.
+- If targetBinding is "affectedAllies", apply only to allies/self in the affected area.
+- If targetBinding is "affectedUnits", apply to all valid units in area.
+- If targetBinding is "affectedTiles", apply to ground/terrain.
+- If targetBinding is "fieldArea", apply to the field/zone.
+
+Example:
+A strike can damage an enemy while also applying Veilflare Focus to the caster.
+A heal can restore an ally while also applying a small self cooldown or focus effect.
+A field action can affect tiles while also buffing the caster.
+
+11. Add friendly-fire rules.
+
+Each effect should support:
+
+friendlyRule: "all" | "alliesOnly" | "enemiesOnly" | "selfOnly" | "notSelf"
+
+Rules:
+- positive effects default to allies/self unless specified
+- negative effects default to enemies unless specified
+- mixed effects must define their own targetBinding/friendlyRule
+- avoid accidentally healing enemies or damaging allies unless an action explicitly says so
+
+==================================================
+SECTION D — TARGET PREVIEW AND FORESHADOWING
+==================================================
+
+12. Add clean preview colors.
+
+When an action is selected, show targeting foreshadowing before use:
+
+- Blue/teal = movement range and movement destination
+- Red = enemy damage or enemy debuff target/affected area
+- Green = ally/self healing, shielding, cleanse, buff, support
+- Purple/gold = Veilbreak, Field, Field Clash, arena-wide effects
+- Orange = object/destructible targeting
+- Grey = invalid, blocked, out of range
+
+13. Preview requirements.
+
+When selecting an action:
+- valid targets should glow
+- affected tiles should be shown
+- affected units should be highlighted
+- invalid tiles should be muted/grey
+- hover/tap target should preview the exact area
+- canceling action clears preview
+- confirming action clears preview after resolution
+
+Specific behavior:
+- Steady Strike: clicking enemy shows red single-target preview.
+- Flurry Strike: clicking enemy shows red single-target preview.
+- Damaging Veil Magic: enemy or area shows red preview.
+- Heal/support skill: ally/self shows green preview.
+- Tactical Step/Move: tiles show blue/teal preview.
+- Veilbreak/field action: arena or field zone shows purple/gold preview.
+- Object-breaking action: destructible objects show orange preview.
+
+14. Add preview summaries.
+
+When hovering/long-pressing a valid target, show a compact preview card:
+
+- action name
+- target name/tile
+- range tag
+- shape
+- likely affected units
+- effect summary
+- confirm/cancel options on mobile if needed
+
+Do not show exact final damage if that is hard, but show expected intent clearly.
+
+==================================================
+SECTION E — BATTLE COMMAND UI REWORK
+==================================================
+
+15. Rebuild the battle command interface.
+
+Current issue:
+Buttons like Steady Strike and Flurry Strike look ugly, oversized, and wrapped badly.
+
+Create a cleaner command dock and action panel.
+
+Top-level command tabs:
+- Combat
+- Veil Magic
+- Tactical
+- Items
+
+Requirements:
+- clean icon + label
+- selected state obvious
+- disabled state obvious
+- mobile-friendly tap targets
+- no giant empty cards
+- no broken word wrapping
+- no unlabeled mystery icons
+
+16. Redesign action cards.
+
+Each action card should show:
+- icon
+- name
+- cost
+- range tag
+- shape
+- short effect line
+- cooldown/ready state
+- targeting requirement
+
+Mobile rules:
+- no broken word splitting
+- “Steady Strike” and “Flurry Strike” must fit cleanly
+- titles should max at 1–2 lines
+- use font-size clamp()
+- use grid layout that adapts to screen width
+- if cards are too crowded, use a vertical list/card row instead of oversized square buttons
+
+17. Add action details by long-press/hover.
+
+- Mobile long-press = show details
+- Desktop hover/focus = show details
+- Details should include:
+  - full description
+  - target type
+  - range tag
+  - shape
+  - effects
+  - statuses
+  - Veilbreak requirement contribution
+  - terrain/field interactions
+
+==================================================
+SECTION F — BATTLE RESOLUTION PIPELINE
+==================================================
+
+18. Clean up action resolution.
+
+Use this pipeline:
+
+1. Player selects action.
+2. System reads target profile.
+3. System calculates valid target tiles/units.
+4. Player clicks/taps enemy/self/ally/tile depending on action.
+5. System validates target.
+6. System calculates affected tiles.
+7. System calculates affected units.
+8. System applies effect tags based on targetBinding.
+9. System applies costs/cooldowns/action use.
+10. System writes battle log entries.
+11. System clears preview and advances turn/action state.
+
+19. Add strong safety fallbacks.
+
+The system must not crash if:
+- action has missing target profile
+- action has missing effect tags
+- caster position is missing
+- target position is missing
+- ally list is empty
+- enemy list is empty
+- action targets self but self token is not found
+- action targets enemy but target tile has no enemy
+- area effect hits no one
+- terrain/object data is missing
+- old skills still use old metadata
+- save data has old action structures
+
+Use safe defaults.
+
+==================================================
+SECTION G — BATTLE LOG UPGRADES
+==================================================
+
+20. Improve log clarity for targeting and effects.
+
+Logs should clearly say:
+- who used the action
+- who/what was targeted
+- what area was affected
+- what effects applied
+- what was resisted/blocked/missed
+- what self-effects triggered
+- what field/terrain effects triggered
+
+Examples:
+- “Koen used Steady Strike on Grief Wraith.”
+- “The strike damaged Grief Wraith and awakened Veilflare Focus in Koen.”
+- “Koen selected himself and invoked Focus Breath.”
+- “A green Veil-light wrapped around Jojo; Barrier applied.”
+- “The blast marked three enemy tiles in red before impact.”
+- “The target was invalid: this action must target an enemy.”
+
+Do not spam the log with hover previews.
+
+==================================================
+SECTION H — STYLE AND LOCAL UI ASSETS
+==================================================
+
+21. Generate local CSS/SVG assets for:
+- command dock icons
+- target intent icons
+- red enemy preview
+- green ally preview
+- blue movement preview
+- purple/gold field preview
+- orange object preview
+- action card frames
+- selected/ready/disabled card states
+- token targeting rings
+
+Do not use external assets.
+
+22. Visual polish requirements:
+- action UI should feel premium
+- previews should be obvious but not blinding
+- mobile readability comes first
+- no horizontal overflow
+- no broken card text
+- no giant awkward buttons
+- no perspective-mismatched grid overlays
+
+==================================================
+SECTION I — VALIDATION
+==================================================
+
+After changes, verify:
+
+Targeting:
+- enemy-targeting action requires selecting/clicking enemy
+- self-targeting action works by selecting/clicking self
+- ally-targeting action works by selecting/clicking ally
+- ally-targeting action can target self if allowed
+- ground action targets tile
+- empty-ground action targets empty tile
+- invalid target gives clear message and does not execute
+- target preview clears after cancel/confirm
+
+Previews:
+- movement preview is blue/teal
+- enemy damage/debuff preview is red
+- ally/self support preview is green
+- Veilbreak/field preview is purple/gold
+- object preview is orange
+- invalid preview is grey
+
+Actions:
+- Steady Strike works
+- Flurry Strike works
+- Guard works
+- at least one damaging Veil Magic works
+- at least one self-buff works if available
+- at least one ally/support action works if available
+- at least one Tactical action works
+- Items work if applicable
+
+UI:
+- Combat tab works
+- Veil Magic tab works
+- Tactical tab works
+- Items tab works
+- action cards look clean
+- Steady Strike and Flurry Strike do not wrap badly
+- long-press/hover action details work
+- battle log remains readable
+- no blank screen
+- no console errors
+- mobile width around 390px and 430px tested
+- desktop width around 1200px tested
+
+==================================================
+SECTION J — REPORT BACK
+==================================================
+
+At the end, report:
+- every file modified
+- every new file created
+- how target profiles are structured
+- how enemy/self/ally clicking works
+- how effect tags are structured
+- how targetBinding works
+- how preview colors are assigned
+- how action cards were redesigned
+- what old metadata was adapted
+- what was tested
+- what could not be tested
+- known remaining issues
+
+IMPORTANT FINAL NOTE:
+This is a clean-room Shattered Veil implementation inspired by the reference architecture. Do not copy the reference code. Build the original system around Shattered Veil’s square tactical arena, range tags, Veilbreak fields, and mobile-first battle UI.
