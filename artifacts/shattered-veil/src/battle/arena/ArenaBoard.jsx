@@ -139,15 +139,20 @@ export default function ArenaBoard({
   // past the visible card on tall arenas. Falls back to the legacy clamp
   // until the panel has measured itself.
   const _vh = (typeof window !== "undefined" && window.innerHeight) ? window.innerHeight : 720;
+  // v99 — Mobile fit-to-board ceiling raised so 10×8 / 12×10 / 13×11 arenas
+  // can show every row without clipping. Pairs with the v99 mobile battle
+  // CSS that drops Zone A height (collapsible Stats/Readout) so the arena
+  // panel actually has this much room. Floor lowered to 18px for very
+  // wide boards on 390px phones; tokens still readable at 18×18.
   const _maxBoardH = isMobile
-    ? Math.min(_vh * 0.46, 360)
+    ? Math.min(_vh * 0.58, 460)
     : Math.min(_vh * 0.56, 560);
   const _availW = boxW > 0 ? Math.max(0, boxW - 12) : (isMobile ? 360 : 800);
   const _byW = Math.floor(_availW / Math.max(1, arena.cols));
   const _byH = Math.floor(_maxBoardH / Math.max(1, arena.rows));
   const _measured = Math.min(_byW, _byH);
-  const _floor = isMobile ? 22 : 28;
-  const _ceil  = isMobile ? 46 : 72;
+  const _floor = isMobile ? 18 : 28;
+  const _ceil  = isMobile ? 48 : 72;
   const tileSize = boxW > 0
     ? clamp(_measured, _floor, _ceil)
     : (isMobile

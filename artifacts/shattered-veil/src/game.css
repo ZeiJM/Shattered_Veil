@@ -9330,3 +9330,174 @@ html, body, #root { height: 100%; max-height: 100vh; overflow: hidden; }
   .battle-bg .battle-info-card { padding: 4px 5px !important; }
 }
 /* end v98 */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v99 — MOBILE BATTLE LAYOUT REPAIR + WORLD SWIPE TIGHTENING
+   Pairs with: Game.jsx state (battleStatsOpen, battleReadoutOpen) and the
+   ArenaBoard mobile fit-to-board ceiling bump (_maxBoardH 0.58vh / 460px,
+   _floor 18, _ceil 48). Scope strictly ≤768px — desktop unchanged.
+
+   Goal: Zone A (top header) becomes ultra-compact, so Zone B (battlefield
+   arena) has the vertical real estate to show full 10×8 / 12×10 / 13×11
+   boards on 390/430px phones. Zone C (action picker) shrinks. Battle log
+   stays under actions in a contained scroll.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Desktop: hide the new mobile-only Stats/Readout toggle buttons. */
+.sv-mobile-info-toggle { display: none; }
+
+@media (max-width: 768px) {
+  /* ── Show mobile toggles (defined inline next to the Tags button) ───── */
+  .sv-mobile-info-toggle {
+    display: inline-flex !important;
+    align-items: center; gap: 2px;
+    border-radius: 999px !important;
+    font-size: 8px !important;
+    padding: 2px 7px !important;
+  }
+
+  /* ── ZONE A SHRINK ─────────────────────────────────────────────────────
+     The Combat Profile pill strip and Tactical Readout chip row are the
+     biggest space-eaters in the header. Both default to collapsed on
+     mobile and expand only when the matching toggle is pressed. */
+  .battle-bg .battle-info-card .sv-combat-profile-strip {
+    max-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transition: max-height 0.18s ease;
+  }
+  .battle-bg .battle-info-card.is-stats-open .sv-combat-profile-strip {
+    max-height: 80px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin-top: 3px !important;
+    padding: 2px 0 !important;
+  }
+  .battle-bg .battle-info-card .sv-combat-profile-pill {
+    font-size: 8px !important; padding: 1px 5px !important;
+  }
+
+  /* Tactical Readout: keep header row visible (it owns the Stats/Readout/Tags
+     toggles); collapse only the chip area (the second child div). */
+  .battle-bg .battle-info-card .battle-tactical-inline { padding: 1px 0 !important; font-size: 9px !important; }
+  .battle-bg .battle-info-card .battle-tactical-inline > div:nth-child(2) {
+    max-height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transition: max-height 0.18s ease;
+  }
+  .battle-bg .battle-info-card.is-readout-open .battle-tactical-inline > div:nth-child(2) {
+    max-height: 88px !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    padding: 2px 0 !important;
+    margin-top: 2px !important;
+  }
+  .battle-bg .battle-info-card .battle-tactical-inline .battle-ready-chip {
+    font-size: 9px !important; padding: 1px 5px !important;
+  }
+  /* Trim the readout-inline header itself — title + tools row only. */
+  .battle-bg .battle-info-card .battle-tactical-inline > div:first-child > div:first-child {
+    font-size: 9px !important;
+  }
+
+  /* The Veilbreak requirement chain stays visible (it's how the player tracks
+     the win condition) but compact. */
+  .battle-bg .battle-info-card .battle-chain-line {
+    font-size: 9px !important;
+  }
+  .battle-bg .battle-info-card .veilbreak-req-step {
+    font-size: 9px !important; padding: 1px 4px !important;
+  }
+  .battle-bg .battle-info-card .sv-field-attunement-strip {
+    gap: 3px !important;
+  }
+  .battle-bg .battle-info-card .sv-field-attunement-badge {
+    font-size: 9px !important; padding: 1px 5px !important;
+  }
+  /* Compact card padding overall. */
+  .battle-bg .battle-info-card { padding: 4px 6px !important; }
+  .battle-bg .battle-info-card .battle-info-strip { gap: 4px !important; }
+
+  /* ── ZONE C SHRINK ─────────────────────────────────────────────────────
+     Smaller tabs (icon + tiny label), tighter action grid, smaller chip
+     padding so basic moves are visible without scrolling. */
+  .battle-bg .battle-tabs.v66 {
+    gap: 4px !important;
+    padding: 2px !important;
+  }
+  .battle-bg .battle-tab.v66 {
+    padding: 4px 6px !important;
+    min-height: 36px !important;
+    border-radius: 8px !important;
+  }
+  .battle-bg .battle-tab.v66 .battle-tab-ic { font-size: 14px !important; }
+  .battle-bg .battle-tab.v66 .battle-tab-nm {
+    display: inline !important;
+    font-size: 9px !important;
+    margin-top: 0 !important;
+    letter-spacing: 0.04em !important;
+  }
+  .battle-bg .battle-tab.v66 .battle-tab-ct {
+    font-size: 8px !important; padding: 0 3px !important;
+  }
+  .battle-bg .battle-turn-head {
+    padding: 2px 4px !important;
+    font-size: 9px !important;
+  }
+  /* The combat title "Combat" label inside the tab content area. */
+  .battle-bg .battle-combat-title { font-size: 10px !important; margin-bottom: 3px !important; }
+  /* Action grid — 3 col on tablet/landscape, 2 col on phones (overridden ≤540 below). */
+  .battle-bg .battle-action-grid {
+    gap: 4px !important;
+  }
+  .battle-bg .battle-action-btn {
+    min-height: 56px !important;
+    padding: 5px 5px 6px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    word-break: keep-all !important;
+    hyphens: none !important;
+    overflow: hidden;
+  }
+  .battle-bg .battle-action-btn > div { line-height: 1.2; }
+  /* Cap actions card so battle log under it stays reachable. */
+  .battle-bg .battle-actions-card {
+    max-height: 44dvh !important;
+    overflow-y: auto !important;
+    padding: 4px !important;
+  }
+  /* Battle log: short, internal scroll. */
+  .battle-bg .battle-log-card {
+    max-height: 22dvh !important;
+    overflow-y: auto !important;
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .battle-bg .battle-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .battle-bg .battle-action-btn { min-height: 54px !important; }
+  .battle-bg .battle-info-card.is-stats-open .sv-combat-profile-strip { max-height: 72px !important; }
+  .battle-bg .battle-info-card.is-readout-open .battle-tactical-inline > div:nth-child(2) { max-height: 78px !important; }
+  .battle-bg .battle-actions-card { max-height: 42dvh !important; }
+  .battle-bg .battle-log-card { max-height: 20dvh !important; }
+}
+
+@media (max-width: 480px) {
+  .battle-bg .battle-info-card { padding: 3px 5px !important; }
+  .battle-bg .battle-tab.v66 { min-height: 34px !important; padding: 3px 5px !important; }
+  .battle-bg .battle-tab.v66 .battle-tab-nm { font-size: 8.5px !important; }
+  .battle-bg .battle-action-btn { min-height: 52px !important; padding: 4px !important; font-size: 9.5px !important; }
+  .battle-bg .battle-info-card .battle-chain-line { font-size: 8.5px !important; }
+  .battle-bg .battle-info-card .veilbreak-req-step { font-size: 8.5px !important; }
+  .battle-bg .battle-info-card .sv-field-attunement-badge { font-size: 8.5px !important; }
+  /* Inside the action grid, weapon-strike sublabel can wrap; keep it small. */
+  .battle-bg .battle-action-btn { font-size: 9px !important; }
+}
+/* end v99 */

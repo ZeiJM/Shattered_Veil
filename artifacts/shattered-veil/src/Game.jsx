@@ -3546,6 +3546,13 @@ function Game() {
   const [copied, setCopied] = useState(null);
   const [copyN, setCopyN] = useState(0);
   const [battleHelpOpen, setBattleHelpOpen] = useState(false);
+  // v99 — mobile-only collapsible toggles for the battle header.
+  // Desktop ignores these (CSS shows the strips unconditionally).
+  // Mobile hides the Combat Profile pill strip and Tactical Readout chip
+  // row by default and surfaces them via [📊 Stats] / [📜 Readout] toggles
+  // so Zone A stays short and the arena gets more vertical room.
+  const [battleStatsOpen, setBattleStatsOpen] = useState(false);
+  const [battleReadoutOpen, setBattleReadoutOpen] = useState(false);
   // BIG ARENA FOUNDATION — collapsed state for the new battlefield preview panel.
   const [arenaCollapsed, setArenaCollapsed] = useState(false);
   // Pass 3 — Tactical Step movement mode (player picks a destination tile on the arena).
@@ -4775,12 +4782,23 @@ function Game() {
     const el = swipeRef.current;
     if (!el || scr !== "map") return;
     let sx = 0, sy = 0, active = false;
-    const start = (e) => { if (e.target && (e.target.closest('button') || e.target.closest('[data-noswipe="1"]'))) return; const t = e.touches ? e.touches[0] : e; sx = t.clientX; sy = t.clientY; active = true; };
+    // v99 — bumped threshold from 24→38px so casual taps don't drift into
+    // a swipe move. Long-press tile info still wins (timer fires at 520ms
+    // on the tile child element; we early-exit if it has fired). Modal/popup
+    // open also early-exits (popup overlay covers the grid above us).
+    const start = (e) => {
+      if (popup) return;
+      if (e.target && (e.target.closest('button') || e.target.closest('[data-noswipe="1"]'))) return;
+      const t = e.touches ? e.touches[0] : e;
+      sx = t.clientX; sy = t.clientY; active = true;
+    };
     const end = (e) => {
       if (!active) return; active = false;
+      if (tileLongPressFiredRef.current) return; // long-press tile info just fired — don't also move.
+      if (popup) return;
       const t = e.changedTouches ? e.changedTouches[0] : e;
       const dx = t.clientX - sx, dy = t.clientY - sy;
-      if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+      if (Math.abs(dx) < 38 && Math.abs(dy) < 38) return;
       if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 1 : -1, 0);
       else move(0, dy > 0 ? 1 : -1);
     };
@@ -9279,7 +9297,7 @@ const buildGroupedBattleLog = (entries) => {
             </div>
           </div>
         </div>
-        <div className="cd battle-info-card" style={{ padding: 6 }}>
+        <div className={"cd battle-info-card" + (battleStatsOpen ? " is-stats-open" : "") + (battleReadoutOpen ? " is-readout-open" : "") + (battleHelpOpen ? " is-tags-open" : "")} style={{ padding: 6 }}>
               <div className="battle-info-strip">
                 <div>
                   {(() => {
@@ -9400,6 +9418,8 @@ const buildGroupedBattleLog = (entries) => {
                       <div className="battle-combo-tools">
                         {battleBonus && <div style={{ color: T.ok, fontSize: 8 }}>✦ {battleBonus.label.replace(/(\d+)t/g, "$1 Turns")}</div>}
                         <button className="bt bs" style={{ background: battleHelpOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleHelpOpen(v => !v)}>🏷️ Tags</button>
+                        <button type="button" className="bt bs sv-mobile-info-toggle" style={{ background: battleStatsOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleStatsOpen(v => !v)}>📊 Stats</button>
+                        <button type="button" className="bt bs sv-mobile-info-toggle" style={{ background: battleReadoutOpen ? T.gd : T.c2, padding: "2px 6px", fontSize: 7 }} onClick={() => setBattleReadoutOpen(v => !v)}>📜 Readout</button>
                       </div>
                     </div>
                     <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 1, marginTop: 2 }}>
