@@ -1,0 +1,16 @@
+@media (max-width: 768px) {
+  .battle-bg .wr { padding-left: 4px !important; padding-right: 4px !important; }
+  .battle-bg .cd { margin-bottom: 4px !important; border-radius: 10px !important; }
+  .battle-bg .battle-info-card { padding: 6px 8px !important; }
+  .battle-bg .battle-chain-line { display: none !important; }
+  .battle-bg .battle-info-card button { min-height: 24px !important; padding: 3px 8px !important; font-size: 10px !important; border-radius: 999px !important; }
+  .battle-bg .sv-arena-panel { padding: 6px !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+  .battle-bg .sv-arena-grid { max-width: 100% !important; height: auto !important; max-height: none !important; overflow: visible !important; margin-left: auto !important; margin-right: auto !important; }
+  .battle-bg .sv-arena-footer { display: none !important; }
+  .battle-bg .battle-actions-card { padding: 6px !important; }
+  .battle-bg .battle-tabs { gap: 4px !important; padding: 3px !important; margin: 3px 0 5px !important; }
+  .battle-bg .battle-tab { min-height: 34px !important; padding: 4px 5px !important; border-radius: 8px !important; }
+  .battle-bg .battle-tab .battle-tab-nm { font-size: 8.5px !important; }
+}
+.bm-innate { position: relative; padding-top: 22px !important; overflow: visible !important; }
+.bm-innate-badge { top: 6px !important; right: 8px !important; z-index: 2 !important; max-width: 42% !important; font-size: 7px !important; pointer-events: none !important; }
