@@ -45,6 +45,39 @@ function polishMobileLabels() {
   });
 }
 
+function markBattleHeaderLayout() {
+  const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+  const clearMarks = () => {
+    document.querySelectorAll('[data-sv-battle-header-row], [data-sv-battle-header-card]').forEach((el) => {
+      delete (el as HTMLElement).dataset.svBattleHeaderRow;
+      delete (el as HTMLElement).dataset.svBattleHeaderCard;
+    });
+  };
+
+  clearMarks();
+
+  document.querySelectorAll('.battle-bg .battle-info-card, .battle-bg .cd').forEach((card) => {
+    const cardText = textOf(card);
+    const hasBattleHeaderSignals =
+      /(Veilbreak|Veil Expansion|Skill Interaction|Attunement|Tags?|Round|Turn|Timer)/i.test(cardText);
+    if (!hasBattleHeaderSignals) return;
+
+    const cardEl = card as HTMLElement;
+    cardEl.dataset.svBattleHeaderCard = '1';
+
+    Array.from(card.children).forEach((child) => {
+      const row = child as HTMLElement;
+      const rowText = textOf(row);
+      if (!rowText) return;
+      if (/Skill Interaction/i.test(rowText)) row.dataset.svBattleHeaderRow = 'skill';
+      else if (/Veilbreak|Veil Expansion/i.test(rowText)) row.dataset.svBattleHeaderRow = 'veilbreak';
+      else if (/Attunement/i.test(rowText)) row.dataset.svBattleHeaderRow = 'attunement';
+      else if (/\bTags?\b/i.test(rowText)) row.dataset.svBattleHeaderRow = 'tags';
+      else if (/\b(Round|Turn|Timer)\b/i.test(rowText)) row.dataset.svBattleHeaderRow = 'timer';
+    });
+  });
+}
+
 function lockWorldMapTouch(ev: TouchEvent) {
   const target = ev.target as Element | null;
   if (!target || !target.closest('.map-bg')) return;
@@ -58,7 +91,10 @@ function App() {
     let frame = 0;
     const run = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(polishMobileLabels);
+      frame = requestAnimationFrame(() => {
+        polishMobileLabels();
+        markBattleHeaderLayout();
+      });
     };
     run();
     const observer = new MutationObserver(run);

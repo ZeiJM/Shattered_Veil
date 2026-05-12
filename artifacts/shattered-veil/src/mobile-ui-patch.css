@@ -117,3 +117,85 @@
     padding-top: 30px !important;
   }
 }
+
+/* Battle header direct layout pass: data attributes are applied in App.tsx so
+   the large Game.jsx file does not need another risky broad rewrite. */
+@media (max-width: 768px) {
+  .battle-bg [data-sv-battle-header-card="1"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 5px !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row] {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row="veilbreak"],
+  .battle-bg [data-sv-battle-header-row="skill"] {
+    justify-content: space-between !important;
+    padding: 4px 6px !important;
+    border-radius: 10px !important;
+    background: rgba(16, 20, 34, 0.46) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row="veilbreak"] { order: 1 !important; }
+  .battle-bg [data-sv-battle-header-row="skill"] { order: 2 !important; }
+  .battle-bg [data-sv-battle-header-row="attunement"] { order: 3 !important; }
+  .battle-bg [data-sv-battle-header-row="timer"] { order: 4 !important; }
+  .battle-bg [data-sv-battle-header-row="tags"] { order: 5 !important; }
+
+  .battle-bg [data-sv-battle-header-row="attunement"],
+  .battle-bg [data-sv-battle-header-row="timer"],
+  .battle-bg [data-sv-battle-header-row="tags"] {
+    justify-content: flex-start !important;
+    padding: 2px 0 !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row] .tg,
+  .battle-bg [data-sv-battle-header-row] [class*="tag"],
+  .battle-bg [data-sv-battle-header-row] [class*="chip"],
+  .battle-bg [data-sv-battle-header-row] button {
+    max-width: 100% !important;
+    white-space: normal !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row="attunement"] .tg,
+  .battle-bg [data-sv-battle-header-row="timer"] .tg,
+  .battle-bg [data-sv-battle-header-row="tags"] .tg,
+  .battle-bg [data-sv-battle-header-row="attunement"] [class*="tag"],
+  .battle-bg [data-sv-battle-header-row="timer"] [class*="tag"],
+  .battle-bg [data-sv-battle-header-row="tags"] [class*="tag"] {
+    font-size: 8.5px !important;
+    line-height: 1.08 !important;
+    padding: 2px 6px !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row="veilbreak"] .tg,
+  .battle-bg [data-sv-battle-header-row="veilbreak"] [class*="chip"],
+  .battle-bg [data-sv-battle-header-row="veilbreak"] [class*="progress"] {
+    background: linear-gradient(180deg, rgba(255, 223, 143, 0.96), rgba(156, 98, 20, 0.96)) !important;
+    color: #130d07 !important;
+    border-color: rgba(255, 237, 190, 0.78) !important;
+    text-shadow: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .battle-bg [data-sv-battle-header-row="veilbreak"],
+  .battle-bg [data-sv-battle-header-row="skill"] {
+    justify-content: flex-start !important;
+  }
+
+  .battle-bg [data-sv-battle-header-row] button {
+    min-height: 26px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+  }
+}
