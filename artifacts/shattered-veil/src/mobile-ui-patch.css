@@ -58,6 +58,28 @@
   .battle-bg .battle-tabs { gap: 4px !important; padding: 3px !important; margin: 3px 0 5px !important; }
   .battle-bg .battle-tab { min-height: 34px !important; padding: 4px 5px !important; border-radius: 8px !important; }
   .battle-bg .battle-tab .battle-tab-nm { font-size: 8.5px !important; }
+
+  /* World map mobile pass: keep the map gesture area from dragging the page. */
+  .map-bg .wr { padding-left: 6px !important; padding-right: 6px !important; }
+  .map-bg [class*="map"],
+  .map-bg [class*="Map"],
+  .map-bg canvas,
+  .map-bg svg {
+    overscroll-behavior: contain !important;
+  }
+  .map-bg [class*="map-grid"],
+  .map-bg [class*="MapGrid"],
+  .map-bg [class*="world-grid"],
+  .map-bg [class*="WorldGrid"],
+  .map-bg canvas,
+  .map-bg svg {
+    touch-action: none !important;
+    user-select: none !important;
+  }
+  .map-bg button { min-height: 28px !important; padding: 5px 9px !important; font-size: 10px !important; border-radius: 999px !important; }
+  .map-bg .tg,
+  .map-bg [class*="chip"],
+  .map-bg [class*="tag"] { font-size: 9px !important; padding: 2px 7px !important; border-radius: 999px !important; }
 }
 
 /* Innate/class badge: keep it in its own top strip so it cannot cover text. */
