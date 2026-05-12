@@ -2,20 +2,46 @@ import { useEffect } from 'react';
 import Game from './Game.jsx';
 import './mobile-ui-patch.css';
 
-function polishMobileLabels() {
-  const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+function textOf(el: Element) {
+  return (el.textContent || '').replace(/\s+/g, ' ').trim();
+}
 
+function tagBattleHeaderElement(el: Element, className: string) {
+  const node = el as HTMLElement;
+  node.classList.add(className);
+  const row = node.closest('.battle-chain-line, .battle-info-card, .cd, [class*="row"], [class*="Row"]') as HTMLElement | null;
+  if (row) row.classList.add(`${className}-row`);
+}
+
+function polishBattleHeader() {
   document.querySelectorAll('.battle-bg button, .battle-bg span, .battle-bg div').forEach((el) => {
     const text = textOf(el);
+    const normalized = text.toLowerCase();
+
     if (el.tagName === 'BUTTON' && /^chain$/i.test(text)) {
       (el as HTMLElement).style.display = 'none';
       return;
     }
+
     if (text === 'Combat') el.textContent = 'Combat Arts';
     else if (text === 'Combat Options') el.textContent = 'Combat Arts';
     else if (text === 'Tactical') el.textContent = 'Battle Tactics';
     else if (text === 'Tactical Options') el.textContent = 'Battle Tactics';
+
+    if (/veil\s*(break|expansion)/i.test(text)) tagBattleHeaderElement(el, 'sv-mobile-veilbreak');
+    if (/skill\s*interaction/i.test(text)) tagBattleHeaderElement(el, 'sv-mobile-skill-interaction');
+    if (/attunement/i.test(text)) tagBattleHeaderElement(el, 'sv-mobile-attunement');
+    if (/\btimer\b|\btime\b|turn\s*timer|\d+\s*s\b/i.test(normalized)) tagBattleHeaderElement(el, 'sv-mobile-timer');
+    if (/\btags?\b|\bstatus\b|\beffects?\b/i.test(normalized)) tagBattleHeaderElement(el, 'sv-mobile-tags');
   });
+
+  document.querySelectorAll('.battle-bg .battle-info-card, .battle-bg .battle-chain-line').forEach((el) => {
+    (el as HTMLElement).classList.add('sv-mobile-battle-header-zone');
+  });
+}
+
+function polishMobileLabels() {
+  polishBattleHeader();
 
   document.querySelectorAll('.map-bg button, .map-bg span, .map-bg div').forEach((el) => {
     const text = textOf(el);
