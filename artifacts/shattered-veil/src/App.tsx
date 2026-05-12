@@ -17,6 +17,12 @@ function polishMobileLabels() {
     else if (text === 'Tactical Options') el.textContent = 'Battle Tactics';
   });
 
+  document.querySelectorAll('.map-bg button, .map-bg span, .map-bg div').forEach((el) => {
+    const text = textOf(el);
+    if (/^\??\s*controls$/i.test(text)) el.textContent = 'Input Help';
+    else if (/^find me$/i.test(text)) el.textContent = 'Center Player';
+  });
+
   document.querySelectorAll('.create-bg span, .create-bg div').forEach((el) => {
     const text = textOf(el).toUpperCase();
     if (!text.includes('INNATE')) return;
@@ -39,6 +45,14 @@ function polishMobileLabels() {
   });
 }
 
+function lockWorldMapTouch(ev: TouchEvent) {
+  const target = ev.target as Element | null;
+  if (!target || !target.closest('.map-bg')) return;
+  const interactiveMap = target.closest('[class*="map-grid"], [class*="MapGrid"], [class*="world-grid"], [class*="WorldGrid"], canvas, svg');
+  if (!interactiveMap) return;
+  ev.preventDefault();
+}
+
 function App() {
   useEffect(() => {
     let frame = 0;
@@ -49,9 +63,11 @@ function App() {
     run();
     const observer = new MutationObserver(run);
     observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('touchmove', lockWorldMapTouch, { passive: false });
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
+      document.removeEventListener('touchmove', lockWorldMapTouch);
     };
   }, []);
 
