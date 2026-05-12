@@ -47,6 +47,15 @@ function polishMobileLabels() {
 
 function markBattleHeaderLayout() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+  const signalSetOf = (text: string) => {
+    const signals = new Set<string>();
+    if (/Veilbreak|Veil Expansion/i.test(text)) signals.add('veilbreak');
+    if (/Skill Interaction/i.test(text)) signals.add('skill');
+    if (/Attunement/i.test(text)) signals.add('attunement');
+    if (/\bTags?\b/i.test(text)) signals.add('tags');
+    if (/\b(Round|Turn|Timer)\b/i.test(text)) signals.add('timer');
+    return signals;
+  };
   const clearMarks = () => {
     document.querySelectorAll('[data-sv-battle-header-row], [data-sv-battle-header-card]').forEach((el) => {
       delete (el as HTMLElement).dataset.svBattleHeaderRow;
@@ -56,24 +65,36 @@ function markBattleHeaderLayout() {
 
   clearMarks();
 
-  document.querySelectorAll('.battle-bg .battle-info-card, .battle-bg .cd').forEach((card) => {
-    const cardText = textOf(card);
-    const hasBattleHeaderSignals =
-      /(Veilbreak|Veil Expansion|Skill Interaction|Attunement|Tags?|Round|Turn|Timer)/i.test(cardText);
-    if (!hasBattleHeaderSignals) return;
+  const candidates = [
+    ...Array.from(document.querySelectorAll('.battle-bg .battle-info-card')),
+    ...Array.from(document.querySelectorAll('.battle-bg .cd')),
+  ];
 
+  candidates.forEach((card) => {
     const cardEl = card as HTMLElement;
+    if (cardEl.dataset.svBattleHeaderCard === '1') return;
+    if (cardEl.querySelector('[data-sv-battle-header-card="1"]')) return;
+    if (cardEl.parentElement?.closest('[data-sv-battle-header-card="1"]')) return;
+
+    const cardText = textOf(card);
+    const signals = signalSetOf(cardText);
+    const hasPrimaryHeaderSignal = signals.has('veilbreak') || signals.has('skill');
+    const hasCompactHeaderCluster = signals.has('attunement') && (signals.has('tags') || signals.has('timer'));
+    const hasActionOrLogSignals = /Combat Arts|Veil Magic|Battle Tactics|Battle Log|Combat Options|Tactical Options/i.test(cardText);
+    if ((!hasPrimaryHeaderSignal && !hasCompactHeaderCluster) || hasActionOrLogSignals) return;
+
     cardEl.dataset.svBattleHeaderCard = '1';
 
     Array.from(card.children).forEach((child) => {
       const row = child as HTMLElement;
       const rowText = textOf(row);
       if (!rowText) return;
-      if (/Skill Interaction/i.test(rowText)) row.dataset.svBattleHeaderRow = 'skill';
-      else if (/Veilbreak|Veil Expansion/i.test(rowText)) row.dataset.svBattleHeaderRow = 'veilbreak';
-      else if (/Attunement/i.test(rowText)) row.dataset.svBattleHeaderRow = 'attunement';
-      else if (/\bTags?\b/i.test(rowText)) row.dataset.svBattleHeaderRow = 'tags';
-      else if (/\b(Round|Turn|Timer)\b/i.test(rowText)) row.dataset.svBattleHeaderRow = 'timer';
+      const rowSignals = signalSetOf(rowText);
+      if (rowSignals.has('veilbreak')) row.dataset.svBattleHeaderRow = 'veilbreak';
+      else if (rowSignals.has('skill')) row.dataset.svBattleHeaderRow = 'skill';
+      else if (rowSignals.has('attunement')) row.dataset.svBattleHeaderRow = 'attunement';
+      else if (rowSignals.has('tags')) row.dataset.svBattleHeaderRow = 'tags';
+      else if (rowSignals.has('timer')) row.dataset.svBattleHeaderRow = 'timer';
     });
   });
 }
