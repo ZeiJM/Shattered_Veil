@@ -17,6 +17,8 @@ function polishMobileLabels() {
     else if (text === 'Tactical Options') el.textContent = 'Battle Tactics';
   });
 
+  polishBattleHeaderMobileLayout(textOf);
+
   document.querySelectorAll('.map-bg button, .map-bg span, .map-bg div').forEach((el) => {
     const text = textOf(el);
     if (/^\??\s*controls$/i.test(text)) el.textContent = 'Input Help';
@@ -42,6 +44,44 @@ function polishMobileLabels() {
     badge.style.lineHeight = '1.05';
     badge.style.padding = '2px 7px';
     badge.style.borderRadius = '999px';
+  });
+}
+
+function polishBattleHeaderMobileLayout(textOf: (el: Element) => string) {
+  const root = document.querySelector('.battle-bg');
+  if (!root) return;
+
+  const markClosest = (el: Element, className: string, selector = '.battle-info-card, .battle-chain-line, .cd, [class*="card"], [class*="Card"]') => {
+    const target = el.closest(selector) as HTMLElement | null;
+    if (target) target.classList.add(className);
+  };
+
+  root.querySelectorAll('.battle-chain-line').forEach((el) => el.classList.add('sv-battle-veilbreak-row'));
+
+  root.querySelectorAll('button, span, div').forEach((el) => {
+    const text = textOf(el);
+    const compact = text.toLowerCase();
+    if (/veil\s*(break|expansion)/i.test(text)) {
+      el.classList.add('sv-veilbreak-label');
+      markClosest(el, 'sv-battle-header-cluster', '.battle-info-card, .battle-chain-line, .cd');
+    }
+    if (/skill\s*interaction/i.test(text)) {
+      el.classList.add('sv-skill-interaction-label');
+      markClosest(el, 'sv-battle-header-cluster', '.battle-info-card, .battle-chain-line, .cd');
+      markClosest(el, 'sv-skill-interaction-cluster', '.battle-info-card, .battle-chain-line, .cd, [class*="row"], [class*="Row"]');
+    }
+    if (/attunement/i.test(text)) {
+      el.classList.add('sv-attunement-label');
+      markClosest(el, 'sv-battle-micro-row');
+    }
+    if (/\btags?\b/i.test(compact)) {
+      el.classList.add('sv-tags-label');
+      markClosest(el, 'sv-battle-micro-row');
+    }
+    if (/\b(turn|timer|round)\b/i.test(compact)) {
+      el.classList.add('sv-timer-label');
+      markClosest(el, 'sv-battle-micro-row');
+    }
   });
 }
 
