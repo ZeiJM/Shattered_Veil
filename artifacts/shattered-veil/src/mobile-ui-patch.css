@@ -227,3 +227,22 @@
     padding-right: 7px !important;
   }
 }
+
+/* Mobile arena inspection copy: override the desktop hover wording without
+   touching ArenaBoard.jsx or the combat/tile-selection code. */
+@media (max-width: 768px) {
+  .battle-bg .sv-arena-hint {
+    font-size: 0 !important;
+  }
+
+  .battle-bg .sv-arena-hint::before {
+    content: "Tap a battlefield tile for terrain, object, and unit details.";
+    display: inline !important;
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    touch-action: manipulation !important;
+  }
+}
