@@ -10,6 +10,7 @@ import './p1-mobile-battle-ui-hardening.css';
 import './p2-strategic-view.css';
 import './p2-battlefield-polish.css';
 import './p3-asset-flicker-polish.css';
+import './battle/battleCommandLayout.css';
 
 const arenaUnitPositions = new Map<string, { x: number; y: number; rect: DOMRect }>();
 let arenaMotionCleanup = 0;
