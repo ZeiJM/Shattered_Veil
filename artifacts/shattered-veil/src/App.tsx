@@ -3,6 +3,7 @@ import Game from './Game.jsx';
 import { getPowerLevelSummaryForArenaUnit } from './battle/powerLevelSummary.js';
 import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
+import './arena-floating-info.css';
 import './power-level-ui.css';
 
 function polishMobileLabels() {
@@ -161,6 +162,41 @@ function enhancePowerLevelTooltips() {
   });
 }
 
+function positionArenaFloatingInfo() {
+  document.querySelectorAll('.battle-bg .sv-arena-panel').forEach((panel) => {
+    const panelEl = panel as HTMLElement;
+    const footer = panelEl.querySelector('.sv-arena-footer') as HTMLElement | null;
+    const tooltip = footer?.querySelector('.sv-arena-tooltip') as HTMLElement | null;
+    const activeTile = panelEl.querySelector('.sv-arena-tile.is-hover') as HTMLElement | null;
+
+    if (!footer || !tooltip || !activeTile) {
+      if (footer) {
+        delete footer.dataset.svFloatingTileInfo;
+        delete footer.dataset.svInfoSide;
+        delete footer.dataset.svInfoEdge;
+        footer.style.removeProperty('--sv-info-x');
+        footer.style.removeProperty('--sv-info-y');
+      }
+      return;
+    }
+
+    const panelRect = panelEl.getBoundingClientRect();
+    const tileRect = activeTile.getBoundingClientRect();
+    if (!panelRect.width || !panelRect.height || !tileRect.width || !tileRect.height) return;
+
+    const x = tileRect.left - panelRect.left + tileRect.width / 2;
+    const y = tileRect.top - panelRect.top + tileRect.height / 2;
+    const edge = x < panelRect.width * 0.28 ? 'left' : x > panelRect.width * 0.72 ? 'right' : 'center';
+    const side = y < Math.min(170, panelRect.height * 0.42) ? 'below' : 'above';
+
+    footer.dataset.svFloatingTileInfo = '1';
+    footer.dataset.svInfoSide = side;
+    footer.dataset.svInfoEdge = edge;
+    footer.style.setProperty('--sv-info-x', `${Math.round(x)}px`);
+    footer.style.setProperty('--sv-info-y', `${Math.round(y)}px`);
+  });
+}
+
 function lockWorldMapTouch(ev: TouchEvent) {
   const target = ev.target as Element | null;
   if (!target || !target.closest('.map-bg')) return;
@@ -178,16 +214,23 @@ function App() {
         polishMobileLabels();
         markBattleHeaderLayout();
         enhancePowerLevelTooltips();
+        positionArenaFloatingInfo();
       });
     };
     run();
     const observer = new MutationObserver(run);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     document.addEventListener('touchmove', lockWorldMapTouch, { passive: false });
+    document.addEventListener('pointermove', run, { passive: true });
+    document.addEventListener('pointerdown', run, { passive: true });
+    window.addEventListener('resize', run, { passive: true });
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
       document.removeEventListener('touchmove', lockWorldMapTouch);
+      document.removeEventListener('pointermove', run);
+      document.removeEventListener('pointerdown', run);
+      window.removeEventListener('resize', run);
     };
   }, []);
 
