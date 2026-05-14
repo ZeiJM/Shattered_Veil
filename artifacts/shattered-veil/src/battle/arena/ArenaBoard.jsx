@@ -11,6 +11,7 @@ import {
   getMovementRange,
 } from "./arenaEngine.js";
 import { getFxClassFromIntent } from "../actionIntent.js";
+import { getPowerLevelSummary } from "../powerLevelSummary.js";
 
 // ─────────────────────────────────────────────────────────────────────────
 // BIG ARENA FOUNDATION — VISUAL COMPONENT (Pass 2, foundation only)
@@ -23,6 +24,22 @@ import { getFxClassFromIntent } from "../actionIntent.js";
 const keyOf = (x, y) => x + "," + y;
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function PowerLevelReadout({ unit, battleContext }) {
+  if (!unit) return null;
+  const summary = getPowerLevelSummary(unit, battleContext || {});
+  return (
+    <div
+      className={"sv-power-level-readout is-" + (summary.band || "stable")}
+      style={{ "--sv-power-level-color": summary.color || "#ffd76a" }}
+      title={summary.help || "Display-only relative battle strength."}
+    >
+      <span className="sv-power-level-eyebrow">POWER LEVEL</span>
+      <span className="sv-power-level-value">{summary.formatted || summary.value}</span>
+      <span className="sv-power-level-band">{summary.bandLabel || summary.band || "Stable"}</span>
+    </div>
+  );
+}
 
 export default function ArenaBoard({
   arena,                  // result of createInitialArenaState(ctx)
@@ -171,6 +188,7 @@ export default function ArenaBoard({
   const hoverUnits   = hover ? (unitsByTile[keyOf(hover.x, hover.y)] || []) : [];
   const hoverIsField = hover ? fieldKeys.has(keyOf(hover.x, hover.y)) : false;
   const hoverInRange = hover ? moveRangeKeys.has(keyOf(hover.x, hover.y)) : false;
+  const powerLevelBattleContext = { arena, field, enemyField, fieldClash, veilbreakReady };
 
   return (
     <div ref={wrapRef} className={"sv-arena-panel cd sv-arena-panel-fit " + themeCls + (field ? " sv-arena-field-active sv-arena-field-" + (field.theme || "void") : "") + (enemyField ? " sv-arena-enemy-field-active sv-arena-enemy-field-" + (enemyField.theme || "void") : "") + (fieldClash && fieldClash.active ? " sv-arena-clash-" + fieldClash.outcome : "") + (veilbreakReady && !field ? " sv-veilbreak-ready" : "")}>
@@ -383,9 +401,12 @@ export default function ArenaBoard({
                   </div>
                 ))}
                 {hoverUnits.map(u => (
-                  <div key={u.id} className="sv-arena-tooltip-line">
-                    <b>{u.label}</b>{u.kind === "enemy" ? " (enemy)" : u.kind === "player" ? " (you)" : ""}
-                    {Number.isFinite(u.hpPct) ? ` · HP ${Math.round(u.hpPct)}%` : ""}
+                  <div key={u.id} className="sv-arena-tooltip-unit">
+                    <div className="sv-arena-tooltip-line">
+                      <b>{u.label}</b>{u.kind === "enemy" ? " (enemy)" : u.kind === "player" ? " (you)" : ""}
+                      {Number.isFinite(u.hpPct) ? ` · HP ${Math.round(u.hpPct)}%` : ""}
+                    </div>
+                    <PowerLevelReadout unit={u} battleContext={powerLevelBattleContext} />
                   </div>
                 ))}
               </div>
