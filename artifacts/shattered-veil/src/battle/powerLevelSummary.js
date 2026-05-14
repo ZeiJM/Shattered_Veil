@@ -24,6 +24,10 @@ function stat(unit, key, fallback = 0) {
   return n(unit?.[key] ?? unit?.st?.[key] ?? unit?.stats?.[key], fallback);
 }
 
+function pct(unit, fallback = NaN) {
+  return n(unit?.hpPct ?? unit?.healthPct ?? unit?.hpPercent ?? unit?.pctHp, fallback);
+}
+
 function ratio(current, max, fallback = 1) {
   const cur = n(current, NaN);
   const cap = n(max, NaN);
@@ -53,11 +57,60 @@ function getBand(value, flags = {}) {
   return band;
 }
 
+function kindDefaults(kind = 'ally') {
+  const k = String(kind || '').toLowerCase();
+  if (k === 'enemy' || k === 'boss' || k === 'enemyboss') {
+    return { hpMax: 100, mpMax: 18, atk: 28, mag: 22, def: 22, spd: 18, lck: 12 };
+  }
+  if (k === 'pet' || k === 'summon') {
+    return { hpMax: 100, mpMax: 14, atk: 18, mag: 16, def: 16, spd: 18, lck: 10 };
+  }
+  if (k === 'player') {
+    return { hpMax: 100, mpMax: 24, atk: 24, mag: 24, def: 20, spd: 20, lck: 18 };
+  }
+  return { hpMax: 100, mpMax: 22, atk: 22, mag: 22, def: 20, spd: 18, lck: 14 };
+}
+
+export function normalizeArenaUnitForPowerLevel(unit = {}, battleContext = {}) {
+  const kind = String(unit.kind || unit.type || 'ally').toLowerCase();
+  const defaults = kindDefaults(kind);
+  const hpPct = pct(unit, NaN);
+  const hpMax = stat(unit, 'hpMax', stat(unit, 'maxHp', defaults.hpMax));
+  const hp = n(unit.hp ?? unit.curHp ?? unit.currentHp, Number.isFinite(hpPct) ? hpPct : hpMax);
+  const mpMax = stat(unit, 'mpMax', stat(unit, 'maxMp', defaults.mpMax));
+  const mp = n(unit.mp ?? unit.curMp ?? unit.currentMp, mpMax);
+  const label = String(unit.label || unit.name || unit.nm || '').trim();
+  const bossHint = /boss|elite|lord|wyrm|dragon|veil|avatar|ancient|primordial/i.test(label);
+
+  return {
+    ...unit,
+    kind,
+    hp,
+    hpMax,
+    mp,
+    mpMax,
+    atk: stat(unit, 'atk', defaults.atk),
+    mag: stat(unit, 'mag', defaults.mag),
+    def: stat(unit, 'def', defaults.def),
+    spd: stat(unit, 'spd', defaults.spd),
+    lck: stat(unit, 'lck', defaults.lck),
+    crit: stat(unit, 'crit', stat(unit, 'crt', 0)),
+    evasion: stat(unit, 'evasion', stat(unit, 'eva', 0)),
+    guard: stat(unit, 'guard', 0),
+    support: stat(unit, 'support', stat(unit, 'sup', 0)),
+    isBoss: !!unit.isBoss || kind === 'boss' || kind === 'enemyboss' || bossHint,
+    inField: !!unit.inField || !!unit.fieldBuff || !!battleContext.activeField,
+  };
+}
+
 export function getPowerLevelSummary(unit = {}, battleContext = {}) {
-  const hpMax = stat(unit, 'hpMax', stat(unit, 'maxHp', stat(unit, 'hp', 1)));
+  const unitHpPct = pct(unit, NaN);
+  const hpMax = stat(unit, 'hpMax', stat(unit, 'maxHp', Number.isFinite(unitHpPct) ? 100 : stat(unit, 'hp', 1)));
   const mpMax = stat(unit, 'mpMax', stat(unit, 'maxMp', stat(unit, 'mp', 0)));
-  const hpRatio = ratio(unit.hp ?? unit.curHp, hpMax, 1);
-  const mpRatio = ratio(unit.mp ?? unit.curMp, mpMax, mpMax > 0 ? 1 : 0);
+  const hpNow = unit.hp ?? unit.curHp ?? unit.currentHp ?? (Number.isFinite(unitHpPct) ? unitHpPct : hpMax);
+  const mpNow = unit.mp ?? unit.curMp ?? unit.currentMp;
+  const hpRatio = ratio(hpNow, hpMax, 1);
+  const mpRatio = ratio(mpNow, mpMax, mpMax > 0 ? 1 : 0);
 
   const core =
     stat(unit, 'hp', hpMax) * 1.1 +
@@ -87,7 +140,7 @@ export function getPowerLevelSummary(unit = {}, battleContext = {}) {
   const statusCount = countEffects(unit.statuses || unit.status || unit.effects);
 
   const flags = {
-    boss: !!unit.isBoss || unit.kind === 'boss' || unit.kind === 'enemyBoss',
+    boss: !!unit.isBoss || unit.kind === 'boss' || unit.kind === 'enemyBoss' || unit.kind === 'enemyboss',
     sealed: !!unit.sealed || !!unit.selfSeal || hasAny(unit, ['seal', 'sealed', 'suppressed']),
     released: !!unit.sealReleased || !!unit.released || hasAny(unit, ['release', 'unsealed', 'awakened']),
     field: !!battleContext.activeField || !!unit.inField || !!unit.fieldBuff,
@@ -124,6 +177,10 @@ export function getPowerLevelSummary(unit = {}, battleContext = {}) {
     visualOnly: true,
     help: 'Relative battle strength indicator based on current stats, gear, seals, buffs, debuffs, fields, and battle conditions. Display only.',
   };
+}
+
+export function getPowerLevelSummaryForArenaUnit(unit = {}, battleContext = {}) {
+  return getPowerLevelSummary(normalizeArenaUnitForPowerLevel(unit, battleContext), battleContext);
 }
 
 export function comparePowerLevels(unitA = {}, unitB = {}, battleContext = {}) {
