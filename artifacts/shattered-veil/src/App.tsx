@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import Game from './Game.jsx';
 import './mobile-ui-patch.css';
+import './arena-mobile-polish.css';
 
 function polishMobileLabels() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
