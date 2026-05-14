@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import Game from './Game.jsx';
-import { getPowerLevelSummaryForArenaUnit } from './battle/powerLevelSummary.js';
 import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
 import './arena-floating-info.css';
@@ -103,65 +102,6 @@ function markBattleHeaderLayout() {
   });
 }
 
-function enhancePowerLevelTooltips() {
-  const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
-
-  document.querySelectorAll('.battle-bg .sv-arena-tooltip').forEach((tooltip) => {
-    const tip = tooltip as HTMLElement;
-    const unitLine = Array.from(tip.querySelectorAll('.sv-arena-tooltip-line')).find((line) => {
-      const text = textOf(line);
-      return /\((enemy|you|ally|friend|pet|summon)\)/i.test(text) || /\bHP\s+\d+%/i.test(text);
-    }) as HTMLElement | undefined;
-    const existing = tip.querySelector('.sv-power-level-readout');
-    if (!unitLine) {
-      if (existing) existing.remove();
-      delete tip.dataset.svPowerLevelSignature;
-      return;
-    }
-
-    const text = textOf(unitLine);
-    const fieldActive = /Veilbreak field/i.test(textOf(tip));
-    const signature = `${text}|field:${fieldActive ? '1' : '0'}`;
-    if (existing && tip.dataset.svPowerLevelSignature === signature) return;
-    if (existing) existing.remove();
-
-    const hpMatch = text.match(/HP\s+(\d+)%/i);
-    const hpPct = hpMatch ? Math.max(1, Math.min(100, Number(hpMatch[1]))) : 100;
-    const isEnemy = /\(enemy\)/i.test(text);
-    const isPlayer = /\(you\)/i.test(text);
-    const isPet = /\((pet|summon)\)/i.test(text);
-
-    const unit = {
-      kind: isPet ? 'pet' : isEnemy ? 'enemy' : isPlayer ? 'player' : 'ally',
-      hpPct,
-      label: text,
-      isBoss: /boss|elite|lord|wyrm|dragon|veil/i.test(text),
-    };
-
-    const power = getPowerLevelSummaryForArenaUnit(unit, { activeField: fieldActive });
-    const readout = document.createElement('div');
-    readout.className = `sv-power-level-readout is-${power.band}`;
-    readout.title = power.help;
-    readout.style.setProperty('--sv-power-level-color', power.color);
-
-    const eyebrow = document.createElement('span');
-    eyebrow.className = 'sv-power-level-eyebrow';
-    eyebrow.textContent = 'Power Level';
-
-    const value = document.createElement('span');
-    value.className = 'sv-power-level-value';
-    value.textContent = power.formatted;
-
-    const band = document.createElement('span');
-    band.className = 'sv-power-level-band';
-    band.textContent = power.bandLabel;
-
-    readout.append(eyebrow, value, band);
-    tip.insertBefore(readout, unitLine);
-    tip.dataset.svPowerLevelSignature = signature;
-  });
-}
-
 function positionArenaFloatingInfo() {
   document.querySelectorAll('.battle-bg .sv-arena-panel').forEach((panel) => {
     const panelEl = panel as HTMLElement;
@@ -213,13 +153,12 @@ function App() {
       frame = requestAnimationFrame(() => {
         polishMobileLabels();
         markBattleHeaderLayout();
-        enhancePowerLevelTooltips();
         positionArenaFloatingInfo();
       });
     };
     run();
     const observer = new MutationObserver(run);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     document.addEventListener('touchmove', lockWorldMapTouch, { passive: false });
     document.addEventListener('pointermove', run, { passive: true });
     document.addEventListener('pointerdown', run, { passive: true });
