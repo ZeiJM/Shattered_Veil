@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Game from './Game.jsx';
-import { getPowerLevelSummary } from './battle/powerLevelSummary.js';
+import { getPowerLevelSummaryForArenaUnit } from './battle/powerLevelSummary.js';
 import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
 import './power-level-ui.css';
@@ -132,19 +132,12 @@ function enhancePowerLevelTooltips() {
 
     const unit = {
       kind: isPet ? 'pet' : isEnemy ? 'enemy' : isPlayer ? 'player' : 'ally',
-      hp: hpPct,
-      hpMax: 100,
-      mp: isEnemy ? 18 : 24,
-      mpMax: isEnemy ? 18 : 24,
-      atk: isEnemy ? 28 : 24,
-      mag: isEnemy ? 22 : 24,
-      def: isEnemy ? 22 : 20,
-      spd: isEnemy ? 18 : 20,
-      lck: isPlayer ? 18 : 12,
+      hpPct,
+      label: text,
       isBoss: /boss|elite|lord|wyrm|dragon|veil/i.test(text),
     };
 
-    const power = getPowerLevelSummary(unit, { activeField: fieldActive });
+    const power = getPowerLevelSummaryForArenaUnit(unit, { activeField: fieldActive });
     const readout = document.createElement('div');
     readout.className = `sv-power-level-readout is-${power.band}`;
     readout.title = power.help;
