@@ -1,0 +1,98 @@
+/* Power Level battle hype UI — presentation only.
+   These classes style derived display values from powerLevelSummary.js.
+   They do not create combat stats, damage changes, targeting changes, or logic. */
+
+.sv-power-level-readout {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 5px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 28%, transparent), transparent 34%),
+    linear-gradient(135deg, rgba(8, 10, 24, 0.92), rgba(22, 16, 38, 0.82));
+  border: 1px solid color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 52%, rgba(255,255,255,0.18));
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 34%, transparent),
+    inset 0 0 18px rgba(255, 255, 255, 0.045);
+}
+
+.sv-power-level-readout::before {
+  content: "";
+  position: absolute;
+  inset: -30% -45%;
+  z-index: -1;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.20), transparent 65%);
+  transform: translateX(-55%);
+  animation: sv-power-level-sheen 3.8s ease-in-out infinite;
+}
+
+.sv-power-level-eyebrow {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 0 7px color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 40%, transparent);
+}
+
+.sv-power-level-value {
+  display: block;
+  font-size: clamp(18px, 4.6vw, 31px);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: 0.035em;
+  color: var(--sv-power-level-color, #ffd76a);
+  text-shadow:
+    0 0 4px color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 90%, white),
+    0 0 14px color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 74%, transparent),
+    0 0 26px color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 38%, transparent);
+}
+
+.sv-power-level-band {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 8px;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+  background: color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 20%, rgba(0,0,0,0.42));
+  border: 1px solid color-mix(in srgb, var(--sv-power-level-color, #ffd76a) 38%, rgba(255,255,255,0.14));
+}
+
+.sv-power-level-readout.is-dangerous,
+.sv-power-level-readout.is-overwhelming,
+.sv-power-level-readout.is-mythic,
+.sv-power-level-readout[class*="sealed-dangerous"],
+.sv-power-level-readout[class*="sealed-overwhelming"] {
+  animation: sv-power-level-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes sv-power-level-sheen {
+  0%, 62% { transform: translateX(-58%); opacity: 0; }
+  74% { opacity: 0.85; }
+  100% { transform: translateX(58%); opacity: 0; }
+}
+
+@keyframes sv-power-level-pulse {
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.28) brightness(1.16); }
+}
+
+@media (max-width: 768px) {
+  .sv-power-level-readout {
+    margin: 3px 0 4px;
+    padding: 6px 7px;
+    border-radius: 10px;
+  }
+
+  .sv-power-level-eyebrow { font-size: 7px; }
+  .sv-power-level-band { font-size: 7px; padding: 1px 6px; }
+}
