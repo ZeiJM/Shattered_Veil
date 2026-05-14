@@ -1,0 +1,99 @@
+/* Battlefield floating tile info overlay.
+   Presentation-only: no combat, movement, targeting, save, AI, arena map, or turn logic changes.
+   App.tsx sets --sv-info-x / --sv-info-y from the hovered or tapped tile. */
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] {
+  position: absolute !important;
+  left: 0 !important;
+  right: auto !important;
+  top: 0 !important;
+  bottom: auto !important;
+  width: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  z-index: 35 !important;
+  transform: translate(var(--sv-info-x, 50%), var(--sv-info-y, 50%)) !important;
+  pointer-events: none !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-arena-tooltip {
+  width: min(340px, calc(100vw - 28px)) !important;
+  max-height: min(30dvh, 230px) !important;
+  overflow: auto !important;
+  pointer-events: auto !important;
+  transform: translate(-50%, calc(-100% - 12px)) !important;
+  transform-origin: 50% 100% !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-side="below"] .sv-arena-tooltip {
+  transform: translate(-50%, 12px) !important;
+  transform-origin: 50% 0 !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="left"] .sv-arena-tooltip {
+  transform: translate(8px, calc(-100% - 12px)) !important;
+  transform-origin: 0 100% !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="left"][data-sv-info-side="below"] .sv-arena-tooltip {
+  transform: translate(8px, 12px) !important;
+  transform-origin: 0 0 !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="right"] .sv-arena-tooltip {
+  transform: translate(calc(-100% - 8px), calc(-100% - 12px)) !important;
+  transform-origin: 100% 100% !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="right"][data-sv-info-side="below"] .sv-arena-tooltip {
+  transform: translate(calc(-100% - 8px), 12px) !important;
+  transform-origin: 100% 0 !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-arena-tooltip::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  left: calc(50% - 4px);
+  bottom: -5px;
+  transform: rotate(45deg);
+  background: inherit;
+  border-right: 1px solid rgba(245, 211, 121, 0.42);
+  border-bottom: 1px solid rgba(245, 211, 121, 0.42);
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-side="below"] .sv-arena-tooltip::before {
+  top: -5px;
+  bottom: auto;
+  border: 0;
+  border-left: 1px solid rgba(245, 211, 121, 0.42);
+  border-top: 1px solid rgba(245, 211, 121, 0.42);
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="left"] .sv-arena-tooltip::before {
+  left: 14px;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"][data-sv-info-edge="right"] .sv-arena-tooltip::before {
+  left: auto;
+  right: 14px;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-power-level-readout {
+  max-width: 300px !important;
+}
+
+@media (max-width: 768px) {
+  .battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-arena-tooltip {
+    width: min(280px, calc(100vw - 18px)) !important;
+    max-height: min(28dvh, 178px) !important;
+  }
+
+  .battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-power-level-readout {
+    max-width: 236px !important;
+  }
+}
