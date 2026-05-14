@@ -107,15 +107,23 @@ function enhancePowerLevelTooltips() {
 
   document.querySelectorAll('.battle-bg .sv-arena-tooltip').forEach((tooltip) => {
     const tip = tooltip as HTMLElement;
-    if (tip.dataset.svPowerLevelEnhanced === '1') return;
-
     const unitLine = Array.from(tip.querySelectorAll('.sv-arena-tooltip-line')).find((line) => {
       const text = textOf(line);
       return /\((enemy|you|ally|friend|pet|summon)\)/i.test(text) || /\bHP\s+\d+%/i.test(text);
     }) as HTMLElement | undefined;
-    if (!unitLine) return;
+    const existing = tip.querySelector('.sv-power-level-readout');
+    if (!unitLine) {
+      if (existing) existing.remove();
+      delete tip.dataset.svPowerLevelSignature;
+      return;
+    }
 
     const text = textOf(unitLine);
+    const fieldActive = /Veilbreak field/i.test(textOf(tip));
+    const signature = `${text}|field:${fieldActive ? '1' : '0'}`;
+    if (existing && tip.dataset.svPowerLevelSignature === signature) return;
+    if (existing) existing.remove();
+
     const hpMatch = text.match(/HP\s+(\d+)%/i);
     const hpPct = hpMatch ? Math.max(1, Math.min(100, Number(hpMatch[1]))) : 100;
     const isEnemy = /\(enemy\)/i.test(text);
@@ -136,7 +144,7 @@ function enhancePowerLevelTooltips() {
       isBoss: /boss|elite|lord|wyrm|dragon|veil/i.test(text),
     };
 
-    const power = getPowerLevelSummary(unit, { activeField: /Veilbreak field/i.test(textOf(tip)) });
+    const power = getPowerLevelSummary(unit, { activeField: fieldActive });
     const readout = document.createElement('div');
     readout.className = `sv-power-level-readout is-${power.band}`;
     readout.title = power.help;
@@ -156,7 +164,7 @@ function enhancePowerLevelTooltips() {
 
     readout.append(eyebrow, value, band);
     tip.insertBefore(readout, unitLine);
-    tip.dataset.svPowerLevelEnhanced = '1';
+    tip.dataset.svPowerLevelSignature = signature;
   });
 }
 
