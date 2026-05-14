@@ -8,6 +8,10 @@ import {
 let remainingAp = 100;
 let lastTurnSignature = '';
 let lastWasPlayerTurn = false;
+let bridgeStarted = false;
+let bridgeObserver: MutationObserver | null = null;
+let bridgeTimer: number | null = null;
+let bridgeFrame = 0;
 
 const textOf = (el: Element | null) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
 const clampAp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -204,4 +208,34 @@ export function ensureBattleActionEconomy() {
   ensureEndTurnButton();
   decorateButtons();
   updateActionEconomyUi();
+}
+
+export function startBattleActionEconomyBridge() {
+  if (bridgeStarted || typeof window === 'undefined' || typeof document === 'undefined') return;
+  bridgeStarted = true;
+  const run = () => {
+    window.cancelAnimationFrame(bridgeFrame);
+    bridgeFrame = window.requestAnimationFrame(() => ensureBattleActionEconomy());
+  };
+  run();
+  bridgeObserver = new MutationObserver(run);
+  bridgeObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'disabled', 'data-sv-strategic-view'],
+  });
+  document.addEventListener('click', run, { passive: true });
+  window.addEventListener('resize', run, { passive: true });
+  bridgeTimer = window.setInterval(run, 1000);
+}
+
+export function stopBattleActionEconomyBridge() {
+  if (!bridgeStarted) return;
+  bridgeStarted = false;
+  window.cancelAnimationFrame(bridgeFrame);
+  bridgeObserver?.disconnect();
+  bridgeObserver = null;
+  if (bridgeTimer != null) window.clearInterval(bridgeTimer);
+  bridgeTimer = null;
 }
