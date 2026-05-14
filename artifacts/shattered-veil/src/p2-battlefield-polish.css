@@ -97,7 +97,7 @@
   box-shadow: none !important;
 }
 
-.battle-bg .sv-arena-tile[data-sv-occupied-special="1"] {
+.battle-bg .sv-arena-tile[data-sv-occupied-special] {
   outline: 1px solid rgba(255, 238, 180, 0.68) !important;
   outline-offset: -2px !important;
 }
@@ -139,6 +139,40 @@
   border: 1px solid rgba(255, 232, 166, 0.18) !important;
 }
 
+.sv-arena-unit-motion-ghost {
+  position: fixed !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  animation: sv-arena-token-travel 460ms cubic-bezier(.2,.72,.22,1) forwards !important;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.42)) brightness(1.08) !important;
+  transform-origin: center !important;
+}
+
+.sv-arena-unit-motion-ghost .sv-arena-unit-hp {
+  display: none !important;
+}
+
+@keyframes sv-arena-token-travel {
+  0% {
+    opacity: 0.28;
+    transform: translate(0, 0) scale(0.92);
+  }
+  18% {
+    opacity: 0.78;
+  }
+  62% {
+    opacity: 0.82;
+    transform: translate(calc(var(--sv-motion-x) * 0.72), calc(var(--sv-motion-y) * 0.72 - 5px)) scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sv-motion-x), var(--sv-motion-y)) scale(0.98);
+  }
+}
+
 @media (max-width: 768px) {
   .battle-bg .sv-arena-grid,
   .battle-bg .sv-arena-grid-sq {
@@ -157,5 +191,11 @@
     width: 10px !important;
     height: 10px !important;
     font-size: 6.5px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-arena-unit-motion-ghost {
+    display: none !important;
   }
 }
