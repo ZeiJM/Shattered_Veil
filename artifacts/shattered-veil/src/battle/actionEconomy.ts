@@ -21,9 +21,11 @@ export function getBattleActionEconomyMeta(button: HTMLElement): BattleActionEco
 
   if (!text) return { kind: 'free', cost: 0, label: 'Free', note: 'No action economy cost.' };
   if (button.dataset.svZeroCostToggle === '1') return { kind: 'free', cost: 0, label: '0%', note: 'Free tactical information toggle.' };
+  if (button.dataset.svInventoryUtility === '1') return { kind: 'free', cost: 0, label: '0%', note: 'Inventory preparation is free.' };
   if (button.classList.contains('battle-help-chip')) return { kind: 'free', cost: 0, label: '0%', note: 'Information only.' };
   if (/^(Combat Arts|Veil Magic|Battle Tactics|Items)$/i.test(text)) return { kind: 'free', cost: 0, label: '0%', note: 'Tab switch only.' };
   if (/^(Equip Item|Draw Weapon|Swap Skill|Spellbook)$/i.test(text.replace(/^[^A-Za-z]+/, '').trim())) return { kind: 'free', cost: 0, label: '0%', note: 'Opens a utility drawer.' };
+  if (/(Equip|Draw)\s*→|\bEquipped\b/i.test(text) && /Effect:|ATK:|×\d+/i.test(text)) return { kind: 'free', cost: 0, label: '0%', note: 'Inventory preparation is free.' };
   if (/Copy$/i.test(text) || /^\?$/i.test(text) || /^Tags$/i.test(text)) return { kind: 'free', cost: 0, label: '0%', note: 'Information only.' };
 
   if (/End Turn/i.test(text)) return { kind: 'end', cost: 100, label: 'End', note: 'Voluntarily ends your turn.' };
@@ -42,7 +44,7 @@ export function getBattleActionEconomyMeta(button: HTMLElement): BattleActionEco
   if (/Guard|Defend/i.test(text)) return { kind: 'minor', cost: 50, label: '50%', note: 'Defensive half-turn action.' };
   if (/Cost:\s*\d+\s*MP/i.test(text) || /Damage|Heal|Buff|Debuff|Copy/i.test(text)) return { kind: 'main', cost: 100, label: '100%', note: 'Primary Veil Magic or combat action.' };
   if (/Dmg|Attack|Shield Utility/i.test(text)) return { kind: 'main', cost: 100, label: '100%', note: 'Primary combat action.' };
-  if (/🧪/.test(text) && /Effect:/i.test(text)) return { kind: 'main', cost: 100, label: '100%', note: 'Battle consumable.' };
+  if (/🧪/.test(text) && /Effect:/i.test(text)) return { kind: 'main', cost: 100, label: '100%', note: 'Equipped battle consumable.' };
 
   return { kind: 'free', cost: 0, label: '0%', note: 'No action economy cost.' };
 }
@@ -63,7 +65,8 @@ export function getActionEconomyStateLabel(remaining: number) {
 export function explainActionEconomyBalance() {
   return [
     'Each player turn starts with 100% action economy.',
-    'Primary actions such as most weapon attacks, Veil Magic, Veilbreak, items, and Flee are balanced as full-turn commitments.',
+    'Primary actions such as most weapon attacks, Veil Magic, Veilbreak, equipped consumables, and Flee are balanced as full-turn commitments.',
+    'Taking an item from inventory into a battle slot and drawing a weapon are 0% AP because they are loadout management, not offensive pressure.',
     'Steady Strike costs 60% because it is reliable but low-pressure, allowing a light tactical follow-up.',
     'Flurry Strike costs 80% because multi-hit crit/status pressure is stronger than a basic strike.',
     'Field control tactics are partial actions: Focus Breath 25%, Veil Anchor/Brace 35%, Overchannel 50%, Field Sever 65%.',
