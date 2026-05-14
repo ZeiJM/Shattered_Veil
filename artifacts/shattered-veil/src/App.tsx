@@ -9,6 +9,9 @@ import './p1-mobile-battle-ui-hardening.css';
 import './p2-strategic-view.css';
 import './p2-battlefield-polish.css';
 
+const arenaUnitPositions = new Map<string, { x: number; y: number; rect: DOMRect }>();
+let arenaMotionCleanup = 0;
+
 function polishMobileLabels() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
 
@@ -185,28 +188,85 @@ function updateStrategicViewBar(panelEl: HTMLElement) {
   });
 }
 
+function describeSpecialTile(tileEl: HTMLElement) {
+  const isField = tileEl.classList.contains('sv-arena-field-overlay');
+  const isRare = tileEl.classList.contains('sv-arena-rare-tile');
+  const objectEl = tileEl.querySelector('.sv-arena-object') as HTMLElement | null;
+  if (isField) return { type: 'field', glyph: '◇', label: 'standing in an active Veilbreak field' };
+  if (isRare) return { type: 'rare', glyph: '✦', label: 'standing on rare terrain' };
+  if (objectEl) return { type: 'object', glyph: '◆', label: `sharing a tile with ${objectEl.getAttribute('title') || 'a battlefield object'}` };
+  return null;
+}
+
 function markOccupiedSpecialTiles() {
   document.querySelectorAll('.battle-bg .sv-arena-tile').forEach((tile) => {
     const tileEl = tile as HTMLElement;
     const hasUnit = !!tileEl.querySelector('.sv-arena-unit');
-    const hasObject = !!tileEl.querySelector('.sv-arena-object');
-    const isRare = tileEl.classList.contains('sv-arena-rare-tile');
-    const isField = tileEl.classList.contains('sv-arena-field-overlay');
-    const specialType = isField ? 'field' : isRare ? 'rare' : hasObject ? 'object' : '';
+    const special = describeSpecialTile(tileEl);
     tileEl.querySelectorAll(':scope > .sv-arena-occupied-tile-mark').forEach((mark) => mark.remove());
-    if (!hasUnit || !specialType) {
+    tileEl.querySelectorAll('.sv-arena-unit').forEach((unit) => {
+      const unitEl = unit as HTMLElement;
+      if (!unitEl.dataset.svBaseTitle) unitEl.dataset.svBaseTitle = unitEl.getAttribute('title') || '';
+      unitEl.setAttribute('title', unitEl.dataset.svBaseTitle || unitEl.getAttribute('title') || '');
+    });
+    if (!hasUnit || !special) {
       delete tileEl.dataset.svOccupiedSpecial;
-      if (!specialType) delete tileEl.dataset.svSpecialTile;
-      else tileEl.dataset.svSpecialTile = specialType;
+      if (!special) delete tileEl.dataset.svSpecialTile;
+      else tileEl.dataset.svSpecialTile = special.type;
       return;
     }
-    tileEl.dataset.svSpecialTile = specialType;
-    tileEl.dataset.svOccupiedSpecial = specialType;
+    tileEl.dataset.svSpecialTile = special.type;
+    tileEl.dataset.svOccupiedSpecial = special.type;
+    tileEl.querySelectorAll('.sv-arena-unit').forEach((unit) => {
+      const unitEl = unit as HTMLElement;
+      const baseTitle = unitEl.dataset.svBaseTitle || unitEl.getAttribute('title') || 'Unit';
+      unitEl.setAttribute('title', `${baseTitle} · ${special.label}`);
+    });
     const mark = document.createElement('span');
     mark.className = 'sv-arena-occupied-tile-mark';
     mark.setAttribute('aria-hidden', 'true');
-    mark.textContent = specialType === 'field' ? '◇' : specialType === 'object' ? '◆' : '✦';
+    mark.textContent = special.glyph;
     tileEl.appendChild(mark);
+  });
+}
+
+function animateArenaUnitTravel() {
+  const seen = new Set<string>();
+  const tiles = Array.from(document.querySelectorAll('.battle-bg .sv-arena-hex-row')).flatMap((row, y) => {
+    return Array.from(row.querySelectorAll(':scope > .sv-arena-tile')).map((tile, x) => ({ tile: tile as HTMLElement, x, y }));
+  });
+
+  tiles.forEach(({ tile, x, y }) => {
+    tile.querySelectorAll(':scope .sv-arena-unit').forEach((unit, index) => {
+      const unitEl = unit as HTMLElement;
+      const label = unitEl.dataset.svBaseTitle || unitEl.getAttribute('title') || unitEl.textContent || `unit-${index}`;
+      const key = `${label}|${index}`;
+      seen.add(key);
+      const rect = unitEl.getBoundingClientRect();
+      const prev = arenaUnitPositions.get(key);
+      arenaUnitPositions.set(key, { x, y, rect });
+      if (!prev || (prev.x === x && prev.y === y) || !rect.width || !rect.height) return;
+      const distance = Math.abs(prev.x - x) + Math.abs(prev.y - y);
+      if (distance > 8) return;
+      const ghost = unitEl.cloneNode(true) as HTMLElement;
+      ghost.classList.add('sv-arena-unit-motion-ghost');
+      ghost.style.left = `${prev.rect.left}px`;
+      ghost.style.top = `${prev.rect.top}px`;
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.setProperty('--sv-motion-x', `${Math.round(rect.left - prev.rect.left)}px`);
+      ghost.style.setProperty('--sv-motion-y', `${Math.round(rect.top - prev.rect.top)}px`);
+      document.body.appendChild(ghost);
+      window.clearTimeout(arenaMotionCleanup);
+      window.setTimeout(() => ghost.remove(), 520);
+      arenaMotionCleanup = window.setTimeout(() => {
+        document.querySelectorAll('.sv-arena-unit-motion-ghost').forEach((node) => node.remove());
+      }, 900);
+    });
+  });
+
+  Array.from(arenaUnitPositions.keys()).forEach((key) => {
+    if (!seen.has(key)) arenaUnitPositions.delete(key);
   });
 }
 
@@ -274,6 +334,7 @@ function App() {
         markBattleHeaderLayout();
         ensureStrategicViewControls();
         markOccupiedSpecialTiles();
+        animateArenaUnitTravel();
         positionArenaFloatingInfo();
       });
     };
