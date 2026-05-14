@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Game from './Game.jsx';
+import { scheduleGameAssetPreload } from './assetPreloader';
 import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
 import './arena-floating-info.css';
@@ -326,6 +327,7 @@ function lockWorldMapTouch(ev: TouchEvent) {
 
 function App() {
   useEffect(() => {
+    scheduleGameAssetPreload(import.meta.env.BASE_URL || '/');
     let frame = 0;
     const run = () => {
       cancelAnimationFrame(frame);
