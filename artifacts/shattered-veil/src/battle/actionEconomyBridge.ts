@@ -19,9 +19,7 @@ function isPlayerTurn() {
 }
 
 function turnSignature() {
-  const headText = textOf(document.querySelector('.battle-bg .sv-turn-head-v101, .battle-bg .battle-turn-head'));
-  const logTitle = textOf(document.querySelector('.battle-bg .battle-log-title'));
-  return `${headText}|${logTitle}`;
+  return isPlayerTurn() ? 'player-turn' : 'enemy-turn';
 }
 
 function ensureStateForTurn() {
@@ -97,6 +95,7 @@ function ensureCostPill(button: HTMLElement) {
 function decorateButtons() {
   actionButtons().forEach((button) => {
     ensureCostPill(button);
+    if (button.classList.contains('sv-end-turn-btn')) return;
     if (button.dataset.svApHandler === '1') return;
     button.dataset.svApHandler = '1';
     button.addEventListener('click', (ev) => {
