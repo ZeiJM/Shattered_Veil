@@ -73,6 +73,17 @@ function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
   return true;
 }
 
+function requestPurePassTurn() {
+  if (!isPlayerTurn()) return false;
+  autoEndInFlight = true;
+  remainingAp = 0;
+  window.dispatchEvent(new CustomEvent('sv:battle-pass-turn', { detail: { source: 'action-economy' } }));
+  document.dispatchEvent(new CustomEvent('sv:battle-pass-turn', { detail: { source: 'action-economy' } }));
+  updateActionEconomyUi();
+  window.setTimeout(runSoon, 100);
+  return true;
+}
+
 function markInventoryUtilityRows() {
   document.querySelectorAll('.battle-bg .battle-aux-dropdown > div').forEach((row) => {
     const rowEl = row as HTMLElement;
@@ -116,18 +127,12 @@ function actionButtons() {
     .filter(isDecoratableActionButton);
 }
 
-function rawBattleButtons() {
-  return Array.from(document.querySelectorAll('.battle-bg button'))
-    .map((node) => node as HTMLButtonElement)
-    .filter((button) => !button.disabled && !button.closest('.sv-action-economy-bar'));
-}
-
 function shouldSuppressVisiblePill(button: HTMLElement) {
   const text = textOf(button);
   if (button.classList.contains('sv-end-turn-btn')) return true;
   if (button.closest('.battle-aux-row')) return true;
   if (/^\s*(🏃\s*)?Flee\s*$/i.test(text)) return true;
-  if (/End Turn|Turn Ended/i.test(text)) return true;
+  if (/End Turn|Turn Passed/i.test(text)) return true;
   return false;
 }
 
@@ -171,13 +176,6 @@ function decorateButtons() {
   });
 }
 
-function findGuardLikeButton() {
-  return rawBattleButtons().find((button) => {
-    const text = textOf(button);
-    return /\b(Guard|Defend)\b/i.test(text) || (/\bBrace\b/i.test(text) && !/Brace Field/i.test(text));
-  });
-}
-
 function canAffordAnyNonDangerAction() {
   if (!isPlayerTurn()) return false;
   return actionButtons().some((button) => {
@@ -192,21 +190,7 @@ function canAffordAnyNonDangerAction() {
 
 function tryAutoEndIfNoActionsRemain() {
   if (autoEndInFlight || !isPlayerTurn()) return;
-  if (remainingAp <= 0) {
-    const guard = findGuardLikeButton();
-    if (guard) {
-      autoEndInFlight = true;
-      guard.click();
-      return;
-    }
-  }
-  if (remainingAp > 0 && !canAffordAnyNonDangerAction()) {
-    const guard = findGuardLikeButton();
-    if (guard) {
-      autoEndInFlight = true;
-      guard.click();
-    }
-  }
+  if (remainingAp <= 0 || !canAffordAnyNonDangerAction()) requestPurePassTurn();
 }
 
 function ensureEndTurnButton() {
@@ -221,20 +205,11 @@ function ensureEndTurnButton() {
   end.dataset.svApCost = '100';
   end.dataset.svActionKind = 'end';
   end.textContent = '⏭ End Turn';
-  end.title = 'Ends your turn by triggering Guard/Defend when that engine action is available.';
+  end.title = 'Pass the rest of your turn. Does not Guard, Defend, buff, heal, or apply any hidden action.';
   end.addEventListener('click', () => {
     if (!isPlayerTurn()) return;
-    const guard = findGuardLikeButton();
-    if (guard) {
-      autoEndInFlight = true;
-      guard.click();
-      spendAp(100);
-      return;
-    }
-    const bar = document.querySelector('.battle-bg .sv-action-economy-bar') as HTMLElement | null;
-    bar?.classList.add('is-denied');
-    window.setTimeout(() => bar?.classList.remove('is-denied'), 420);
-    end.title = 'No Guard/Defend action is currently exposed by the battle engine. Engine-level skip-turn refactor is still required.';
+    requestPurePassTurn();
+    end.textContent = '⏭ Turn Passed';
   });
 
   if (flee?.nextSibling) auxRow.insertBefore(end, flee.nextSibling);
