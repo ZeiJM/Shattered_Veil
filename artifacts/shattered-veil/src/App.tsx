@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import Game from './Game.jsx';
+import { getPowerLevelSummary } from './battle/powerLevelSummary.js';
 import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
 import './power-level-ui.css';
@@ -101,6 +102,64 @@ function markBattleHeaderLayout() {
   });
 }
 
+function enhancePowerLevelTooltips() {
+  const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+
+  document.querySelectorAll('.battle-bg .sv-arena-tooltip').forEach((tooltip) => {
+    const tip = tooltip as HTMLElement;
+    if (tip.dataset.svPowerLevelEnhanced === '1') return;
+
+    const unitLine = Array.from(tip.querySelectorAll('.sv-arena-tooltip-line')).find((line) => {
+      const text = textOf(line);
+      return /\((enemy|you|ally|friend|pet|summon)\)/i.test(text) || /\bHP\s+\d+%/i.test(text);
+    }) as HTMLElement | undefined;
+    if (!unitLine) return;
+
+    const text = textOf(unitLine);
+    const hpMatch = text.match(/HP\s+(\d+)%/i);
+    const hpPct = hpMatch ? Math.max(1, Math.min(100, Number(hpMatch[1]))) : 100;
+    const isEnemy = /\(enemy\)/i.test(text);
+    const isPlayer = /\(you\)/i.test(text);
+    const isPet = /\((pet|summon)\)/i.test(text);
+
+    const unit = {
+      kind: isPet ? 'pet' : isEnemy ? 'enemy' : isPlayer ? 'player' : 'ally',
+      hp: hpPct,
+      hpMax: 100,
+      mp: isEnemy ? 18 : 24,
+      mpMax: isEnemy ? 18 : 24,
+      atk: isEnemy ? 28 : 24,
+      mag: isEnemy ? 22 : 24,
+      def: isEnemy ? 22 : 20,
+      spd: isEnemy ? 18 : 20,
+      lck: isPlayer ? 18 : 12,
+      isBoss: /boss|elite|lord|wyrm|dragon|veil/i.test(text),
+    };
+
+    const power = getPowerLevelSummary(unit, { activeField: /Veilbreak field/i.test(textOf(tip)) });
+    const readout = document.createElement('div');
+    readout.className = `sv-power-level-readout is-${power.band}`;
+    readout.title = power.help;
+    readout.style.setProperty('--sv-power-level-color', power.color);
+
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'sv-power-level-eyebrow';
+    eyebrow.textContent = 'Power Level';
+
+    const value = document.createElement('span');
+    value.className = 'sv-power-level-value';
+    value.textContent = power.formatted;
+
+    const band = document.createElement('span');
+    band.className = 'sv-power-level-band';
+    band.textContent = power.bandLabel;
+
+    readout.append(eyebrow, value, band);
+    tip.insertBefore(readout, unitLine);
+    tip.dataset.svPowerLevelEnhanced = '1';
+  });
+}
+
 function lockWorldMapTouch(ev: TouchEvent) {
   const target = ev.target as Element | null;
   if (!target || !target.closest('.map-bg')) return;
@@ -117,6 +176,7 @@ function App() {
       frame = requestAnimationFrame(() => {
         polishMobileLabels();
         markBattleHeaderLayout();
+        enhancePowerLevelTooltips();
       });
     };
     run();
