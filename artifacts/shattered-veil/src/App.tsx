@@ -109,56 +109,79 @@ function markBattleHeaderLayout() {
   });
 }
 
+function getStrategicViewPanel() {
+  return document.querySelector('.battle-bg .sv-arena-panel') as HTMLElement | null;
+}
+
 function ensureStrategicViewControls() {
-  document.querySelectorAll('.battle-bg .sv-arena-panel').forEach((panel) => {
-    const panelEl = panel as HTMLElement;
-    if (!panelEl.dataset.svStrategicView) panelEl.dataset.svStrategicView = 'off';
-    let bar = panelEl.querySelector(':scope > .sv-strategic-view-bar') as HTMLElement | null;
-    if (!bar) {
-      bar = document.createElement('div');
-      bar.className = 'sv-strategic-view-bar';
+  const panelEl = getStrategicViewPanel();
+  if (!panelEl) return;
+  if (!panelEl.dataset.svStrategicView) panelEl.dataset.svStrategicView = 'off';
 
-      const copy = document.createElement('div');
-      copy.className = 'sv-strategic-view-copy';
-
-      const title = document.createElement('span');
-      title.className = 'sv-strategic-view-title';
-      title.textContent = 'Strategic View';
-
-      const state = document.createElement('span');
-      state.className = 'sv-strategic-view-state';
-
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'sv-strategic-view-toggle';
-      button.addEventListener('click', () => {
-        const next = panelEl.dataset.svStrategicView === 'on' ? 'off' : 'on';
-        panelEl.dataset.svStrategicView = next;
-        updateStrategicViewBar(panelEl);
-      });
-
-      copy.append(title, state);
-      bar.append(copy, button);
-      panelEl.insertBefore(bar, panelEl.firstChild);
-    }
-    updateStrategicViewBar(panelEl);
+  document.querySelectorAll('.battle-bg .sv-strategic-view-bar').forEach((bar) => {
+    if (!bar.closest('.battle-actions-card')) bar.remove();
   });
+
+  const tacticsTargets = Array.from(document.querySelectorAll('.battle-bg .battle-actions-card, .battle-bg .cd')).filter((card) => {
+    const text = (card.textContent || '').replace(/\s+/g, ' ').trim();
+    return /Battle Tactics|Tactical Options/i.test(text) && !/Battle Log/i.test(text);
+  }) as HTMLElement[];
+
+  const tacticsCard = tacticsTargets[0] || null;
+  if (!tacticsCard) {
+    updateStrategicViewBar(panelEl);
+    return;
+  }
+
+  let bar = tacticsCard.querySelector(':scope > .sv-strategic-view-bar') as HTMLElement | null;
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'sv-strategic-view-bar sv-strategic-view-bar-tactics';
+
+    const copy = document.createElement('div');
+    copy.className = 'sv-strategic-view-copy';
+
+    const title = document.createElement('span');
+    title.className = 'sv-strategic-view-title';
+    title.textContent = 'Strategic View';
+
+    const state = document.createElement('span');
+    state.className = 'sv-strategic-view-state';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sv-strategic-view-toggle';
+    button.dataset.svZeroCostToggle = '1';
+    button.addEventListener('click', () => {
+      const arenaPanel = getStrategicViewPanel();
+      if (!arenaPanel) return;
+      const next = arenaPanel.dataset.svStrategicView === 'on' ? 'off' : 'on';
+      arenaPanel.dataset.svStrategicView = next;
+      updateStrategicViewBar(arenaPanel);
+      positionArenaFloatingInfo();
+    });
+
+    copy.append(title, state);
+    bar.append(copy, button);
+    tacticsCard.insertBefore(bar, tacticsCard.firstChild);
+  }
+  updateStrategicViewBar(panelEl);
 }
 
 function updateStrategicViewBar(panelEl: HTMLElement) {
   const isOn = panelEl.dataset.svStrategicView === 'on';
-  const state = panelEl.querySelector('.sv-strategic-view-state') as HTMLElement | null;
-  const button = panelEl.querySelector('.sv-strategic-view-toggle') as HTMLButtonElement | null;
-  if (state) {
-    state.textContent = isOn
-      ? 'ON · hover or tap tiles for terrain, object, and unit details'
-      : 'OFF · tile info hidden so movement and targeting stay clean';
-  }
-  if (button) {
-    button.textContent = isOn ? 'On' : 'Off';
-    button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-    button.title = isOn ? 'Turn Strategic View off' : 'Turn Strategic View on';
-  }
+  const stateText = isOn
+    ? 'ON · hover or tap arena tiles for terrain, object, and unit details'
+    : 'OFF · zero-cost info toggle; battle grid stays clean';
+  document.querySelectorAll('.battle-bg .sv-strategic-view-state').forEach((state) => {
+    state.textContent = stateText;
+  });
+  document.querySelectorAll('.battle-bg .sv-strategic-view-toggle').forEach((button) => {
+    const btn = button as HTMLButtonElement;
+    btn.textContent = isOn ? 'Turn Off' : 'Turn On';
+    btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+    btn.title = isOn ? 'Turn Strategic View off' : 'Turn Strategic View on';
+  });
 }
 
 function positionArenaFloatingInfo() {
