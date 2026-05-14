@@ -332,3 +332,57 @@
     padding: 4px 6px !important;
   }
 }
+
+/* P0 desktop board-size correction: earlier desktop rules capped the arena at
+   35dvh, which could visibly crop 14×9 and larger battlefields. Let the grid
+   use the battlefield panel height, then clamp individual tiles so the whole
+   board stays visible without an internal scroll container. */
+@media (min-width: 769px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: clamp(390px, 50dvh, 640px) !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-width: min(100%, calc(100vw - 180px)) !important;
+    max-height: min(50dvh, 560px) !important;
+    overflow: visible !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(24px, min(calc((100vw - 240px) / 14), calc((100dvh - 300px) / 11)), 48px) !important;
+    height: clamp(24px, min(calc((100vw - 240px) / 14), calc((100dvh - 300px) / 11)), 48px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .battle-bg .sv-arena-unit {
+    width: 82% !important;
+    height: 82% !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+
+  .battle-bg .sv-arena-object {
+    font-size: clamp(10px, 1.2vw, 15px) !important;
+  }
+}
+
+@media (min-width: 769px) and (max-height: 760px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: clamp(340px, 54dvh, 520px) !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-height: min(52dvh, 500px) !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(22px, min(calc((100vw - 220px) / 14), calc((100dvh - 250px) / 11)), 42px) !important;
+    height: clamp(22px, min(calc((100vw - 220px) / 14), calc((100dvh - 250px) / 11)), 42px) !important;
+  }
+}
