@@ -26,10 +26,20 @@ type RuntimeAsset = {
   readonly reason: string;
 };
 
+type AssetDiagnostics = {
+  readonly rendered: RuntimeAsset[];
+  readonly loaded: string[];
+  readonly preloadLinked: string[];
+  readonly missingVariants: string[];
+  readonly appliedUpgrades: string[];
+  readonly generatedAt: string;
+};
+
 const loadedAssetUrls = new Set<string>();
 const linkedPreloadUrls = new Set<string>();
 const missingVariantUrls = new Set<string>();
 const appliedUpgradeUrls = new Set<string>();
+let lastDiagnostics: AssetDiagnostics | null = null;
 
 export const HIGH_PRIORITY_IMAGE_ASSETS: readonly AssetPreloadEntry[] = [
   { id: 'battle-courtyard', path: 'battle/bg_courtyard.jpg', kind: 'image', priority: 1, reason: 'Default battlefield background.' },
@@ -104,6 +114,26 @@ function ensurePreloadLink(url: string, kind: AssetKind): void {
   linkedPreloadUrls.add(`${kind}:${url}`);
 }
 
+function publishAssetDiagnostics(rendered: RuntimeAsset[] = lastDiagnostics?.rendered || []): AssetDiagnostics {
+  const diagnostics: AssetDiagnostics = {
+    rendered: rendered.slice(0, 80),
+    loaded: [...loadedAssetUrls].sort(),
+    preloadLinked: [...linkedPreloadUrls].sort(),
+    missingVariants: [...missingVariantUrls].sort(),
+    appliedUpgrades: [...appliedUpgradeUrls].sort(),
+    generatedAt: new Date().toISOString(),
+  };
+  lastDiagnostics = diagnostics;
+  if (typeof window !== 'undefined') {
+    (window as Window & { __SV_ASSET_DIAGNOSTICS__?: AssetDiagnostics }).__SV_ASSET_DIAGNOSTICS__ = diagnostics;
+  }
+  return diagnostics;
+}
+
+export function getAssetDiagnostics(): AssetDiagnostics {
+  return publishAssetDiagnostics();
+}
+
 function imageLoads(url: string): Promise<boolean> {
   if (loadedAssetUrls.has(url)) return Promise.resolve(true);
   if (missingVariantUrls.has(url)) return Promise.resolve(false);
@@ -112,10 +142,12 @@ function imageLoads(url: string): Promise<boolean> {
     img.decoding = 'async';
     img.onload = () => {
       loadedAssetUrls.add(url);
+      publishAssetDiagnostics();
       resolve(true);
     };
     img.onerror = () => {
       missingVariantUrls.add(url);
+      publishAssetDiagnostics();
       resolve(false);
     };
     img.src = url;
@@ -135,6 +167,7 @@ function preloadAudio(url: string): Promise<void> {
     audio.preload = 'metadata';
     const done = () => {
       loadedAssetUrls.add(url);
+      publishAssetDiagnostics();
       audio.removeEventListener('loadedmetadata', done);
       audio.removeEventListener('canplaythrough', done);
       audio.removeEventListener('error', done);
@@ -204,7 +237,9 @@ function discoverRenderedAssets(): RuntimeAsset[] {
     });
   });
 
-  return [...found.values()].sort((a, b) => a.priority - b.priority);
+  const rendered = [...found.values()].sort((a, b) => a.priority - b.priority);
+  publishAssetDiagnostics(rendered);
+  return rendered;
 }
 
 function buildImageUpgradeCandidates(url: string): string[] {
@@ -256,6 +291,7 @@ async function applySafeImageUpgrades(): Promise<void> {
     img.dataset.svUpgradedAsset = upgrade;
     img.src = upgrade;
     appliedUpgradeUrls.add(upgrade);
+    publishAssetDiagnostics();
   }
 
   const backgroundNodes = Array.from(document.querySelectorAll('.battle-bg [style], .map-bg [style], .create-bg [style], .sv-arena-grid')).slice(0, 20) as HTMLElement[];
@@ -270,6 +306,7 @@ async function applySafeImageUpgrades(): Promise<void> {
       el.style.setProperty(property, nextValue);
       el.dataset.svUpgradedBackground = upgrade;
       appliedUpgradeUrls.add(upgrade);
+      publishAssetDiagnostics();
       break;
     }
   }
@@ -291,6 +328,7 @@ async function preloadRuntimeAssets(options: PreloadOptions = {}): Promise<void>
     }
   });
   await Promise.all(workers);
+  publishAssetDiagnostics(queue);
 }
 
 export async function preloadGameAssets(options: PreloadOptions = {}): Promise<void> {
