@@ -4,6 +4,7 @@ import './mobile-ui-patch.css';
 import './arena-mobile-polish.css';
 import './arena-floating-info.css';
 import './power-level-ui.css';
+import './p0-stability-hardening.css';
 
 function polishMobileLabels() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
