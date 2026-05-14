@@ -26,3 +26,121 @@
     filter: saturate(1.08) brightness(1.08) !important;
   }
 }
+
+/* P0 battlefield stability: keep the arena board visually inside its card.
+   CSS-only guardrails; no arena data, movement, targeting, or combat changes. */
+@media (max-width: 768px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 5px 5px 6px !important;
+    overflow: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .battle-bg .sv-arena-head {
+    margin-bottom: 2px !important;
+    gap: 3px !important;
+  }
+
+  .battle-bg .sv-arena-title,
+  .battle-bg .sv-arena-meta {
+    min-width: 0 !important;
+  }
+
+  .battle-bg .sv-arena-eyebrow,
+  .battle-bg .sv-arena-name {
+    line-height: 1.05 !important;
+  }
+
+  .battle-bg .sv-arena-grid {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    width: max-content !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 auto !important;
+    transform: scale(0.94) !important;
+    transform-origin: top center !important;
+    touch-action: manipulation !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .battle-bg .sv-arena-hex-row {
+    gap: 0 !important;
+    line-height: 0 !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    box-sizing: border-box !important;
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .battle-bg .sv-arena-unit {
+    transform: scale(0.92) !important;
+    transform-origin: center center !important;
+  }
+
+  .battle-bg .sv-arena-footer {
+    margin-top: -4px !important;
+    max-height: 42px !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
+
+  .battle-bg .sv-arena-grid {
+    transform: scale(0.88) !important;
+  }
+
+  .battle-bg .sv-arena-tag {
+    font-size: 7.5px !important;
+    padding: 1px 5px !important;
+  }
+
+  .battle-bg .sv-arena-unit {
+    transform: scale(0.86) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .battle-bg .sv-arena-grid {
+    transform: scale(0.82) !important;
+  }
+
+  .battle-bg .sv-arena-head {
+    display: none !important;
+  }
+
+  .battle-bg .sv-arena-footer {
+    display: none !important;
+  }
+}
+
+@media (max-height: 700px) and (max-width: 768px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+
+  .battle-bg .sv-arena-grid {
+    transform: scale(0.84) !important;
+  }
+
+  .battle-bg .sv-arena-footer {
+    display: none !important;
+  }
+}
