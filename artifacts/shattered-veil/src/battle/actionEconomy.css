@@ -119,6 +119,22 @@
   box-shadow: 0 4px 10px rgba(0,0,0,0.28) !important;
 }
 
+.battle-bg .battle-aux-dropdown > div[data-sv-inventory-utility="1"] {
+  position: relative !important;
+  padding-right: 42px !important;
+  border-color: rgba(96, 229, 172, 0.24) !important;
+  box-shadow: inset 0 0 0 1px rgba(96, 229, 172, 0.08) !important;
+}
+
+.battle-bg .sv-ap-cost-pill-row {
+  top: 50% !important;
+  right: 6px !important;
+  transform: translateY(-50%) !important;
+  background: rgba(13, 45, 34, 0.92) !important;
+  border-color: rgba(96, 229, 172, 0.58) !important;
+  color: rgba(185, 255, 222, 0.98) !important;
+}
+
 .battle-bg button[data-sv-ap-cost]:not(.battle-tab):not(.battle-help-chip),
 .battle-bg .battle-action-btn {
   position: relative !important;
@@ -164,5 +180,14 @@
     right: 3px !important;
     font-size: 6.5px !important;
     padding: 2px 4px !important;
+  }
+
+  .battle-bg .battle-aux-dropdown > div[data-sv-inventory-utility="1"] {
+    padding-right: 36px !important;
+  }
+
+  .battle-bg .sv-ap-cost-pill-row {
+    top: 50% !important;
+    right: 5px !important;
   }
 }
