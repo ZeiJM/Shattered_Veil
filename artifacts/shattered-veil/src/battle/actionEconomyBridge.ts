@@ -62,6 +62,32 @@ function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
   return true;
 }
 
+function markInventoryUtilityRows() {
+  document.querySelectorAll('.battle-bg .battle-aux-dropdown > div').forEach((row) => {
+    const rowEl = row as HTMLElement;
+    const text = textOf(rowEl);
+    if (!/(Equip|Draw)\s*→|\bEquipped\b/i.test(text)) return;
+    rowEl.dataset.svInventoryUtility = '1';
+    rowEl.dataset.svActionKind = 'free';
+    rowEl.dataset.svApCost = '0';
+    rowEl.title = '0% AP — inventory preparation is free.';
+    rowEl.querySelectorAll(':scope > .sv-ap-cost-pill').forEach((pill) => pill.remove());
+    const pill = document.createElement('span');
+    pill.className = 'sv-ap-cost-pill sv-ap-cost-pill-row';
+    pill.textContent = '0%';
+    pill.title = 'Inventory preparation is free.';
+    rowEl.appendChild(pill);
+  });
+}
+
+function rewriteInventoryUtilityCopy() {
+  document.querySelectorAll('.battle-bg .battle-aux-dropdown div').forEach((node) => {
+    const el = node as HTMLElement;
+    const direct = Array.from(el.childNodes).find((child) => child.nodeType === Node.TEXT_NODE && /ends turn/i.test(child.textContent || ''));
+    if (direct) direct.textContent = (direct.textContent || '').replace(/\s*\(ends turn\)/gi, ' (0% AP)');
+  });
+}
+
 function isDecoratableActionButton(button: HTMLElement) {
   if (!button.closest('.battle-bg')) return false;
   if (button.closest('.sv-action-economy-bar')) return false;
@@ -191,7 +217,7 @@ function updateActionEconomyUi() {
   if (state) state.textContent = playerTurn ? `${ap}% · ${getActionEconomyStateLabel(ap)}` : 'Enemy turn';
   if (fill) fill.style.width = getActionEconomyWidth(ap);
   if (caption) caption.textContent = playerTurn
-    ? '100% per turn. Primary actions spend the turn; lighter tactics and Strategic View support tactical play.'
+    ? '100% per turn. Primary actions spend the turn; lighter tactics, inventory prep, and Strategic View support tactical play.'
     : 'Action economy refreshes at the start of your next turn.';
 
   actionButtons().forEach((button) => {
@@ -206,6 +232,8 @@ export function ensureBattleActionEconomy() {
   ensureStateForTurn();
   ensureActionEconomyBar();
   ensureEndTurnButton();
+  markInventoryUtilityRows();
+  rewriteInventoryUtilityCopy();
   decorateButtons();
   updateActionEconomyUi();
 }
