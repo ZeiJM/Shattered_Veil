@@ -156,3 +156,64 @@
     max-height: 32px !important;
   }
 }
+
+/* P0 battlefield stability: tablet and short-laptop guardrail.
+   Some mid-sized screens have enough width for desktop layout but not enough
+   height for the full arena plus battle controls. Keep the grid visible by
+   clamping tile size instead of allowing an internal arena scroll. */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-width: 100% !important;
+    max-height: min(56dvh, 500px) !important;
+    overflow: visible !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .battle-bg .sv-arena-hex-row {
+    justify-content: center !important;
+    gap: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(22px, min(calc((100vw - 72px) / 13), calc((100dvh - 260px) / 11)), 46px) !important;
+    height: clamp(22px, min(calc((100vw - 72px) / 13), calc((100dvh - 260px) / 11)), 46px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .battle-bg .sv-arena-unit {
+    width: 84% !important;
+    height: 84% !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-height: 720px) {
+  .battle-bg .sv-arena-head {
+    margin-bottom: 3px !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-height: min(62dvh, 480px) !important;
+  }
+
+  .battle-bg .sv-arena-footer {
+    max-height: 52px !important;
+    overflow: hidden !important;
+  }
+}
