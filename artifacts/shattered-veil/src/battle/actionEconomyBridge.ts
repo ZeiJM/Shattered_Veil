@@ -49,6 +49,17 @@ function spendAp(cost: number) {
   updateActionEconomyUi();
 }
 
+function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
+  if (metaCost <= remainingAp) return false;
+  ev.preventDefault();
+  ev.stopPropagation();
+  ev.stopImmediatePropagation();
+  const bar = document.querySelector('.battle-bg .sv-action-economy-bar') as HTMLElement | null;
+  bar?.classList.add('is-denied');
+  window.setTimeout(() => bar?.classList.remove('is-denied'), 420);
+  return true;
+}
+
 function isDecoratableActionButton(button: HTMLElement) {
   if (!button.closest('.battle-bg')) return false;
   if (button.closest('.sv-action-economy-bar')) return false;
@@ -88,11 +99,12 @@ function decorateButtons() {
     ensureCostPill(button);
     if (button.dataset.svApHandler === '1') return;
     button.dataset.svApHandler = '1';
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (ev) => {
       const playerTurn = isPlayerTurn();
       if (!playerTurn) return;
       const meta = getBattleActionEconomyMeta(button);
       if (meta.cost <= 0) return;
+      if (meta.kind !== 'end' && meta.kind !== 'danger' && blockOverBudgetAction(ev, meta.cost)) return;
       spendAp(meta.cost);
     }, { capture: true });
   });
