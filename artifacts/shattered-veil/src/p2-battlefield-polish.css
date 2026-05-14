@@ -1,0 +1,161 @@
+/* P2 battlefield visual polish.
+   Scope: arena visuals/readability only. No combat, targeting, movement,
+   economy, save, AI, arena data, or asset references are changed here. */
+
+.battle-bg .sv-arena-grid-has-bg::before {
+  opacity: 0.9 !important;
+  filter: saturate(1.08) contrast(1.04) brightness(0.92) !important;
+}
+
+.battle-bg .sv-arena-grid,
+.battle-bg .sv-arena-grid-sq {
+  position: relative !important;
+  border-radius: 14px !important;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255, 236, 180, 0.08), transparent 32%),
+    radial-gradient(circle at 80% 100%, rgba(125, 196, 255, 0.07), transparent 36%),
+    rgba(3, 7, 17, 0.34) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+    inset 0 18px 32px rgba(255, 255, 255, 0.025),
+    0 16px 34px rgba(0, 0, 0, 0.28) !important;
+}
+
+.battle-bg .sv-arena-grid::after,
+.battle-bg .sv-arena-grid-sq::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 4px !important;
+  pointer-events: none !important;
+  border-radius: 12px !important;
+  background:
+    linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.055) 48%, transparent 54%),
+    radial-gradient(circle at 50% 50%, transparent 35%, rgba(0,0,0,0.16) 100%) !important;
+  mix-blend-mode: screen !important;
+  opacity: 0.42 !important;
+  z-index: 2 !important;
+}
+
+.battle-bg .sv-arena-tile {
+  position: relative !important;
+  transition:
+    filter 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    outline-color 120ms ease !important;
+}
+
+.battle-bg .sv-arena-tile:not(.sv-arena-tile-void) {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.035),
+    inset 0 -8px 12px rgba(0,0,0,0.16) !important;
+}
+
+.battle-bg .sv-arena-tile.is-hover,
+.battle-bg .sv-arena-tile:active {
+  transform: translateY(-1px) !important;
+  z-index: 5 !important;
+}
+
+.battle-bg .sv-arena-rare-tile,
+.battle-bg .sv-arena-tile[data-sv-special-tile="rare"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 239, 173, 0.84),
+    inset 0 0 18px rgba(255, 216, 106, 0.24),
+    0 0 12px rgba(255, 203, 82, 0.24) !important;
+}
+
+.battle-bg .sv-arena-field-overlay,
+.battle-bg .sv-arena-tile[data-sv-special-tile="field"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(164, 210, 255, 0.78),
+    inset 0 0 18px rgba(120, 172, 255, 0.24),
+    0 0 12px rgba(92, 154, 255, 0.22) !important;
+}
+
+.battle-bg .sv-arena-tile:has(.sv-arena-object),
+.battle-bg .sv-arena-tile[data-sv-special-tile="object"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 255, 211, 0.62),
+    inset 0 0 15px rgba(119, 255, 162, 0.14),
+    0 0 9px rgba(105, 255, 173, 0.16) !important;
+}
+
+.battle-bg .sv-arena-rare-glow {
+  opacity: 0.98 !important;
+  filter: saturate(1.25) brightness(1.18) !important;
+}
+
+.battle-bg .sv-arena-object {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7)) drop-shadow(0 0 5px rgba(255,255,255,0.16)) !important;
+  transform: translateZ(0) !important;
+}
+
+.battle-bg .sv-arena-tile-void {
+  opacity: 0.22 !important;
+  filter: saturate(0.55) brightness(0.72) !important;
+  box-shadow: none !important;
+}
+
+.battle-bg .sv-arena-tile[data-sv-occupied-special="1"] {
+  outline: 1px solid rgba(255, 238, 180, 0.68) !important;
+  outline-offset: -2px !important;
+}
+
+.battle-bg .sv-arena-occupied-tile-mark {
+  position: absolute !important;
+  right: -3px !important;
+  top: -3px !important;
+  width: 13px !important;
+  height: 13px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  color: #120c04 !important;
+  background: linear-gradient(180deg, rgba(255, 239, 181, 0.98), rgba(200, 127, 28, 0.96)) !important;
+  border: 1px solid rgba(255, 248, 215, 0.9) !important;
+  box-shadow: 0 0 9px rgba(255, 205, 92, 0.34) !important;
+  pointer-events: none !important;
+  z-index: 7 !important;
+}
+
+.battle-bg .sv-arena-tile[data-sv-occupied-special="field"] .sv-arena-occupied-tile-mark {
+  background: linear-gradient(180deg, rgba(188, 232, 255, 0.98), rgba(58, 125, 191, 0.96)) !important;
+  color: #051323 !important;
+  box-shadow: 0 0 9px rgba(103, 199, 255, 0.34) !important;
+}
+
+.battle-bg .sv-arena-tooltip-bonus,
+.battle-bg .sv-arena-tooltip-todo {
+  display: inline-block !important;
+  margin-top: 2px !important;
+  padding: 2px 5px !important;
+  border-radius: 6px !important;
+  background: rgba(255, 232, 166, 0.1) !important;
+  border: 1px solid rgba(255, 232, 166, 0.18) !important;
+}
+
+@media (max-width: 768px) {
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    border-radius: 10px !important;
+  }
+
+  .battle-bg .sv-arena-grid::after,
+  .battle-bg .sv-arena-grid-sq::after {
+    inset: 2px !important;
+    opacity: 0.28 !important;
+  }
+
+  .battle-bg .sv-arena-occupied-tile-mark {
+    right: -2px !important;
+    top: -2px !important;
+    width: 10px !important;
+    height: 10px !important;
+    font-size: 6.5px !important;
+  }
+}

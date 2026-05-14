@@ -7,6 +7,7 @@ import './power-level-ui.css';
 import './p0-stability-hardening.css';
 import './p1-mobile-battle-ui-hardening.css';
 import './p2-strategic-view.css';
+import './p2-battlefield-polish.css';
 
 function polishMobileLabels() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -184,6 +185,31 @@ function updateStrategicViewBar(panelEl: HTMLElement) {
   });
 }
 
+function markOccupiedSpecialTiles() {
+  document.querySelectorAll('.battle-bg .sv-arena-tile').forEach((tile) => {
+    const tileEl = tile as HTMLElement;
+    const hasUnit = !!tileEl.querySelector('.sv-arena-unit');
+    const hasObject = !!tileEl.querySelector('.sv-arena-object');
+    const isRare = tileEl.classList.contains('sv-arena-rare-tile');
+    const isField = tileEl.classList.contains('sv-arena-field-overlay');
+    const specialType = isField ? 'field' : isRare ? 'rare' : hasObject ? 'object' : '';
+    tileEl.querySelectorAll(':scope > .sv-arena-occupied-tile-mark').forEach((mark) => mark.remove());
+    if (!hasUnit || !specialType) {
+      delete tileEl.dataset.svOccupiedSpecial;
+      if (!specialType) delete tileEl.dataset.svSpecialTile;
+      else tileEl.dataset.svSpecialTile = specialType;
+      return;
+    }
+    tileEl.dataset.svSpecialTile = specialType;
+    tileEl.dataset.svOccupiedSpecial = specialType;
+    const mark = document.createElement('span');
+    mark.className = 'sv-arena-occupied-tile-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.textContent = specialType === 'field' ? '◇' : specialType === 'object' ? '◆' : '✦';
+    tileEl.appendChild(mark);
+  });
+}
+
 function positionArenaFloatingInfo() {
   document.querySelectorAll('.battle-bg .sv-arena-panel').forEach((panel) => {
     const panelEl = panel as HTMLElement;
@@ -247,6 +273,7 @@ function App() {
         polishMobileLabels();
         markBattleHeaderLayout();
         ensureStrategicViewControls();
+        markOccupiedSpecialTiles();
         positionArenaFloatingInfo();
       });
     };
