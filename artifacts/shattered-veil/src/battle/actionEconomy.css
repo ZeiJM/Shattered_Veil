@@ -1,0 +1,168 @@
+/* Battle action economy presentation.
+   Runtime bridge only: no damage formulas, enemy AI, save data, target math,
+   or existing action handlers are rewritten here. */
+
+.battle-bg .sv-action-economy-bar {
+  display: grid !important;
+  gap: 5px !important;
+  margin: 0 0 8px !important;
+  padding: 7px 9px !important;
+  border-radius: 13px !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 216, 107, 0.18), transparent 38%),
+    linear-gradient(180deg, rgba(14, 18, 38, 0.94), rgba(6, 10, 24, 0.88)) !important;
+  border: 1px solid rgba(255, 216, 107, 0.34) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.025),
+    0 8px 18px rgba(0,0,0,0.2) !important;
+  color: rgba(240, 245, 255, 0.94) !important;
+  box-sizing: border-box !important;
+}
+
+.battle-bg .sv-action-economy-bar.is-denied {
+  animation: svApDenied 0.42s ease-out !important;
+}
+
+@keyframes svApDenied {
+  0%, 100% { transform: translateX(0); border-color: rgba(255, 216, 107, 0.34); }
+  20% { transform: translateX(-3px); border-color: rgba(255, 94, 94, 0.9); }
+  45% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+}
+
+.battle-bg .sv-action-economy-topline {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.battle-bg .sv-action-economy-title {
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: rgba(255, 225, 142, 0.98) !important;
+}
+
+.battle-bg .sv-action-economy-state {
+  margin-left: auto !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  color: rgba(232, 243, 255, 0.92) !important;
+}
+
+.battle-bg .sv-action-economy-help {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 216, 107, 0.45) !important;
+  background: rgba(255, 216, 107, 0.12) !important;
+  color: rgba(255, 232, 160, 0.98) !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.battle-bg .sv-action-economy-track {
+  width: 100% !important;
+  height: 9px !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,0.09) !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.5) !important;
+}
+
+.battle-bg .sv-action-economy-fill {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: linear-gradient(90deg, rgba(84, 228, 171, 0.98), rgba(255, 216, 107, 0.98)) !important;
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.22) !important;
+  transition: width 0.22s ease, background 0.22s ease !important;
+}
+
+.battle-bg .sv-action-economy-bar[data-sv-ap-state="limited"] .sv-action-economy-fill,
+.battle-bg .sv-action-economy-bar[data-sv-ap-state="last-sliver"] .sv-action-economy-fill {
+  background: linear-gradient(90deg, rgba(255, 166, 77, 0.98), rgba(255, 216, 107, 0.98)) !important;
+}
+
+.battle-bg .sv-action-economy-bar[data-sv-ap-state="spent"] .sv-action-economy-fill,
+.battle-bg .sv-action-economy-bar[data-sv-ap-state="enemy-turn"] .sv-action-economy-fill {
+  background: linear-gradient(90deg, rgba(128, 140, 164, 0.65), rgba(82, 92, 118, 0.65)) !important;
+  box-shadow: none !important;
+}
+
+.battle-bg .sv-action-economy-caption {
+  font-size: 8px !important;
+  line-height: 1.25 !important;
+  color: rgba(205, 216, 240, 0.72) !important;
+}
+
+.battle-bg .sv-ap-cost-pill {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  z-index: 3 !important;
+  min-width: 28px !important;
+  padding: 2px 5px !important;
+  border-radius: 999px !important;
+  background: rgba(4, 8, 18, 0.82) !important;
+  border: 1px solid rgba(255, 216, 107, 0.46) !important;
+  color: rgba(255, 232, 166, 0.98) !important;
+  font-size: 7px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  pointer-events: none !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.28) !important;
+}
+
+.battle-bg button[data-sv-ap-cost]:not(.battle-tab):not(.battle-help-chip),
+.battle-bg .battle-action-btn {
+  position: relative !important;
+}
+
+.battle-bg button.sv-ap-over-budget {
+  opacity: 0.48 !important;
+  filter: grayscale(0.45) brightness(0.86) !important;
+  cursor: not-allowed !important;
+}
+
+.battle-bg .sv-end-turn-btn {
+  background: linear-gradient(180deg, rgba(248, 199, 83, 0.95), rgba(130, 88, 24, 0.95)) !important;
+  color: #160e04 !important;
+  border: 1px solid rgba(255, 232, 157, 0.72) !important;
+  font-weight: 900 !important;
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.22) !important;
+}
+
+.battle-bg .sv-end-turn-btn:disabled {
+  opacity: 0.64 !important;
+  filter: grayscale(0.35) !important;
+}
+
+@media (max-width: 768px) {
+  .battle-bg .sv-action-economy-bar {
+    padding: 6px 7px !important;
+    margin-bottom: 6px !important;
+    gap: 4px !important;
+  }
+
+  .battle-bg .sv-action-economy-title,
+  .battle-bg .sv-action-economy-state {
+    font-size: 9px !important;
+  }
+
+  .battle-bg .sv-action-economy-caption {
+    font-size: 7.5px !important;
+  }
+
+  .battle-bg .sv-ap-cost-pill {
+    top: 3px !important;
+    right: 3px !important;
+    font-size: 6.5px !important;
+    padding: 2px 4px !important;
+  }
+}
