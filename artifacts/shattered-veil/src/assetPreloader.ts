@@ -28,6 +28,8 @@ type RuntimeAsset = {
 
 const loadedAssetUrls = new Set<string>();
 const linkedPreloadUrls = new Set<string>();
+const missingVariantUrls = new Set<string>();
+const appliedUpgradeUrls = new Set<string>();
 
 export const HIGH_PRIORITY_IMAGE_ASSETS: readonly AssetPreloadEntry[] = [
   { id: 'battle-courtyard', path: 'battle/bg_courtyard.jpg', kind: 'image', priority: 1, reason: 'Default battlefield background.' },
@@ -81,6 +83,15 @@ function toAbsoluteUrl(url: string): string | null {
   }
 }
 
+function isSameOriginUrl(url: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return new URL(url, window.location.href).origin === window.location.origin;
+  } catch (_) {
+    return false;
+  }
+}
+
 function ensurePreloadLink(url: string, kind: AssetKind): void {
   if (typeof document === 'undefined') return;
   if (!isPreloadableUrl(url) || linkedPreloadUrls.has(`${kind}:${url}`)) return;
@@ -93,24 +104,32 @@ function ensurePreloadLink(url: string, kind: AssetKind): void {
   linkedPreloadUrls.add(`${kind}:${url}`);
 }
 
-function preloadImage(url: string): Promise<void> {
-  if (loadedAssetUrls.has(url)) return Promise.resolve();
-  ensurePreloadLink(url, 'image');
+function imageLoads(url: string): Promise<boolean> {
+  if (loadedAssetUrls.has(url)) return Promise.resolve(true);
+  if (missingVariantUrls.has(url)) return Promise.resolve(false);
   return new Promise((resolve) => {
     const img = new Image();
     img.decoding = 'async';
     img.onload = () => {
       loadedAssetUrls.add(url);
-      resolve();
+      resolve(true);
     };
-    img.onerror = () => resolve();
+    img.onerror = () => {
+      missingVariantUrls.add(url);
+      resolve(false);
+    };
     img.src = url;
   });
 }
 
+function preloadImage(url: string): Promise<void> {
+  if (loadedAssetUrls.has(url)) return Promise.resolve();
+  ensurePreloadLink(url, 'image');
+  return imageLoads(url).then(() => undefined);
+}
+
 function preloadAudio(url: string): Promise<void> {
   if (loadedAssetUrls.has(url)) return Promise.resolve();
-  ensurePreloadLink(url, 'audio');
   return new Promise((resolve) => {
     const audio = new Audio();
     audio.preload = 'metadata';
@@ -188,6 +207,74 @@ function discoverRenderedAssets(): RuntimeAsset[] {
   return [...found.values()].sort((a, b) => a.priority - b.priority);
 }
 
+function buildImageUpgradeCandidates(url: string): string[] {
+  if (!isSameOriginUrl(url)) return [];
+  const parsed = new URL(url, window.location.href);
+  const path = parsed.pathname;
+  const match = path.match(/^(.*?)(\.(?:png|jpe?g|webp|avif))$/i);
+  if (!match) return [];
+  const base = match[1];
+  const ext = match[2];
+  if (/(?:@2x|\.hq|_hq|\.high|_high|\.HD|_HD)$/i.test(base)) return [];
+  const candidates = [`${base}@2x${ext}`, `${base}.hq${ext}`, `${base}_hq${ext}`];
+  if (!/\.webp$/i.test(ext)) candidates.push(`${base}.webp`);
+  if (!/\.avif$/i.test(ext)) candidates.push(`${base}.avif`);
+  return candidates.map((candidatePath) => {
+    const next = new URL(parsed.href);
+    next.pathname = candidatePath;
+    return next.href;
+  });
+}
+
+async function findFirstLoadedImageVariant(url: string): Promise<string | null> {
+  for (const candidate of buildImageUpgradeCandidates(url)) {
+    if (appliedUpgradeUrls.has(candidate)) return candidate;
+    const ok = await imageLoads(candidate);
+    if (ok) return candidate;
+  }
+  return null;
+}
+
+function replaceCssUrlValue(value: string, fromUrl: string, toUrl: string): string {
+  return value.replace(/url\((['"]?)(.*?)\1\)/gi, (full, quote: string, raw: string) => {
+    const absolute = toAbsoluteUrl(raw);
+    if (absolute !== fromUrl) return full;
+    const q = quote || '"';
+    return `url(${q}${toUrl}${q})`;
+  });
+}
+
+async function applySafeImageUpgrades(): Promise<void> {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  const visibleImages = Array.from(document.querySelectorAll('.battle-bg img[src], .map-bg img[src], .create-bg img[src]')).slice(0, 12) as HTMLImageElement[];
+  for (const img of visibleImages) {
+    const current = toAbsoluteUrl(img.currentSrc || img.src);
+    if (!current) continue;
+    const upgrade = await findFirstLoadedImageVariant(current);
+    if (!upgrade || upgrade === current) continue;
+    img.dataset.svOriginalAsset = current;
+    img.dataset.svUpgradedAsset = upgrade;
+    img.src = upgrade;
+    appliedUpgradeUrls.add(upgrade);
+  }
+
+  const backgroundNodes = Array.from(document.querySelectorAll('.battle-bg [style], .map-bg [style], .create-bg [style], .sv-arena-grid')).slice(0, 20) as HTMLElement[];
+  for (const el of backgroundNodes) {
+    const currentValue = el.style.backgroundImage || el.style.getPropertyValue('--sv-arena-bg-img');
+    const urls = extractCssUrls(currentValue).map(toAbsoluteUrl).filter((url): url is string => !!url);
+    for (const url of urls) {
+      const upgrade = await findFirstLoadedImageVariant(url);
+      if (!upgrade || upgrade === url) continue;
+      const property = el.style.getPropertyValue('--sv-arena-bg-img') ? '--sv-arena-bg-img' : 'background-image';
+      const nextValue = replaceCssUrlValue(currentValue, url, upgrade);
+      el.style.setProperty(property, nextValue);
+      el.dataset.svUpgradedBackground = upgrade;
+      appliedUpgradeUrls.add(upgrade);
+      break;
+    }
+  }
+}
+
 async function preloadRuntimeAssets(options: PreloadOptions = {}): Promise<void> {
   if (typeof window === 'undefined') return;
   const lightMode = shouldUseLightPreload(options);
@@ -237,6 +324,7 @@ export function scheduleGameAssetPreload(baseUrl?: string): void {
   };
   const rerunDiscovery = () => {
     void preloadRuntimeAssets(options);
+    if (!shouldUseLightPreload(options)) void applySafeImageUpgrades();
   };
   const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
   if (typeof idle === 'function') {
