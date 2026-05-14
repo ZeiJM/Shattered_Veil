@@ -1,0 +1,229 @@
+/* P0 stability hardening layer.
+   Purpose: finish the current P0 contract in one visible, reviewable layer.
+   Scope: layout/interaction guardrails only. No combat, targeting, movement,
+   save, AI, arena data, or asset behavior is changed here. */
+
+.battle-bg,
+.map-bg,
+.create-bg {
+  max-width: 100vw !important;
+  overflow-x: clip !important;
+}
+
+.battle-bg *,
+.map-bg *,
+.create-bg * {
+  box-sizing: border-box !important;
+}
+
+/* Battle viewport: keep cards from forcing horizontal overflow and make the
+   tactical panel reserve a stable surface for the arena across round/log/UI
+   updates. */
+.battle-bg .wr,
+.battle-bg .cd,
+.battle-bg .battle-info-card,
+.battle-bg .battle-actions-card {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.battle-bg .sv-arena-panel,
+.battle-bg .sv-arena-panel-fit {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+}
+
+.battle-bg .sv-arena-grid,
+.battle-bg .sv-arena-grid-sq {
+  width: fit-content !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  margin-inline: auto !important;
+  contain: layout !important;
+}
+
+.battle-bg .sv-arena-hex-row {
+  max-width: 100% !important;
+  margin-inline: auto !important;
+}
+
+/* Desktop and tablet board-fit guardrail. Earlier sizing could over-trust
+   viewport height; this clamps per-tile size so 14×9 / 13×11 style arenas fit
+   without internal scrolling or progressive shrink. */
+@media (min-width: 769px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: clamp(380px, 52dvh, 660px) !important;
+    padding-bottom: clamp(10px, 1.2dvh, 18px) !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-height: min(52dvh, 590px) !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(22px, min(calc((100vw - 260px) / 14), calc((100dvh - 285px) / 11)), 48px) !important;
+    height: clamp(22px, min(calc((100vw - 260px) / 14), calc((100dvh - 285px) / 11)), 48px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .battle-bg .sv-arena-unit {
+    width: 82% !important;
+    height: 82% !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+}
+
+/* Short desktop/laptop browser windows need a slightly more conservative tile
+   clamp but should still keep the board fully visible. */
+@media (min-width: 769px) and (max-height: 760px) {
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: clamp(330px, 56dvh, 540px) !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-height: min(54dvh, 520px) !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(20px, min(calc((100vw - 230px) / 14), calc((100dvh - 230px) / 11)), 42px) !important;
+    height: clamp(20px, min(calc((100vw - 230px) / 14), calc((100dvh - 230px) / 11)), 42px) !important;
+  }
+}
+
+/* Mobile board-fit contract. Keep the whole grid in one view; shrink the tile
+   surface rather than creating an internal grid scroll container. */
+@media (max-width: 768px) {
+  .battle-bg .wr {
+    padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)) !important;
+  }
+
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: clamp(230px, 48dvh, 520px) !important;
+    padding: 3px !important;
+  }
+
+  .battle-bg .sv-arena-grid,
+  .battle-bg .sv-arena-grid-sq {
+    max-width: calc(100vw - 18px) !important;
+    max-height: min(68dvh, 500px) !important;
+    overflow: visible !important;
+    touch-action: manipulation !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    width: clamp(12px, min(calc((100vw - 34px) / 14), calc((100dvh - 132px) / 11)), 28px) !important;
+    height: clamp(12px, min(calc((100vw - 34px) / 14), calc((100dvh - 132px) / 11)), 28px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .battle-bg .sv-arena-unit-hp {
+    height: 2px !important;
+  }
+}
+
+/* Floating tile/unit info must beat older mobile rules that hid the arena
+   footer on short screens. This keeps info contextual without making it a
+   layout row under the board. */
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-arena-tooltip {
+  max-width: min(360px, calc(100vw - 24px)) !important;
+  max-height: min(32dvh, 240px) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+@media (max-width: 768px) {
+  .battle-bg .sv-arena-footer[data-sv-floating-tile-info="1"] .sv-arena-tooltip {
+    max-width: min(286px, calc(100vw - 16px)) !important;
+    max-height: min(30dvh, 180px) !important;
+  }
+}
+
+/* Prevent tags, chips, pills, badges, and compact buttons from covering labels.
+   Prefer wrapping or ellipsis inside their own box rather than absolute overlap. */
+.battle-bg .tg,
+.battle-bg [class*="tag"],
+.battle-bg [class*="Tag"],
+.battle-bg [class*="chip"],
+.battle-bg [class*="Chip"],
+.battle-bg [class*="badge"],
+.battle-bg [class*="Badge"],
+.map-bg .tg,
+.map-bg [class*="tag"],
+.map-bg [class*="chip"],
+.map-bg [class*="badge"],
+.create-bg .tg,
+.create-bg [class*="tag"],
+.create-bg [class*="chip"],
+.create-bg [class*="badge"] {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  text-wrap: balance !important;
+}
+
+.battle-bg button,
+.map-bg button,
+.create-bg button {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.battle-bg [data-sv-battle-header-row],
+.battle-bg [data-sv-battle-header-card="1"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Innate/class badges get a stable home and cannot cover card text. */
+.create-bg [data-sv-innate-fixed="1"],
+.create-bg [data-sv-innate-fixed="1"] * {
+  box-sizing: border-box !important;
+}
+
+.create-bg [data-sv-innate-fixed="1"] {
+  overflow: visible !important;
+}
+
+/* World map gesture safety: map canvases/grids should pan themselves without
+   dragging the document; surrounding UI can still scroll normally. */
+.map-bg {
+  overscroll-behavior-x: contain !important;
+}
+
+.map-bg [class*="map-grid"],
+.map-bg [class*="MapGrid"],
+.map-bg [class*="world-grid"],
+.map-bg [class*="WorldGrid"],
+.map-bg canvas,
+.map-bg svg {
+  touch-action: none !important;
+  overscroll-behavior: contain !important;
+  user-select: none !important;
+}
+
+/* Keep any accidental horizontal escape from forcing body/page scroll. */
+html,
+body,
+#root {
+  max-width: 100vw !important;
+  overflow-x: clip !important;
+}
