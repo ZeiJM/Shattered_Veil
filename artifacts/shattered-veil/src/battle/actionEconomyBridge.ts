@@ -12,6 +12,7 @@ let bridgeStarted = false;
 let bridgeObserver: MutationObserver | null = null;
 let bridgeTimer: number | null = null;
 let bridgeFrame = 0;
+let autoEndInFlight = false;
 
 const textOf = (el: Element | null) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
 const clampAp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -33,22 +34,32 @@ function ensureStateForTurn() {
     remainingAp = 100;
     lastTurnSignature = '';
     lastWasPlayerTurn = false;
+    autoEndInFlight = false;
     return false;
   }
   if (playerTurn && (!lastWasPlayerTurn || sig !== lastTurnSignature)) {
     remainingAp = 100;
+    autoEndInFlight = false;
   }
   if (!playerTurn) {
     remainingAp = 100;
+    autoEndInFlight = false;
   }
   lastWasPlayerTurn = playerTurn;
   lastTurnSignature = sig;
   return playerTurn;
 }
 
+function runSoon() {
+  window.cancelAnimationFrame(bridgeFrame);
+  bridgeFrame = window.requestAnimationFrame(() => ensureBattleActionEconomy());
+}
+
 function spendAp(cost: number) {
   remainingAp = clampAp(remainingAp - cost);
   updateActionEconomyUi();
+  window.setTimeout(runSoon, 80);
+  window.setTimeout(runSoon, 320);
 }
 
 function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
@@ -105,12 +116,30 @@ function actionButtons() {
     .filter(isDecoratableActionButton);
 }
 
+function rawBattleButtons() {
+  return Array.from(document.querySelectorAll('.battle-bg button'))
+    .map((node) => node as HTMLButtonElement)
+    .filter((button) => !button.disabled && !button.closest('.sv-action-economy-bar'));
+}
+
+function shouldSuppressVisiblePill(button: HTMLElement) {
+  const text = textOf(button);
+  if (button.classList.contains('sv-end-turn-btn')) return true;
+  if (button.closest('.battle-aux-row')) return true;
+  if (/^\s*(🏃\s*)?Flee\s*$/i.test(text)) return true;
+  if (/End Turn|Turn Ended/i.test(text)) return true;
+  return false;
+}
+
 function ensureCostPill(button: HTMLElement) {
   const meta = getBattleActionEconomyMeta(button);
   button.dataset.svActionKind = meta.kind;
   button.dataset.svApCost = String(meta.cost);
   button.title = button.title || meta.note;
-
+  if (shouldSuppressVisiblePill(button)) {
+    button.querySelectorAll(':scope > .sv-ap-cost-pill').forEach((pill) => pill.remove());
+    return;
+  }
   if (meta.cost <= 0 && meta.kind !== 'end') return;
   if (button.classList.contains('battle-tab') || button.classList.contains('battle-help-chip')) return;
   if (button.querySelector(':scope > .sv-ap-cost-pill')) return;
@@ -132,7 +161,10 @@ function decorateButtons() {
       const playerTurn = isPlayerTurn();
       if (!playerTurn) return;
       const meta = getBattleActionEconomyMeta(button);
-      if (meta.cost <= 0) return;
+      if (meta.cost <= 0) {
+        window.setTimeout(runSoon, 80);
+        return;
+      }
       if (meta.kind !== 'end' && meta.kind !== 'danger' && blockOverBudgetAction(ev, meta.cost)) return;
       spendAp(meta.cost);
     }, { capture: true });
@@ -140,11 +172,41 @@ function decorateButtons() {
 }
 
 function findGuardLikeButton() {
-  return actionButtons().find((button) => {
-    if ((button as HTMLButtonElement).disabled) return false;
+  return rawBattleButtons().find((button) => {
     const text = textOf(button);
-    return /Guard|Defend|Brace/i.test(text) && !/Brace Field/i.test(text);
-  }) as HTMLButtonElement | undefined;
+    return /\b(Guard|Defend)\b/i.test(text) || (/\bBrace\b/i.test(text) && !/Brace Field/i.test(text));
+  });
+}
+
+function canAffordAnyNonDangerAction() {
+  if (!isPlayerTurn()) return false;
+  return actionButtons().some((button) => {
+    if ((button as HTMLButtonElement).disabled) return false;
+    if (button.classList.contains('sv-end-turn-btn')) return false;
+    const meta = getBattleActionEconomyMeta(button);
+    if (meta.kind === 'danger' || meta.kind === 'end') return false;
+    if (meta.cost <= 0) return false;
+    return meta.cost <= remainingAp;
+  });
+}
+
+function tryAutoEndIfNoActionsRemain() {
+  if (autoEndInFlight || !isPlayerTurn()) return;
+  if (remainingAp <= 0) {
+    const guard = findGuardLikeButton();
+    if (guard) {
+      autoEndInFlight = true;
+      guard.click();
+      return;
+    }
+  }
+  if (remainingAp > 0 && !canAffordAnyNonDangerAction()) {
+    const guard = findGuardLikeButton();
+    if (guard) {
+      autoEndInFlight = true;
+      guard.click();
+    }
+  }
 }
 
 function ensureEndTurnButton() {
@@ -159,18 +221,20 @@ function ensureEndTurnButton() {
   end.dataset.svApCost = '100';
   end.dataset.svActionKind = 'end';
   end.textContent = '⏭ End Turn';
-  end.title = 'Ends your turn. Uses Guard/Defend automatically when available.';
+  end.title = 'Ends your turn by triggering Guard/Defend when that engine action is available.';
   end.addEventListener('click', () => {
     if (!isPlayerTurn()) return;
     const guard = findGuardLikeButton();
     if (guard) {
+      autoEndInFlight = true;
       guard.click();
       spendAp(100);
       return;
     }
-    spendAp(100);
-    end.disabled = true;
-    end.textContent = '⏭ Turn Ended';
+    const bar = document.querySelector('.battle-bg .sv-action-economy-bar') as HTMLElement | null;
+    bar?.classList.add('is-denied');
+    window.setTimeout(() => bar?.classList.remove('is-denied'), 420);
+    end.title = 'No Guard/Defend action is currently exposed by the battle engine. Engine-level skip-turn refactor is still required.';
   });
 
   if (flee?.nextSibling) auxRow.insertBefore(end, flee.nextSibling);
@@ -236,26 +300,25 @@ export function ensureBattleActionEconomy() {
   rewriteInventoryUtilityCopy();
   decorateButtons();
   updateActionEconomyUi();
+  tryAutoEndIfNoActionsRemain();
 }
 
 export function startBattleActionEconomyBridge() {
   if (bridgeStarted || typeof window === 'undefined' || typeof document === 'undefined') return;
   bridgeStarted = true;
-  const run = () => {
-    window.cancelAnimationFrame(bridgeFrame);
-    bridgeFrame = window.requestAnimationFrame(() => ensureBattleActionEconomy());
-  };
+  const run = runSoon;
   run();
   bridgeObserver = new MutationObserver(run);
   bridgeObserver.observe(document.body, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['class', 'disabled', 'data-sv-strategic-view'],
+    attributeFilter: ['class', 'disabled', 'data-sv-strategic-view', 'data-sv-ap-cost'],
   });
   document.addEventListener('click', run, { passive: true });
+  document.addEventListener('pointerup', run, { passive: true });
   window.addEventListener('resize', run, { passive: true });
-  bridgeTimer = window.setInterval(run, 1000);
+  bridgeTimer = window.setInterval(run, 450);
 }
 
 export function stopBattleActionEconomyBridge() {
