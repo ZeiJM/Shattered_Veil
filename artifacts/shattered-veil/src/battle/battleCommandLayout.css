@@ -1,0 +1,330 @@
+/* Battle command page redesign
+   Layout-only pass: keeps Game.jsx combat math and action handlers intact. */
+
+.battle-bg {
+  min-height: 100dvh !important;
+  overflow-x: hidden !important;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255,216,107,0.12), transparent 32%),
+    radial-gradient(circle at 80% 28%, rgba(118,80,255,0.14), transparent 34%),
+    linear-gradient(180deg, rgba(8,10,28,0.98), rgba(5,7,18,0.98)) !important;
+}
+
+.battle-bg .battle-viewport {
+  width: min(100%, 1780px) !important;
+  min-height: calc(100dvh - 18px) !important;
+  margin: 0 auto !important;
+  padding: 8px 10px 12px !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(230px, 0.92fr) minmax(520px, 1.85fr) minmax(270px, 0.98fr) !important;
+  grid-template-rows: auto minmax(420px, 1fr) minmax(178px, auto) !important;
+  grid-template-areas:
+    "title title title"
+    "left arena right"
+    "actions actions actions" !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+
+.battle-bg .battle-combat-title {
+  grid-area: title !important;
+  position: relative !important;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border: 1px solid rgba(255,216,107,0.28) !important;
+  border-radius: 16px !important;
+  background:
+    linear-gradient(90deg, rgba(255,216,107,0.08), rgba(113,82,255,0.09), rgba(255,216,107,0.06)) !important;
+  box-shadow: 0 12px 26px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.035) !important;
+  color: transparent !important;
+  text-align: center !important;
+  font-size: 0 !important;
+  min-height: 34px !important;
+}
+
+.battle-bg .battle-combat-title::before {
+  content: "⚔ Veilbound Battlefield";
+  display: block !important;
+  font-family: 'Cinzel', serif !important;
+  font-size: clamp(16px, 1.6vw, 24px) !important;
+  line-height: 1.1 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: rgba(255,225,143,0.98) !important;
+  text-shadow: 0 0 16px rgba(255,216,107,0.28), 0 2px 8px rgba(0,0,0,0.55) !important;
+}
+
+.battle-bg .battle-combat-title::after {
+  content: "The Veil trembles — command the field before it answers back";
+  display: block !important;
+  margin-top: 2px !important;
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase !important;
+  color: rgba(213,224,255,0.66) !important;
+}
+
+.battle-bg .battle-top-grid {
+  display: contents !important;
+}
+
+.battle-bg .battle-team-col {
+  grid-area: left !important;
+  display: grid !important;
+  gap: 8px !important;
+  align-content: start !important;
+  min-width: 0 !important;
+  max-height: 100% !important;
+  overflow: auto !important;
+}
+
+.battle-bg .battle-enemy-col {
+  grid-area: right !important;
+  display: grid !important;
+  gap: 8px !important;
+  align-content: start !important;
+  min-width: 0 !important;
+  max-height: 100% !important;
+  overflow: auto !important;
+}
+
+.battle-bg .battle-info-card {
+  grid-area: right !important;
+  align-self: end !important;
+  min-width: 0 !important;
+  max-height: min(48dvh, 430px) !important;
+  overflow: auto !important;
+  border-radius: 16px !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,216,107,0.10), transparent 40%),
+    linear-gradient(180deg, rgba(14,18,42,0.94), rgba(8,12,30,0.94)) !important;
+  border-color: rgba(255,216,107,0.22) !important;
+}
+
+.battle-bg .sv-arena-panel,
+.battle-bg .sv-arena-panel-fit {
+  grid-area: arena !important;
+  align-self: center !important;
+  justify-self: center !important;
+  width: 100% !important;
+  min-height: min(60dvh, 650px) !important;
+  max-height: min(64dvh, 720px) !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  border-radius: 18px !important;
+}
+
+.battle-bg .sv-arena-grid {
+  margin: auto !important;
+  max-width: min(100%, 760px) !important;
+  max-height: min(58dvh, 650px) !important;
+  transform-origin: center center !important;
+}
+
+.battle-bg .sv-arena-tile {
+  --sv-arena-tile-size: clamp(34px, min(calc((100vw - 650px) / 13), calc((100dvh - 250px) / 10)), 58px) !important;
+}
+
+.battle-bg .battle-lower-grid {
+  display: contents !important;
+}
+
+.battle-bg .battle-main-stack {
+  display: contents !important;
+}
+
+.battle-bg .battle-actions-card {
+  grid-area: actions !important;
+  min-width: 0 !important;
+  max-height: 30dvh !important;
+  overflow: auto !important;
+  border-radius: 18px !important;
+  padding: 8px !important;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(255,216,107,0.12), transparent 38%),
+    linear-gradient(180deg, rgba(13,17,40,0.96), rgba(7,10,27,0.96)) !important;
+  border: 1px solid rgba(255,216,107,0.24) !important;
+  box-shadow: 0 -12px 30px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
+}
+
+.battle-bg .battle-side-stack {
+  grid-area: right !important;
+  align-self: start !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 8px !important;
+  max-height: min(50dvh, 520px) !important;
+  overflow: hidden !important;
+}
+
+.battle-bg .battle-log-card {
+  min-height: 260px !important;
+  max-height: min(46dvh, 500px) !important;
+  overflow: hidden !important;
+  border-radius: 16px !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,80,255,0.12), transparent 34%),
+    linear-gradient(180deg, rgba(8,12,30,0.96), rgba(3,5,14,0.96)) !important;
+  border-color: rgba(132,152,255,0.22) !important;
+}
+
+.battle-bg .battle-log-card .blog-sel {
+  max-height: calc(min(46dvh, 500px) - 40px) !important;
+  overflow-y: auto !important;
+  padding-right: 3px !important;
+}
+
+.battle-bg .battle-turn-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 5px 7px !important;
+  margin-bottom: 6px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.035) !important;
+  border: 1px solid rgba(255,255,255,0.055) !important;
+}
+
+.battle-bg .battle-tabs.v66 {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(92px, 1fr)) !important;
+  gap: 6px !important;
+  margin-bottom: 7px !important;
+}
+
+.battle-bg .battle-tab.v66 {
+  min-height: 36px !important;
+  border-radius: 12px !important;
+  font-size: 10px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)) !important;
+  border: 1px solid rgba(255,216,107,0.18) !important;
+}
+
+.battle-bg .battle-tab.v66.is-active {
+  border-color: rgba(255,216,107,0.58) !important;
+  box-shadow: 0 0 18px rgba(255,216,107,0.16), inset 0 0 0 1px rgba(255,255,255,0.045) !important;
+}
+
+.battle-bg .battle-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+  gap: 7px !important;
+}
+
+.battle-bg .battle-action-btn {
+  min-height: 74px !important;
+  border-radius: 14px !important;
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease !important;
+}
+
+.battle-bg .battle-action-btn:not(:disabled):hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 18px rgba(0,0,0,0.22), 0 0 16px rgba(255,216,107,0.10) !important;
+}
+
+.battle-bg .battle-aux-shared {
+  margin-top: 8px !important;
+  padding-top: 7px !important;
+  border-top: 1px dashed rgba(255,216,107,0.20) !important;
+}
+
+.battle-bg .battle-aux-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+.battle-bg .battle-aux-row > button {
+  min-height: 30px !important;
+  border-radius: 999px !important;
+  padding: 6px 11px !important;
+}
+
+.battle-bg .sv-end-turn-btn {
+  background: linear-gradient(180deg, rgba(255,216,107,0.92), rgba(155,101,30,0.96)) !important;
+  color: #170f05 !important;
+  border: 1px solid rgba(255,238,172,0.76) !important;
+}
+
+.battle-bg .battle-aux-row > button .sv-ap-cost-pill,
+.battle-bg .sv-end-turn-btn .sv-ap-cost-pill,
+.battle-bg button[title*="Flee"] .sv-ap-cost-pill {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .battle-bg .battle-viewport {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px) !important;
+    grid-template-rows: auto auto minmax(390px, auto) auto !important;
+    grid-template-areas:
+      "title title"
+      "left right"
+      "arena right"
+      "actions actions" !important;
+  }
+
+  .battle-bg .battle-team-col {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
+    grid-auto-flow: column !important;
+    overflow-x: auto !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .battle-bg .battle-viewport {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    grid-template-areas:
+      "title"
+      "arena"
+      "right"
+      "left"
+      "actions" !important;
+    padding: 6px !important;
+    gap: 7px !important;
+  }
+
+  .battle-bg .battle-combat-title::before {
+    font-size: 15px !important;
+    letter-spacing: 0.07em !important;
+  }
+
+  .battle-bg .battle-combat-title::after {
+    display: none !important;
+  }
+
+  .battle-bg .battle-team-col,
+  .battle-bg .battle-enemy-col,
+  .battle-bg .battle-side-stack,
+  .battle-bg .battle-info-card,
+  .battle-bg .battle-actions-card {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .battle-bg .sv-arena-panel,
+  .battle-bg .sv-arena-panel-fit {
+    min-height: 380px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .battle-bg .sv-arena-tile {
+    --sv-arena-tile-size: clamp(24px, calc((100vw - 34px) / 13), 39px) !important;
+  }
+
+  .battle-bg .battle-tabs.v66 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .battle-bg .battle-action-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
