@@ -5,6 +5,7 @@ import './arena-mobile-polish.css';
 import './arena-floating-info.css';
 import './power-level-ui.css';
 import './p0-stability-hardening.css';
+import './p1-mobile-battle-ui-hardening.css';
 
 function polishMobileLabels() {
   const textOf = (el: Element) => (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -34,18 +35,22 @@ function polishMobileLabels() {
     const card = badge.closest('.cd, button, [class$="card"], [class$="Card"], [class*="card"], [class*="Card"]') as HTMLElement | null;
     if (!card || card === badge || card.dataset.svInnateFixed === '1') return;
     card.dataset.svInnateFixed = '1';
+    badge.dataset.svInnateBadge = '1';
     card.style.position = card.style.position || 'relative';
-    card.style.paddingTop = '32px';
+    card.style.paddingTop = '38px';
     badge.style.position = 'absolute';
-    badge.style.top = '6px';
+    badge.style.top = '7px';
     badge.style.right = '8px';
-    badge.style.zIndex = '5';
+    badge.style.zIndex = '6';
     badge.style.pointerEvents = 'none';
     badge.style.whiteSpace = 'nowrap';
-    badge.style.fontSize = '7px';
+    badge.style.fontSize = '7.5px';
     badge.style.lineHeight = '1.05';
-    badge.style.padding = '2px 7px';
+    badge.style.padding = '3px 8px';
     badge.style.borderRadius = '999px';
+    badge.style.maxWidth = 'calc(100% - 16px)';
+    badge.style.overflow = 'hidden';
+    badge.style.textOverflow = 'ellipsis';
   });
 }
 
