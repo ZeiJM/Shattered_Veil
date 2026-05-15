@@ -135,5 +135,8 @@ if (typeof window !== 'undefined') {
     import('./p4EnemyMovementRuntime')
       .then((mod) => mod.startP4EnemyMovementRuntime?.())
       .catch(() => undefined);
+    import('./p4MovementStateHandoff')
+      .then((mod) => mod.startP4MovementStateHandoff?.())
+      .catch(() => undefined);
   }, 0);
 }
