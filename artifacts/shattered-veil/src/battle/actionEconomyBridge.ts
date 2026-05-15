@@ -118,7 +118,6 @@ function syncChronicleTurnClone() {
 
   const turn = /Enemy Turn/i.test(textOf(head)) ? 'Enemy Turn' : (/Your Turn/i.test(textOf(head)) ? 'Your Turn' : 'Battle Turn');
   const timer = textOf(head.querySelector('.sv-turn-timer')) || '';
-  const note = /Enemy Turn/i.test(textOf(head)) ? 'Await enemy actions.' : '';
   clone.innerHTML = '';
   const turnEl = document.createElement('span');
   turnEl.className = 'sv-chronicle-turn-label';
@@ -127,12 +126,6 @@ function syncChronicleTurnClone() {
   timerEl.className = 'sv-turn-timer sv-chronicle-timer';
   timerEl.textContent = timer;
   clone.append(turnEl, timerEl);
-  if (note) {
-    const noteEl = document.createElement('span');
-    noteEl.className = 'sv-chronicle-turn-note';
-    noteEl.textContent = note;
-    clone.append(noteEl);
-  }
 }
 
 function updateLeftStrategicViewCard() {
@@ -179,20 +172,46 @@ function ensureLeftStrategicViewCard() {
       window.dispatchEvent(new CustomEvent('sv:strategic-view-toggle', { detail: { state: next } }));
       window.setTimeout(runSoon, 50);
     });
-    const aux = rail.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
-    rail.insertBefore(card, aux || null);
+    rail.appendChild(card);
   }
   updateLeftStrategicViewCard();
 }
 
-function moveAuxiliaryActionsToRail() {
+function clickExistingAuxButton(label: RegExp) {
+  const aux = document.querySelector('.battle-bg .battle-actions-card .battle-aux-shared[data-battle-aux], .battle-bg .battle-aux-shared[data-battle-aux]') as HTMLElement | null;
+  const button = Array.from(aux?.querySelectorAll('button') || []).find((btn) => label.test(textOf(btn))) as HTMLButtonElement | undefined;
+  button?.click();
+}
+
+function ensureLeftAuxProxyCard() {
   const rail = battleControlRail();
-  const aux = document.querySelector('.battle-bg .battle-aux-shared[data-battle-aux]') as HTMLElement | null;
-  if (!rail || !aux) return;
-  aux.classList.add('sv-left-aux-card');
-  aux.dataset.svLeftRailAux = '1';
-  if (aux.parentElement === rail) return;
-  rail.appendChild(aux);
+  if (!rail) return;
+  let card = rail.querySelector(':scope > .sv-left-aux-proxy-card') as HTMLElement | null;
+  if (!card) {
+    card = document.createElement('section');
+    card.className = 'sv-left-aux-proxy-card';
+    card.innerHTML = `
+      <div class="battle-section-title"><span>Auxiliary Actions</span></div>
+      <div class="battle-aux-row sv-left-aux-proxy-row">
+        <button type="button" class="bt bs" data-sv-proxy="items">🧪 Equip Item</button>
+        <button type="button" class="bt bs" data-sv-proxy="weapons">🗡️ Draw Weapon</button>
+        <button type="button" class="bt bs" data-sv-proxy="skills">⚔️ Swap Skill</button>
+        <button type="button" class="bt bs" data-sv-proxy="flee">🏃 Flee</button>
+        <button type="button" class="bt bs sv-end-turn-btn" data-sv-proxy="end">End Turn</button>
+      </div>
+    `;
+    card.querySelector('[data-sv-proxy="items"]')?.addEventListener('click', () => clickExistingAuxButton(/Equip Item/i));
+    card.querySelector('[data-sv-proxy="weapons"]')?.addEventListener('click', () => clickExistingAuxButton(/Draw Weapon/i));
+    card.querySelector('[data-sv-proxy="skills"]')?.addEventListener('click', () => clickExistingAuxButton(/Swap Skill/i));
+    card.querySelector('[data-sv-proxy="flee"]')?.addEventListener('click', () => clickExistingAuxButton(/Flee/i));
+    card.querySelector('[data-sv-proxy="end"]')?.addEventListener('click', () => {
+      if (!isPlayerTurn()) return;
+      requestPurePassTurn();
+      const end = card?.querySelector('[data-sv-proxy="end"]') as HTMLButtonElement | null;
+      if (end) end.textContent = 'Turn Passed';
+    });
+    rail.appendChild(card);
+  }
 }
 
 function markInventoryUtilityRows() {
@@ -305,7 +324,7 @@ function tryAutoEndIfNoActionsRemain() {
 }
 
 function ensureEndTurnButton() {
-  const auxRow = document.querySelector('.battle-bg .battle-aux-row') as HTMLElement | null;
+  const auxRow = document.querySelector('.battle-bg .battle-actions-card .battle-aux-row, .battle-bg .battle-aux-row') as HTMLElement | null;
   if (!auxRow) return;
   const existing = auxRow.querySelector(':scope > .sv-end-turn-btn') as HTMLButtonElement | null;
   if (existing) {
@@ -332,8 +351,8 @@ function ensureEndTurnButton() {
 }
 
 function ensureActionEconomyBar() {
-  const actionsCard = battleActionsCard();
   const rail = battleControlRail();
+  const actionsCard = battleActionsCard();
   const target = rail || actionsCard;
   if (!target) return null;
 
@@ -357,9 +376,7 @@ function ensureActionEconomyBar() {
   }
 
   if (bar.parentElement !== target) {
-    const strategic = target.querySelector(':scope > .sv-left-strategic-view-card, :scope > .sv-strategic-view-bar') as HTMLElement | null;
-    const aux = target.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
-    target.insertBefore(bar, strategic || aux || null);
+    target.appendChild(bar);
   }
   return bar;
 }
@@ -406,7 +423,7 @@ export function ensureBattleActionEconomy() {
   syncChronicleTurnClone();
   ensureActionEconomyBar();
   ensureLeftStrategicViewCard();
-  moveAuxiliaryActionsToRail();
+  ensureLeftAuxProxyCard();
   ensureEndTurnButton();
   markInventoryUtilityRows();
   rewriteInventoryUtilityCopy();
