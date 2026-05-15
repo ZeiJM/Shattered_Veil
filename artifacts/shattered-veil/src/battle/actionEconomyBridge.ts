@@ -12,6 +12,7 @@ let bridgeStarted = false;
 let bridgeObserver: MutationObserver | null = null;
 let bridgeTimer: number | null = null;
 let bridgeFrame = 0;
+let autoEndInFlight = false;
 
 const textOf = (el: Element | null) => (el?.textContent || '').replace(/\s+/g, ' ').trim();
 const clampAp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
@@ -33,22 +34,32 @@ function ensureStateForTurn() {
     remainingAp = 100;
     lastTurnSignature = '';
     lastWasPlayerTurn = false;
+    autoEndInFlight = false;
     return false;
   }
   if (playerTurn && (!lastWasPlayerTurn || sig !== lastTurnSignature)) {
     remainingAp = 100;
+    autoEndInFlight = false;
   }
   if (!playerTurn) {
     remainingAp = 100;
+    autoEndInFlight = false;
   }
   lastWasPlayerTurn = playerTurn;
   lastTurnSignature = sig;
   return playerTurn;
 }
 
+function runSoon() {
+  window.cancelAnimationFrame(bridgeFrame);
+  bridgeFrame = window.requestAnimationFrame(() => ensureBattleActionEconomy());
+}
+
 function spendAp(cost: number) {
   remainingAp = clampAp(remainingAp - cost);
   updateActionEconomyUi();
+  window.setTimeout(runSoon, 80);
+  window.setTimeout(runSoon, 320);
 }
 
 function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
@@ -59,6 +70,17 @@ function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
   const bar = document.querySelector('.battle-bg .sv-action-economy-bar') as HTMLElement | null;
   bar?.classList.add('is-denied');
   window.setTimeout(() => bar?.classList.remove('is-denied'), 420);
+  return true;
+}
+
+function requestPurePassTurn() {
+  if (!isPlayerTurn()) return false;
+  autoEndInFlight = true;
+  remainingAp = 0;
+  window.dispatchEvent(new CustomEvent('sv:battle-pass-turn', { detail: { source: 'action-economy' } }));
+  document.dispatchEvent(new CustomEvent('sv:battle-pass-turn', { detail: { source: 'action-economy' } }));
+  updateActionEconomyUi();
+  window.setTimeout(runSoon, 100);
   return true;
 }
 
@@ -105,12 +127,24 @@ function actionButtons() {
     .filter(isDecoratableActionButton);
 }
 
+function shouldSuppressVisiblePill(button: HTMLElement) {
+  const text = textOf(button);
+  if (button.classList.contains('sv-end-turn-btn')) return true;
+  if (button.closest('.battle-aux-row')) return true;
+  if (/^\s*(🏃\s*)?Flee\s*$/i.test(text)) return true;
+  if (/End Turn|Turn Passed/i.test(text)) return true;
+  return false;
+}
+
 function ensureCostPill(button: HTMLElement) {
   const meta = getBattleActionEconomyMeta(button);
   button.dataset.svActionKind = meta.kind;
   button.dataset.svApCost = String(meta.cost);
   button.title = button.title || meta.note;
-
+  if (shouldSuppressVisiblePill(button)) {
+    button.querySelectorAll(':scope > .sv-ap-cost-pill').forEach((pill) => pill.remove());
+    return;
+  }
   if (meta.cost <= 0 && meta.kind !== 'end') return;
   if (button.classList.contains('battle-tab') || button.classList.contains('battle-help-chip')) return;
   if (button.querySelector(':scope > .sv-ap-cost-pill')) return;
@@ -132,19 +166,31 @@ function decorateButtons() {
       const playerTurn = isPlayerTurn();
       if (!playerTurn) return;
       const meta = getBattleActionEconomyMeta(button);
-      if (meta.cost <= 0) return;
+      if (meta.cost <= 0) {
+        window.setTimeout(runSoon, 80);
+        return;
+      }
       if (meta.kind !== 'end' && meta.kind !== 'danger' && blockOverBudgetAction(ev, meta.cost)) return;
       spendAp(meta.cost);
     }, { capture: true });
   });
 }
 
-function findGuardLikeButton() {
-  return actionButtons().find((button) => {
+function canAffordAnyNonDangerAction() {
+  if (!isPlayerTurn()) return false;
+  return actionButtons().some((button) => {
     if ((button as HTMLButtonElement).disabled) return false;
-    const text = textOf(button);
-    return /Guard|Defend|Brace/i.test(text) && !/Brace Field/i.test(text);
-  }) as HTMLButtonElement | undefined;
+    if (button.classList.contains('sv-end-turn-btn')) return false;
+    const meta = getBattleActionEconomyMeta(button);
+    if (meta.kind === 'danger' || meta.kind === 'end') return false;
+    if (meta.cost <= 0) return false;
+    return meta.cost <= remainingAp;
+  });
+}
+
+function tryAutoEndIfNoActionsRemain() {
+  if (autoEndInFlight || !isPlayerTurn()) return;
+  if (remainingAp <= 0 || !canAffordAnyNonDangerAction()) requestPurePassTurn();
 }
 
 function ensureEndTurnButton() {
@@ -159,18 +205,11 @@ function ensureEndTurnButton() {
   end.dataset.svApCost = '100';
   end.dataset.svActionKind = 'end';
   end.textContent = '⏭ End Turn';
-  end.title = 'Ends your turn. Uses Guard/Defend automatically when available.';
+  end.title = 'Pass the rest of your turn. Does not Guard, Defend, buff, heal, or apply any hidden action.';
   end.addEventListener('click', () => {
     if (!isPlayerTurn()) return;
-    const guard = findGuardLikeButton();
-    if (guard) {
-      guard.click();
-      spendAp(100);
-      return;
-    }
-    spendAp(100);
-    end.disabled = true;
-    end.textContent = '⏭ Turn Ended';
+    requestPurePassTurn();
+    end.textContent = '⏭ Turn Passed';
   });
 
   if (flee?.nextSibling) auxRow.insertBefore(end, flee.nextSibling);
@@ -236,26 +275,25 @@ export function ensureBattleActionEconomy() {
   rewriteInventoryUtilityCopy();
   decorateButtons();
   updateActionEconomyUi();
+  tryAutoEndIfNoActionsRemain();
 }
 
 export function startBattleActionEconomyBridge() {
   if (bridgeStarted || typeof window === 'undefined' || typeof document === 'undefined') return;
   bridgeStarted = true;
-  const run = () => {
-    window.cancelAnimationFrame(bridgeFrame);
-    bridgeFrame = window.requestAnimationFrame(() => ensureBattleActionEconomy());
-  };
+  const run = runSoon;
   run();
   bridgeObserver = new MutationObserver(run);
   bridgeObserver.observe(document.body, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['class', 'disabled', 'data-sv-strategic-view'],
+    attributeFilter: ['class', 'disabled', 'data-sv-strategic-view', 'data-sv-ap-cost'],
   });
   document.addEventListener('click', run, { passive: true });
+  document.addEventListener('pointerup', run, { passive: true });
   window.addEventListener('resize', run, { passive: true });
-  bridgeTimer = window.setInterval(run, 1000);
+  bridgeTimer = window.setInterval(run, 450);
 }
 
 export function stopBattleActionEconomyBridge() {
