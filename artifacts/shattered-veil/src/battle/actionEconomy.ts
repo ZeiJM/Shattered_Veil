@@ -49,8 +49,8 @@ export function inferP4ActionIdFromText(textInput: string, cls = '', button?: HT
 
   if (/End Turn/i.test(text)) return 'end_turn';
   if (/Flee/i.test(text)) return 'flee';
-  if (/Basic Move|\bMove\b/i.test(text) && !/Damage|Dmg|Attack/i.test(text)) return 'basic_move';
   if (/Strategic Step/i.test(text)) return 'strategic_step';
+  if (/Basic Move|\bMove\b/i.test(text) && !/Damage|Dmg|Attack/i.test(text)) return 'basic_move';
   if (/Break the Veil|Veilbreak/i.test(text) && /Break the Veil/i.test(text)) return 'veilbreak';
 
   if (/Veil Anchor/i.test(text) || /sv-tactical-veil_anchor/.test(cls)) return 'veil_anchor';
@@ -94,8 +94,8 @@ export function explainActionEconomyBalance() {
     'Each player turn starts with 100% action economy.',
     'Primary actions such as most weapon attacks, Veil Magic, Veilbreak, equipped consumables, and Flee are balanced as full-turn commitments.',
     'Taking an item from inventory into a battle slot and drawing a weapon are 0% AP because they are loadout management, not offensive pressure.',
-    'Basic Move uses the unit movement stat and does not consume the main action.',
-    'Strategic Step uses the same movement stat/range logic as Basic Move and costs 35% AP.',
+    'Move costs 30% AP per tile and can be repeated tile-by-tile while action economy remains.',
+    'Strategic Step costs 30% AP once and instantly repositions up to 5 tiles.',
     'Steady Strike costs 60% because it is reliable but low-pressure, allowing a light tactical follow-up.',
     'Flurry Strike costs 80% because multi-hit crit/status pressure is stronger than a basic strike.',
     'Field control tactics are partial actions: Focus Breath 25%, Veil Anchor/Brace 35%, Overchannel 50%, Field Sever 65%.',
