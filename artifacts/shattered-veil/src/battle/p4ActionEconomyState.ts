@@ -141,5 +141,8 @@ if (typeof window !== 'undefined') {
     import('./p4BattleMovementSnapshot')
       .then((mod) => mod.startP4BattleMovementSnapshot?.())
       .catch(() => undefined);
+    import('./p4FinalHandoffRuntime')
+      .then((mod) => mod.startP4FinalHandoffRuntime?.())
+      .catch(() => undefined);
   }, 0);
 }
