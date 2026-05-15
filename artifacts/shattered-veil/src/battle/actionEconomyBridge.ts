@@ -73,6 +73,26 @@ function blockOverBudgetAction(ev: MouseEvent, metaCost: number) {
   return true;
 }
 
+function battleControlRail() {
+  const rail = document.querySelector('.battle-bg .battle-info-card') as HTMLElement | null;
+  if (!rail) return null;
+  rail.classList.add('sv-battle-control-rail');
+  rail.dataset.svBattleControlRail = '1';
+  return rail;
+}
+
+function battleActionsCard() {
+  return document.querySelector('.battle-bg .battle-actions-card') as HTMLElement | null;
+}
+
+function battleLogCard() {
+  return document.querySelector('.battle-bg .battle-log-card') as HTMLElement | null;
+}
+
+function battleArenaPanel() {
+  return document.querySelector('.battle-bg .sv-arena-panel') as HTMLElement | null;
+}
+
 function requestPurePassTurn() {
   if (!isPlayerTurn()) return false;
   autoEndInFlight = true;
@@ -82,6 +102,76 @@ function requestPurePassTurn() {
   updateActionEconomyUi();
   window.setTimeout(runSoon, 100);
   return true;
+}
+
+function moveTurnHeaderToChronicle() {
+  const logCard = battleLogCard();
+  const head = document.querySelector('.battle-bg .battle-turn-head') as HTMLElement | null;
+  if (!logCard || !head) return;
+  head.classList.add('sv-chronicle-turn-head');
+  if (head.parentElement === logCard) return;
+  const firstLogBody = logCard.querySelector(':scope > .blog-sel, :scope > .battle-log-list, :scope > [class*="log"]') as HTMLElement | null;
+  logCard.insertBefore(head, firstLogBody || logCard.firstChild);
+}
+
+function updateLeftStrategicViewCard() {
+  const panel = battleArenaPanel();
+  const card = document.querySelector('.battle-bg .sv-left-strategic-view-card') as HTMLElement | null;
+  if (!panel || !card) return;
+  const isOn = panel.dataset.svStrategicView === 'on';
+  const state = card.querySelector('.sv-left-strategic-state') as HTMLElement | null;
+  const button = card.querySelector('.sv-left-strategic-toggle') as HTMLButtonElement | null;
+  if (state) state.textContent = isOn
+    ? 'ON · inspect terrain, objects, and units on the arena.'
+    : 'OFF · grid stays clean for movement and targeting.';
+  if (button) {
+    button.textContent = isOn ? 'Turn Off' : 'Turn On';
+    button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+    button.title = isOn ? 'Turn Strategic View off' : 'Turn Strategic View on';
+  }
+}
+
+function ensureLeftStrategicViewCard() {
+  const rail = battleControlRail();
+  const panel = battleArenaPanel();
+  if (!rail || !panel) return;
+  if (!panel.dataset.svStrategicView) panel.dataset.svStrategicView = 'off';
+
+  let card = rail.querySelector(':scope > .sv-left-strategic-view-card') as HTMLElement | null;
+  if (!card) {
+    card = document.createElement('section');
+    card.className = 'sv-left-strategic-view-card';
+    card.innerHTML = `
+      <div class="sv-left-strategic-copy">
+        <span class="sv-left-strategic-title">Strategic View</span>
+        <span class="sv-left-strategic-state"></span>
+      </div>
+      <button type="button" class="sv-left-strategic-toggle" data-sv-zero-cost-toggle="1"></button>
+    `;
+    const button = card.querySelector('.sv-left-strategic-toggle') as HTMLButtonElement | null;
+    button?.addEventListener('click', () => {
+      const arenaPanel = battleArenaPanel();
+      if (!arenaPanel) return;
+      const next = arenaPanel.dataset.svStrategicView === 'on' ? 'off' : 'on';
+      arenaPanel.dataset.svStrategicView = next;
+      updateLeftStrategicViewCard();
+      window.dispatchEvent(new CustomEvent('sv:strategic-view-toggle', { detail: { state: next } }));
+      window.setTimeout(runSoon, 50);
+    });
+    const aux = rail.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
+    rail.insertBefore(card, aux || null);
+  }
+  updateLeftStrategicViewCard();
+}
+
+function moveAuxiliaryActionsToRail() {
+  const rail = battleControlRail();
+  const aux = document.querySelector('.battle-bg .battle-aux-shared[data-battle-aux]') as HTMLElement | null;
+  if (!rail || !aux) return;
+  aux.classList.add('sv-left-aux-card');
+  aux.dataset.svLeftRailAux = '1';
+  if (aux.parentElement === rail) return;
+  rail.appendChild(aux);
 }
 
 function markInventoryUtilityRows() {
@@ -217,10 +307,12 @@ function ensureEndTurnButton() {
 }
 
 function ensureActionEconomyBar() {
-  const actionsCard = document.querySelector('.battle-bg .battle-actions-card') as HTMLElement | null;
-  if (!actionsCard) return null;
+  const actionsCard = battleActionsCard();
+  const rail = battleControlRail();
+  const target = rail || actionsCard;
+  if (!target) return null;
 
-  let bar = actionsCard.querySelector(':scope > .sv-action-economy-bar') as HTMLElement | null;
+  let bar = document.querySelector('.battle-bg .sv-action-economy-bar') as HTMLElement | null;
   if (!bar) {
     bar = document.createElement('div');
     bar.className = 'sv-action-economy-bar';
@@ -237,7 +329,12 @@ function ensureActionEconomyBar() {
     help?.addEventListener('click', () => {
       window.alert(explainActionEconomyBalance());
     });
-    actionsCard.insertBefore(bar, actionsCard.firstChild);
+  }
+
+  if (bar.parentElement !== target) {
+    const strategic = target.querySelector(':scope > .sv-left-strategic-view-card, :scope > .sv-strategic-view-bar') as HTMLElement | null;
+    const aux = target.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
+    target.insertBefore(bar, strategic || aux || null);
   }
   return bar;
 }
@@ -269,7 +366,10 @@ function updateActionEconomyUi() {
 export function ensureBattleActionEconomy() {
   if (!document.querySelector('.battle-bg')) return;
   ensureStateForTurn();
+  moveTurnHeaderToChronicle();
   ensureActionEconomyBar();
+  ensureLeftStrategicViewCard();
+  moveAuxiliaryActionsToRail();
   ensureEndTurnButton();
   markInventoryUtilityRows();
   rewriteInventoryUtilityCopy();

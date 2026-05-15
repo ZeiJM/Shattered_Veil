@@ -1,0 +1,276 @@
+/* Battle control rail layout override.
+   Goal: remove redundant side unit cards, place battle state/economy/Strategic View/Auxiliary Options on the left, keep arena centered, move Chronicle up right, and reserve the bottom for combat options only. */
+
+.battle-bg .battle-viewport {
+  grid-template-columns: minmax(290px, 0.82fr) minmax(540px, 1.72fr) minmax(310px, 0.9fr) !important;
+  grid-template-rows: auto minmax(515px, 1fr) minmax(168px, auto) !important;
+  grid-template-areas:
+    "title title title"
+    "left arena right-log"
+    "actions actions actions" !important;
+  gap: 9px !important;
+}
+
+/* The arena tokens now serve as the live player/enemy display. */
+.battle-bg .battle-team-col,
+.battle-bg .battle-enemy-col {
+  display: none !important;
+}
+
+.battle-bg .battle-info-card,
+.battle-bg .sv-battle-control-rail {
+  grid-area: left !important;
+  align-self: stretch !important;
+  min-width: 0 !important;
+  max-height: calc(100dvh - 112px) !important;
+  overflow: auto !important;
+  border-radius: 18px !important;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255,216,107,0.11), transparent 42%),
+    radial-gradient(circle at 100% 28%, rgba(99,143,255,0.10), transparent 38%),
+    linear-gradient(180deg, rgba(14,18,42,0.96), rgba(8,12,30,0.96)) !important;
+  border: 1px solid rgba(255,216,107,0.23) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.20), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
+}
+
+.battle-bg .battle-info-card::before {
+  content: "✦ Battle State";
+  display: block !important;
+  margin: -1px -1px 0 !important;
+  padding: 7px 8px !important;
+  border-radius: 14px 14px 9px 9px !important;
+  background: linear-gradient(90deg, rgba(255,216,107,0.12), rgba(96,128,255,0.08)) !important;
+  color: rgba(255,225,143,0.96) !important;
+  font-family: 'Cinzel', serif !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.10em !important;
+  text-transform: uppercase !important;
+}
+
+.battle-bg .battle-info-strip,
+.battle-bg .battle-info-strip > div {
+  min-width: 0 !important;
+}
+
+.battle-bg .sv-action-economy-bar {
+  order: 20 !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255,216,107,0.20) !important;
+  background: rgba(7,12,28,0.76) !important;
+}
+
+.battle-bg .sv-left-strategic-view-card {
+  order: 30 !important;
+  display: flex !important;
+  gap: 8px !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(86,178,255,0.12), transparent 45%),
+    rgba(8,14,31,0.82) !important;
+  border: 1px solid rgba(107,178,255,0.26) !important;
+}
+
+.battle-bg .sv-left-strategic-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+}
+
+.battle-bg .sv-left-strategic-title {
+  color: #bfe5ff !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.battle-bg .sv-left-strategic-state {
+  color: rgba(222,235,255,0.72) !important;
+  font-size: 8px !important;
+  line-height: 1.35 !important;
+}
+
+.battle-bg .sv-left-strategic-toggle {
+  flex: 0 0 auto !important;
+  min-height: 30px !important;
+  border: 1px solid rgba(153,207,255,0.45) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, rgba(80,140,255,0.88), rgba(37,75,163,0.92)) !important;
+  color: #f3f8ff !important;
+  padding: 6px 11px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+}
+
+.battle-bg .battle-aux-shared,
+.battle-bg .sv-left-aux-card {
+  order: 40 !important;
+  margin-top: 0 !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  border-top: 0 !important;
+  border: 1px solid rgba(255,216,107,0.18) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,216,107,0.10), transparent 36%),
+    rgba(8,13,30,0.84) !important;
+}
+
+.battle-bg .battle-aux-shared .battle-section-title span:first-child::before {
+  content: "⚙ " !important;
+}
+
+.battle-bg .battle-aux-row > button {
+  min-height: 30px !important;
+  border-radius: 999px !important;
+  padding: 6px 10px !important;
+  font-size: 9px !important;
+}
+
+.battle-bg .battle-aux-dropdown {
+  max-height: min(34dvh, 280px) !important;
+}
+
+.battle-bg .battle-side-stack {
+  grid-area: right-log !important;
+  align-self: stretch !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: grid !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+}
+
+.battle-bg .battle-log-card {
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: calc(100dvh - 284px) !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.battle-bg .battle-log-card::before {
+  content: "Battle Chronicle" !important;
+  display: block !important;
+  margin: -1px -1px 6px !important;
+  padding: 7px 8px !important;
+  border-radius: 16px 16px 9px 9px !important;
+  background: linear-gradient(90deg, rgba(255,216,107,0.10), rgba(132,152,255,0.09)) !important;
+  color: rgba(255,225,143,0.95) !important;
+  font-family: 'Cinzel', serif !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.battle-bg .battle-log-card .battle-turn-head,
+.battle-bg .battle-log-card .sv-chronicle-turn-head {
+  flex: 0 0 auto !important;
+  margin: 0 6px 7px !important;
+  padding: 6px 8px !important;
+  border-radius: 12px !important;
+  background: rgba(255,255,255,0.045) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+.battle-bg .battle-log-card .blog-sel {
+  flex: 1 1 auto !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  padding-right: 3px !important;
+}
+
+.battle-bg .sv-arena-panel,
+.battle-bg .sv-arena-panel-fit {
+  grid-area: arena !important;
+  min-height: min(58dvh, 635px) !important;
+  max-height: min(64dvh, 705px) !important;
+}
+
+.battle-bg .sv-arena-grid {
+  max-width: min(100%, 760px) !important;
+  max-height: min(58dvh, 655px) !important;
+}
+
+.battle-bg .sv-arena-tile {
+  --sv-arena-tile-size: clamp(31px, min(calc((100vw - 760px) / 12), calc((100dvh - 282px) / 10)), 52px) !important;
+}
+
+.battle-bg .battle-actions-card {
+  grid-area: actions !important;
+  max-height: 32dvh !important;
+}
+
+.battle-bg .battle-actions-card > .sv-action-economy-bar,
+.battle-bg .battle-actions-card > .battle-aux-shared,
+.battle-bg .battle-actions-card > .sv-strategic-view-bar {
+  display: none !important;
+}
+
+@media (max-width: 1280px) {
+  .battle-bg .battle-viewport {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(365px, auto) auto auto !important;
+    grid-template-areas:
+      "title title"
+      "left arena"
+      "right-log right-log"
+      "actions actions" !important;
+  }
+
+  .battle-bg .battle-info-card,
+  .battle-bg .sv-battle-control-rail {
+    max-height: 58dvh !important;
+  }
+
+  .battle-bg .battle-log-card {
+    max-height: 270px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .battle-bg .battle-viewport {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto auto auto !important;
+    grid-template-areas:
+      "title"
+      "arena"
+      "left"
+      "right-log"
+      "actions" !important;
+    padding: 6px !important;
+    gap: 7px !important;
+  }
+
+  .battle-bg .battle-info-card,
+  .battle-bg .sv-battle-control-rail,
+  .battle-bg .battle-side-stack,
+  .battle-bg .battle-actions-card,
+  .battle-bg .battle-log-card {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .battle-bg .sv-left-strategic-view-card {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .battle-bg .sv-left-strategic-toggle {
+    width: 100% !important;
+  }
+}
