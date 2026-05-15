@@ -1,5 +1,5 @@
 /* Battle control rail layout override.
-   Goal: remove redundant side unit cards, place battle state/economy/Strategic View/Auxiliary Options on the left, keep arena centered, move Chronicle up right, and reserve the bottom for combat options only. */
+   Goal: remove redundant side unit cards, place battle state/economy/Strategic View/Auxiliary Options on the left, keep arena centered, move log up right, and reserve the bottom for combat options only. */
 
 .battle-bg .battle-viewport {
   grid-template-columns: minmax(290px, 0.82fr) minmax(540px, 1.72fr) minmax(310px, 0.9fr) !important;
@@ -11,7 +11,6 @@
   gap: 9px !important;
 }
 
-/* The arena tokens now serve as the live player/enemy display. */
 .battle-bg .battle-team-col,
 .battle-bg .battle-enemy-col {
   display: none !important;
@@ -37,24 +36,27 @@
   box-shadow: 0 12px 28px rgba(0,0,0,0.20), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
 }
 
-.battle-bg .battle-info-card::before {
-  content: "✦ Battle State";
-  display: block !important;
-  margin: -1px -1px 0 !important;
-  padding: 7px 8px !important;
-  border-radius: 14px 14px 9px 9px !important;
-  background: linear-gradient(90deg, rgba(255,216,107,0.12), rgba(96,128,255,0.08)) !important;
-  color: rgba(255,225,143,0.96) !important;
-  font-family: 'Cinzel', serif !important;
-  font-size: 10px !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.10em !important;
-  text-transform: uppercase !important;
+.battle-bg .battle-info-card::before,
+.battle-bg .battle-log-card::before {
+  content: none !important;
+  display: none !important;
 }
 
 .battle-bg .battle-info-strip,
 .battle-bg .battle-info-strip > div {
   min-width: 0 !important;
+}
+
+.battle-bg .battle-chain-line {
+  padding-top: 2px !important;
+  white-space: normal !important;
+  overflow-x: visible !important;
+}
+
+.battle-bg .sv-vb-progress-tag,
+.battle-bg .sv-field-attunement-badge,
+.battle-bg .sv-combat-profile-pill {
+  flex-shrink: 0 !important;
 }
 
 .battle-bg .sv-action-economy-bar {
@@ -162,13 +164,9 @@
   flex-direction: column !important;
 }
 
-.battle-bg .battle-log-card::before {
-  content: "Battle Chronicle" !important;
-  display: block !important;
-  margin: -1px -1px 6px !important;
-  padding: 7px 8px !important;
-  border-radius: 16px 16px 9px 9px !important;
-  background: linear-gradient(90deg, rgba(255,216,107,0.10), rgba(132,152,255,0.09)) !important;
+.battle-bg .battle-log-card .battle-section-title,
+.battle-bg .battle-log-card [class*="title"],
+.battle-bg .battle-log-card [class*="Title"] {
   color: rgba(255,225,143,0.95) !important;
   font-family: 'Cinzel', serif !important;
   font-size: 10px !important;
@@ -210,6 +208,15 @@
   --sv-arena-tile-size: clamp(31px, min(calc((100vw - 760px) / 12), calc((100dvh - 282px) / 10)), 52px) !important;
 }
 
+.battle-bg .sv-arena-size-badge,
+.battle-bg .sv-arena-toggle,
+.battle-bg .sv-arena-panel button[title*="Hide"],
+.battle-bg .sv-arena-panel button[title*="Show"],
+.battle-bg .sv-arena-panel button[aria-label*="Hide"],
+.battle-bg .sv-arena-panel button[aria-label*="Show"] {
+  display: none !important;
+}
+
 .battle-bg .battle-actions-card {
   grid-area: actions !important;
   max-height: 32dvh !important;
@@ -219,6 +226,43 @@
 .battle-bg .battle-actions-card > .battle-aux-shared,
 .battle-bg .battle-actions-card > .sv-strategic-view-bar {
   display: none !important;
+}
+
+.battle-bg .sv-end-turn-btn {
+  font-family: inherit !important;
+}
+
+.create-bg [data-sv-innate-fixed="1"] {
+  padding-top: inherit !important;
+}
+
+.create-bg [data-sv-innate-badge="1"] {
+  position: static !important;
+  display: inline-flex !important;
+  vertical-align: middle !important;
+  margin-left: 6px !important;
+  transform: none !important;
+  max-width: none !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+}
+
+.map-bg .map-location-card,
+.map-bg .location-card,
+.map-bg [class*="location"],
+.map-bg [class*="Location"] {
+  overflow: visible !important;
+}
+
+.map-bg [class*="coord"],
+.map-bg [class*="Coord"],
+.map-bg [class*="gps"],
+.map-bg [class*="GPS"] {
+  float: right !important;
+  clear: both !important;
+  margin-top: 2px !important;
+  display: block !important;
+  text-align: right !important;
 }
 
 @media (max-width: 1280px) {
