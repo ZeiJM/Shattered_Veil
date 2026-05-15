@@ -138,5 +138,8 @@ if (typeof window !== 'undefined') {
     import('./p4MovementStateHandoff')
       .then((mod) => mod.startP4MovementStateHandoff?.())
       .catch(() => undefined);
+    import('./p4BattleMovementSnapshot')
+      .then((mod) => mod.startP4BattleMovementSnapshot?.())
+      .catch(() => undefined);
   }, 0);
 }
