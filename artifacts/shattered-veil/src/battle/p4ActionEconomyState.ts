@@ -126,3 +126,13 @@ export function shouldAutoPassP4Turn(state: P4ActionEconomyState, availableActio
     .some((id) => canUseP4Action(state, id).ok);
   return !usablePaidActions;
 }
+
+// Browser-only bootstrap: this module is already loaded by battle helpers.
+// Start the native runtime AP wiring without touching the app entrypoint.
+if (typeof window !== 'undefined') {
+  window.setTimeout(() => {
+    import('./p4NativeRuntimeWiring')
+      .then((mod) => mod.startP4NativeRuntimeWiring?.())
+      .catch(() => undefined);
+  }, 0);
+}
