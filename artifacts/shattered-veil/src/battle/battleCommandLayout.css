@@ -17,13 +17,14 @@
   padding: 8px 10px 12px !important;
   box-sizing: border-box !important;
   display: grid !important;
-  grid-template-columns: minmax(230px, 0.92fr) minmax(520px, 1.85fr) minmax(270px, 0.98fr) !important;
-  grid-template-rows: auto minmax(420px, 1fr) minmax(178px, auto) !important;
+  grid-template-columns: minmax(225px, 0.8fr) minmax(520px, 1.75fr) minmax(300px, 0.95fr) !important;
+  grid-template-rows: auto minmax(170px, auto) minmax(330px, 1fr) minmax(168px, auto) !important;
   grid-template-areas:
     "title title title"
-    "left arena right"
-    "actions actions actions" !important;
-  gap: 10px !important;
+    "left arena right-top"
+    "left arena right-mid"
+    "actions actions right-log" !important;
+  gap: 9px !important;
   align-items: stretch !important;
 }
 
@@ -66,7 +67,9 @@
   color: rgba(213,224,255,0.66) !important;
 }
 
-.battle-bg .battle-top-grid {
+.battle-bg .battle-top-grid,
+.battle-bg .battle-lower-grid,
+.battle-bg .battle-main-stack {
   display: contents !important;
 }
 
@@ -76,25 +79,25 @@
   gap: 8px !important;
   align-content: start !important;
   min-width: 0 !important;
-  max-height: 100% !important;
+  max-height: calc(100dvh - 108px) !important;
   overflow: auto !important;
 }
 
 .battle-bg .battle-enemy-col {
-  grid-area: right !important;
+  grid-area: right-top !important;
   display: grid !important;
   gap: 8px !important;
   align-content: start !important;
   min-width: 0 !important;
-  max-height: 100% !important;
+  max-height: min(28dvh, 245px) !important;
   overflow: auto !important;
 }
 
 .battle-bg .battle-info-card {
-  grid-area: right !important;
-  align-self: end !important;
+  grid-area: right-mid !important;
+  align-self: stretch !important;
   min-width: 0 !important;
-  max-height: min(48dvh, 430px) !important;
+  max-height: min(40dvh, 390px) !important;
   overflow: auto !important;
   border-radius: 16px !important;
   background:
@@ -103,14 +106,56 @@
   border-color: rgba(255,216,107,0.22) !important;
 }
 
+.battle-bg .battle-side-stack {
+  grid-area: right-log !important;
+  align-self: stretch !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 8px !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.battle-bg .battle-log-card {
+  min-height: 165px !important;
+  max-height: 28dvh !important;
+  overflow: hidden !important;
+  border-radius: 16px !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,80,255,0.12), transparent 34%),
+    linear-gradient(180deg, rgba(8,12,30,0.96), rgba(3,5,14,0.96)) !important;
+  border-color: rgba(132,152,255,0.22) !important;
+}
+
+.battle-bg .battle-log-card::before {
+  content: "⏱ Battle Chronicle";
+  display: block !important;
+  margin: -1px -1px 6px !important;
+  padding: 6px 8px !important;
+  border-radius: 14px 14px 8px 8px !important;
+  background: linear-gradient(90deg, rgba(255,216,107,0.10), rgba(132,152,255,0.09)) !important;
+  color: rgba(255,225,143,0.95) !important;
+  font-family: 'Cinzel', serif !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.battle-bg .battle-log-card .blog-sel {
+  max-height: calc(28dvh - 48px) !important;
+  overflow-y: auto !important;
+  padding-right: 3px !important;
+}
+
 .battle-bg .sv-arena-panel,
 .battle-bg .sv-arena-panel-fit {
   grid-area: arena !important;
   align-self: center !important;
   justify-self: center !important;
   width: 100% !important;
-  min-height: min(60dvh, 650px) !important;
-  max-height: min(64dvh, 720px) !important;
+  min-height: min(54dvh, 575px) !important;
+  max-height: min(58dvh, 635px) !important;
   overflow: visible !important;
   display: flex !important;
   flex-direction: column !important;
@@ -120,27 +165,19 @@
 
 .battle-bg .sv-arena-grid {
   margin: auto !important;
-  max-width: min(100%, 760px) !important;
-  max-height: min(58dvh, 650px) !important;
+  max-width: min(100%, 710px) !important;
+  max-height: min(54dvh, 600px) !important;
   transform-origin: center center !important;
 }
 
 .battle-bg .sv-arena-tile {
-  --sv-arena-tile-size: clamp(34px, min(calc((100vw - 650px) / 13), calc((100dvh - 250px) / 10)), 58px) !important;
-}
-
-.battle-bg .battle-lower-grid {
-  display: contents !important;
-}
-
-.battle-bg .battle-main-stack {
-  display: contents !important;
+  --sv-arena-tile-size: clamp(30px, min(calc((100vw - 710px) / 13), calc((100dvh - 300px) / 10)), 50px) !important;
 }
 
 .battle-bg .battle-actions-card {
   grid-area: actions !important;
   min-width: 0 !important;
-  max-height: 30dvh !important;
+  max-height: 31dvh !important;
   overflow: auto !important;
   border-radius: 18px !important;
   padding: 8px !important;
@@ -149,33 +186,6 @@
     linear-gradient(180deg, rgba(13,17,40,0.96), rgba(7,10,27,0.96)) !important;
   border: 1px solid rgba(255,216,107,0.24) !important;
   box-shadow: 0 -12px 30px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(255,255,255,0.03) !important;
-}
-
-.battle-bg .battle-side-stack {
-  grid-area: right !important;
-  align-self: start !important;
-  min-width: 0 !important;
-  display: grid !important;
-  gap: 8px !important;
-  max-height: min(50dvh, 520px) !important;
-  overflow: hidden !important;
-}
-
-.battle-bg .battle-log-card {
-  min-height: 260px !important;
-  max-height: min(46dvh, 500px) !important;
-  overflow: hidden !important;
-  border-radius: 16px !important;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(118,80,255,0.12), transparent 34%),
-    linear-gradient(180deg, rgba(8,12,30,0.96), rgba(3,5,14,0.96)) !important;
-  border-color: rgba(132,152,255,0.22) !important;
-}
-
-.battle-bg .battle-log-card .blog-sel {
-  max-height: calc(min(46dvh, 500px) - 40px) !important;
-  overflow-y: auto !important;
-  padding-right: 3px !important;
 }
 
 .battle-bg .battle-turn-head {
@@ -212,12 +222,12 @@
 
 .battle-bg .battle-action-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
   gap: 7px !important;
 }
 
 .battle-bg .battle-action-btn {
-  min-height: 74px !important;
+  min-height: 72px !important;
   border-radius: 14px !important;
   transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease !important;
 }
@@ -258,21 +268,29 @@
   display: none !important;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   .battle-bg .battle-viewport {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px) !important;
-    grid-template-rows: auto auto minmax(390px, auto) auto !important;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 370px) !important;
+    grid-template-rows: auto auto minmax(365px, auto) auto auto !important;
     grid-template-areas:
       "title title"
-      "left right"
-      "arena right"
-      "actions actions" !important;
+      "left right-top"
+      "arena right-mid"
+      "actions actions"
+      "right-log right-log" !important;
   }
 
   .battle-bg .battle-team-col {
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
     grid-auto-flow: column !important;
     overflow-x: auto !important;
+    max-height: 220px !important;
+  }
+
+  .battle-bg .battle-enemy-col,
+  .battle-bg .battle-info-card,
+  .battle-bg .battle-log-card {
+    max-height: 260px !important;
   }
 }
 
@@ -280,13 +298,15 @@
   .battle-bg .battle-viewport {
     display: grid !important;
     grid-template-columns: 1fr !important;
-    grid-template-rows: auto auto auto auto auto !important;
+    grid-template-rows: auto auto auto auto auto auto !important;
     grid-template-areas:
       "title"
       "arena"
-      "right"
+      "right-top"
+      "right-mid"
       "left"
-      "actions" !important;
+      "actions"
+      "right-log" !important;
     padding: 6px !important;
     gap: 7px !important;
   }
@@ -304,7 +324,8 @@
   .battle-bg .battle-enemy-col,
   .battle-bg .battle-side-stack,
   .battle-bg .battle-info-card,
-  .battle-bg .battle-actions-card {
+  .battle-bg .battle-actions-card,
+  .battle-bg .battle-log-card {
     max-height: none !important;
     overflow: visible !important;
   }
