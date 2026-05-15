@@ -9,20 +9,51 @@
 
 import { TERRAIN, OBJECTS, pickArenaTemplate } from "./arenaMaps.js";
 
+export const ARENA_MAX_COLS = 13;
+export const ARENA_MAX_ROWS = 7;
+
 const inBounds = (arena, x, y) =>
   x >= 0 && y >= 0 && x < arena.cols && y < arena.rows && arena.shape[y] && arena.shape[y][x] === 1;
 
 const keyOf = (x, y) => x + "," + y;
 
+function clampTileToArena(tile, cols, rows) {
+  if (!tile) return null;
+  return {
+    ...tile,
+    x: Math.max(0, Math.min(cols - 1, tile.x || 0)),
+    y: Math.max(0, Math.min(rows - 1, tile.y || 0)),
+  };
+}
+
+function capArenaTemplate(tpl) {
+  const cols = Math.min(ARENA_MAX_COLS, Math.max(1, tpl.cols || ARENA_MAX_COLS));
+  const rows = Math.min(ARENA_MAX_ROWS, Math.max(1, tpl.rows || ARENA_MAX_ROWS));
+  const shape = Array.from({ length: rows }, (_, y) =>
+    Array.from({ length: cols }, (_, x) => (tpl.shape?.[y]?.[x] === 0 ? 0 : 1))
+  );
+  const clampList = (list = []) => list.map((tile) => clampTileToArena(tile, cols, rows)).filter(Boolean);
+  return {
+    ...tpl,
+    cols,
+    rows,
+    shape,
+    playerSpawns: clampList(tpl.playerSpawns || [{ x: 1, y: Math.floor(rows / 2) }]),
+    enemySpawns: clampList(tpl.enemySpawns || [{ x: cols - 2, y: Math.floor(rows / 2) }]),
+    terrain: (tpl.terrain || []).filter((t) => t.x < cols && t.y < rows),
+    destructibles: (tpl.destructibles || []).filter((o) => o.x < cols && o.y < rows),
+  };
+}
+
 // Resolve final arena template + initial state from a battle context.
 // Pass 2 keeps this read-only — call sites use the result for the visual
 // preview only; combat math is unchanged.
 export function getArenaTemplateForBattle(ctx = {}) {
-  return pickArenaTemplate(ctx);
+  return capArenaTemplate(pickArenaTemplate(ctx));
 }
 
 export function createInitialArenaState(ctx = {}) {
-  const tpl = pickArenaTemplate(ctx);
+  const tpl = capArenaTemplate(pickArenaTemplate(ctx));
   // Index terrain + destructibles by tile key for O(1) lookup.
   const terrainMap = {};
   (tpl.terrain || []).forEach(t => { if (TERRAIN[t.type]) terrainMap[keyOf(t.x, t.y)] = t.type; });
