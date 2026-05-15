@@ -18,7 +18,7 @@ const textOf = (el: Element | null) => (el?.textContent || '').replace(/\s+/g, '
 const clampAp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
 function isPlayerTurn() {
-  const head = document.querySelector('.battle-bg .sv-turn-head-v101, .battle-bg .battle-turn-head');
+  const head = document.querySelector('.battle-bg .sv-turn-head-v101, .battle-bg .battle-turn-head:not(.sv-chronicle-turn-clone)');
   const text = textOf(head);
   return /Your Turn/i.test(text) && !/Enemy Turn/i.test(text);
 }
@@ -118,7 +118,9 @@ function syncChronicleTurnClone() {
 
   const turn = /Enemy Turn/i.test(textOf(head)) ? 'Enemy Turn' : (/Your Turn/i.test(textOf(head)) ? 'Your Turn' : 'Battle Turn');
   const timer = textOf(head.querySelector('.sv-turn-timer')) || '';
-  const note = /Enemy Turn/i.test(textOf(head)) ? 'Await enemy actions.' : '';
+  const signature = `${turn}|${timer}`;
+  if (clone.dataset.svChronicleSig === signature) return;
+  clone.dataset.svChronicleSig = signature;
   clone.innerHTML = '';
   const turnEl = document.createElement('span');
   turnEl.className = 'sv-chronicle-turn-label';
@@ -127,72 +129,117 @@ function syncChronicleTurnClone() {
   timerEl.className = 'sv-turn-timer sv-chronicle-timer';
   timerEl.textContent = timer;
   clone.append(turnEl, timerEl);
-  if (note) {
-    const noteEl = document.createElement('span');
-    noteEl.className = 'sv-chronicle-turn-note';
-    noteEl.textContent = note;
-    clone.append(noteEl);
-  }
 }
 
-function updateLeftStrategicViewCard() {
+function clickExistingTab(label: RegExp) {
+  const tab = Array.from(document.querySelectorAll('.battle-bg .battle-actions-card .battle-tab, .battle-bg .battle-tab'))
+    .find((btn) => label.test(textOf(btn))) as HTMLButtonElement | undefined;
+  tab?.click();
+}
+
+function syncLeftCommandTabs() {
+  const rail = battleControlRail();
+  if (!rail) return;
+  let card = rail.querySelector(':scope > .sv-left-command-tabs') as HTMLElement | null;
+  if (!card) {
+    card = document.createElement('section');
+    card.className = 'sv-left-command-tabs';
+    card.innerHTML = `
+      <div class="battle-section-title"><span>Command Windows</span></div>
+      <div class="sv-left-command-tab-row">
+        <button type="button" class="bt bs" data-sv-tab-proxy="combat">Combat Arts</button>
+        <button type="button" class="bt bs" data-sv-tab-proxy="magic">Veil Magic</button>
+        <button type="button" class="bt bs" data-sv-tab-proxy="tactics">Battle Tactics</button>
+      </div>
+    `;
+    card.querySelector('[data-sv-tab-proxy="combat"]')?.addEventListener('click', () => clickExistingTab(/Combat Arts|Combat/i));
+    card.querySelector('[data-sv-tab-proxy="magic"]')?.addEventListener('click', () => clickExistingTab(/Veil Magic|Magic/i));
+    card.querySelector('[data-sv-tab-proxy="tactics"]')?.addEventListener('click', () => clickExistingTab(/Battle Tactics|Tactical/i));
+    const aux = rail.querySelector(':scope > .sv-left-aux-proxy-card') as HTMLElement | null;
+    rail.insertBefore(card, aux || null);
+  }
+  const active = textOf(document.querySelector('.battle-bg .battle-tab.is-active'));
+  card.querySelectorAll('[data-sv-tab-proxy]').forEach((btn) => {
+    const b = btn as HTMLElement;
+    const key = b.dataset.svTabProxy || '';
+    const on = key === 'combat' ? /Combat/i.test(active) : key === 'magic' ? /Magic/i.test(active) : /Tactic/i.test(active);
+    b.classList.toggle('is-active', on);
+  });
+}
+
+function clickExistingAuxButton(label: RegExp) {
+  const aux = document.querySelector('.battle-bg .battle-actions-card .battle-aux-shared[data-battle-aux], .battle-bg .battle-aux-shared[data-battle-aux]') as HTMLElement | null;
+  const button = Array.from(aux?.querySelectorAll('button') || []).find((btn) => label.test(textOf(btn))) as HTMLButtonElement | undefined;
+  button?.click();
+}
+
+function toggleStrategicViewFromTactics() {
   const panel = battleArenaPanel();
-  const card = document.querySelector('.battle-bg .sv-left-strategic-view-card') as HTMLElement | null;
-  if (!panel || !card) return;
+  if (!panel) return;
+  const next = panel.dataset.svStrategicView === 'on' ? 'off' : 'on';
+  panel.dataset.svStrategicView = next;
+  window.dispatchEvent(new CustomEvent('sv:strategic-view-toggle', { detail: { state: next } }));
+  window.setTimeout(runSoon, 50);
+}
+
+function ensureTacticsStrategicViewOption() {
+  const actions = battleActionsCard();
+  const panel = battleArenaPanel();
+  if (!actions || !panel) return;
+  let card = actions.querySelector(':scope > .sv-tactics-strategic-option') as HTMLElement | null;
+  if (!card) {
+    card = document.createElement('section');
+    card.className = 'sv-tactics-strategic-option';
+    card.innerHTML = `
+      <div class="sv-tactics-strategic-copy">
+        <span class="sv-tactics-strategic-title">Strategic View</span>
+        <span class="sv-tactics-strategic-state"></span>
+      </div>
+      <button type="button" class="bt bs sv-tactics-strategic-toggle" data-sv-zero-cost-toggle="1"></button>
+    `;
+    card.querySelector('.sv-tactics-strategic-toggle')?.addEventListener('click', toggleStrategicViewFromTactics);
+    const firstGrid = actions.querySelector('.battle-action-grid') as HTMLElement | null;
+    actions.insertBefore(card, firstGrid || actions.firstChild);
+  }
   const isOn = panel.dataset.svStrategicView === 'on';
-  const state = card.querySelector('.sv-left-strategic-state') as HTMLElement | null;
-  const button = card.querySelector('.sv-left-strategic-toggle') as HTMLButtonElement | null;
-  if (state) state.textContent = isOn
-    ? 'ON · inspect only; movement clicks are locked.'
-    : 'OFF · grid accepts movement and targeting.';
+  const state = card.querySelector('.sv-tactics-strategic-state') as HTMLElement | null;
+  const button = card.querySelector('.sv-tactics-strategic-toggle') as HTMLButtonElement | null;
+  if (state) state.textContent = isOn ? 'ON · inspection only; movement clicks are locked.' : 'OFF · grid accepts movement and targeting.';
   if (button) {
     button.textContent = isOn ? 'Turn Off' : 'Turn On';
     button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-    button.title = isOn ? 'Turn Strategic View off' : 'Turn Strategic View on';
   }
 }
 
-function ensureLeftStrategicViewCard() {
+function ensureLeftAuxProxyCard() {
   const rail = battleControlRail();
-  const panel = battleArenaPanel();
-  if (!rail || !panel) return;
-  if (!panel.dataset.svStrategicView) panel.dataset.svStrategicView = 'off';
-
-  let card = rail.querySelector(':scope > .sv-left-strategic-view-card') as HTMLElement | null;
+  if (!rail) return;
+  let card = rail.querySelector(':scope > .sv-left-aux-proxy-card') as HTMLElement | null;
   if (!card) {
     card = document.createElement('section');
-    card.className = 'sv-left-strategic-view-card';
+    card.className = 'sv-left-aux-proxy-card';
     card.innerHTML = `
-      <div class="sv-left-strategic-copy">
-        <span class="sv-left-strategic-title">Strategic View</span>
-        <span class="sv-left-strategic-state"></span>
+      <div class="battle-section-title"><span>Auxiliary Actions</span></div>
+      <div class="battle-aux-row sv-left-aux-proxy-row">
+        <button type="button" class="bt bs" data-sv-proxy="items">🧪 Equip Item</button>
+        <button type="button" class="bt bs" data-sv-proxy="weapons">🗡️ Draw Weapon</button>
+        <button type="button" class="bt bs" data-sv-proxy="skills">⚔️ Swap Skill</button>
+        <button type="button" class="bt bs" data-sv-proxy="flee">🏃 Flee</button>
+        <button type="button" class="bt bs sv-end-turn-btn" data-sv-proxy="end">End Turn</button>
       </div>
-      <button type="button" class="sv-left-strategic-toggle" data-sv-zero-cost-toggle="1"></button>
     `;
-    const button = card.querySelector('.sv-left-strategic-toggle') as HTMLButtonElement | null;
-    button?.addEventListener('click', () => {
-      const arenaPanel = battleArenaPanel();
-      if (!arenaPanel) return;
-      const next = arenaPanel.dataset.svStrategicView === 'on' ? 'off' : 'on';
-      arenaPanel.dataset.svStrategicView = next;
-      updateLeftStrategicViewCard();
-      window.dispatchEvent(new CustomEvent('sv:strategic-view-toggle', { detail: { state: next } }));
-      window.setTimeout(runSoon, 50);
+    card.querySelector('[data-sv-proxy="items"]')?.addEventListener('click', () => clickExistingAuxButton(/Equip Item/i));
+    card.querySelector('[data-sv-proxy="weapons"]')?.addEventListener('click', () => clickExistingAuxButton(/Draw Weapon/i));
+    card.querySelector('[data-sv-proxy="skills"]')?.addEventListener('click', () => clickExistingAuxButton(/Swap Skill/i));
+    card.querySelector('[data-sv-proxy="flee"]')?.addEventListener('click', () => clickExistingAuxButton(/Flee/i));
+    card.querySelector('[data-sv-proxy="end"]')?.addEventListener('click', () => {
+      if (!isPlayerTurn()) return;
+      requestPurePassTurn();
+      const end = card?.querySelector('[data-sv-proxy="end"]') as HTMLButtonElement | null;
+      if (end) end.textContent = 'Turn Passed';
     });
-    const aux = rail.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
-    rail.insertBefore(card, aux || null);
+    rail.appendChild(card);
   }
-  updateLeftStrategicViewCard();
-}
-
-function moveAuxiliaryActionsToRail() {
-  const rail = battleControlRail();
-  const aux = document.querySelector('.battle-bg .battle-aux-shared[data-battle-aux]') as HTMLElement | null;
-  if (!rail || !aux) return;
-  aux.classList.add('sv-left-aux-card');
-  aux.dataset.svLeftRailAux = '1';
-  if (aux.parentElement === rail) return;
-  rail.appendChild(aux);
 }
 
 function markInventoryUtilityRows() {
@@ -287,25 +334,8 @@ function decorateButtons() {
   });
 }
 
-function canAffordAnyNonDangerAction() {
-  if (!isPlayerTurn()) return false;
-  return actionButtons().some((button) => {
-    if ((button as HTMLButtonElement).disabled) return false;
-    if (button.classList.contains('sv-end-turn-btn')) return false;
-    const meta = getBattleActionEconomyMeta(button);
-    if (meta.kind === 'danger' || meta.kind === 'end') return false;
-    if (meta.cost <= 0) return false;
-    return meta.cost <= remainingAp;
-  });
-}
-
-function tryAutoEndIfNoActionsRemain() {
-  if (autoEndInFlight || !isPlayerTurn()) return;
-  if (remainingAp <= 0 || !canAffordAnyNonDangerAction()) requestPurePassTurn();
-}
-
 function ensureEndTurnButton() {
-  const auxRow = document.querySelector('.battle-bg .battle-aux-row') as HTMLElement | null;
+  const auxRow = document.querySelector('.battle-bg .battle-actions-card .battle-aux-row, .battle-bg .battle-aux-row') as HTMLElement | null;
   if (!auxRow) return;
   const existing = auxRow.querySelector(':scope > .sv-end-turn-btn') as HTMLButtonElement | null;
   if (existing) {
@@ -332,8 +362,8 @@ function ensureEndTurnButton() {
 }
 
 function ensureActionEconomyBar() {
-  const actionsCard = battleActionsCard();
   const rail = battleControlRail();
+  const actionsCard = battleActionsCard();
   const target = rail || actionsCard;
   if (!target) return null;
 
@@ -348,7 +378,6 @@ function ensureActionEconomyBar() {
         <button type="button" class="sv-action-economy-help" aria-label="Action economy help">?</button>
       </div>
       <div class="sv-action-economy-track"><span class="sv-action-economy-fill"></span></div>
-      <div class="sv-action-economy-caption"></div>
     `;
     const help = bar.querySelector('.sv-action-economy-help') as HTMLButtonElement | null;
     help?.addEventListener('click', () => {
@@ -356,11 +385,7 @@ function ensureActionEconomyBar() {
     });
   }
 
-  if (bar.parentElement !== target) {
-    const strategic = target.querySelector(':scope > .sv-left-strategic-view-card, :scope > .sv-strategic-view-bar') as HTMLElement | null;
-    const aux = target.querySelector(':scope > .battle-aux-shared') as HTMLElement | null;
-    target.insertBefore(bar, strategic || aux || null);
-  }
+  if (bar.parentElement !== target) target.appendChild(bar);
   return bar;
 }
 
@@ -371,15 +396,11 @@ function updateActionEconomyUi() {
 
   const state = bar.querySelector('.sv-action-economy-state') as HTMLElement | null;
   const fill = bar.querySelector('.sv-action-economy-fill') as HTMLElement | null;
-  const caption = bar.querySelector('.sv-action-economy-caption') as HTMLElement | null;
   const ap = playerTurn ? remainingAp : 0;
 
   bar.dataset.svApState = playerTurn ? getActionEconomyStateLabel(ap).toLowerCase().replace(/\s+/g, '-') : 'enemy-turn';
   if (state) state.textContent = playerTurn ? `${ap}% · ${getActionEconomyStateLabel(ap)}` : 'Enemy turn';
   if (fill) fill.style.width = getActionEconomyWidth(ap);
-  if (caption) caption.textContent = playerTurn
-    ? '100% per turn. Primary actions spend the turn; lighter tactics, inventory prep, and Strategic View support tactical play.'
-    : 'Action economy refreshes at the start of your next turn.';
 
   actionButtons().forEach((button) => {
     const meta = getBattleActionEconomyMeta(button);
@@ -405,14 +426,14 @@ export function ensureBattleActionEconomy() {
   ensureStateForTurn();
   syncChronicleTurnClone();
   ensureActionEconomyBar();
-  ensureLeftStrategicViewCard();
-  moveAuxiliaryActionsToRail();
+  syncLeftCommandTabs();
+  ensureTacticsStrategicViewOption();
+  ensureLeftAuxProxyCard();
   ensureEndTurnButton();
   markInventoryUtilityRows();
   rewriteInventoryUtilityCopy();
   decorateButtons();
   updateActionEconomyUi();
-  tryAutoEndIfNoActionsRemain();
 }
 
 export function startBattleActionEconomyBridge() {
@@ -432,7 +453,7 @@ export function startBattleActionEconomyBridge() {
   document.addEventListener('click', blockStrategicMovementInput, true);
   document.addEventListener('pointerup', blockStrategicMovementInput, true);
   window.addEventListener('resize', run, { passive: true });
-  bridgeTimer = window.setInterval(run, 450);
+  bridgeTimer = window.setInterval(run, 700);
 }
 
 export function stopBattleActionEconomyBridge() {
