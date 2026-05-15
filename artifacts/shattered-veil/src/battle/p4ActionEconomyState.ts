@@ -45,6 +45,8 @@ export type P4ActionEconomyState = {
   maxAp: number;
   remainingAp: number;
   mainActionSpent: boolean;
+  movementTilesSpent: number;
+  strategicStepUsed: boolean;
   moved: boolean;
   turnOwner: 'player' | 'enemy' | 'ally' | 'none';
   turnPassed: boolean;
@@ -57,8 +59,8 @@ export const P4_ACTION_COSTS: Record<P4ActionId, P4ActionCostMeta> = {
   drawer: { id: 'drawer', kind: 'free', cost: 0, label: '0%', note: 'Opens a utility drawer.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
   inventory_prep: { id: 'inventory_prep', kind: 'free', cost: 0, label: '0%', note: 'Inventory preparation is free.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
   strategic_view: { id: 'strategic_view', kind: 'free', cost: 0, label: '0%', note: 'Zero-cost battlefield inspection mode.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
-  basic_move: { id: 'basic_move', kind: 'movement', cost: 0, label: 'Move', note: 'Move using the unit movement stat. Movement does not consume the main action.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
-  strategic_step: { id: 'strategic_step', kind: 'movement', cost: 35, label: '35%', note: 'Tactical reposition using the same movement stat/range logic as basic Move.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
+  basic_move: { id: 'basic_move', kind: 'movement', cost: 30, label: '30%', note: 'Move one adjacent tile. Can be repeated tile-by-tile while action economy remains.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
+  strategic_step: { id: 'strategic_step', kind: 'movement', cost: 30, label: '30%', note: 'Instant reposition up to 5 tiles. Uses the movement system but does not consume the main action.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
   steady_strike: { id: 'steady_strike', kind: 'main', cost: 60, label: '60%', note: 'Reliable basic strike; can pair with a light tactic.', endsTurn: false, consumesMainAction: true, hiddenEffect: false },
   flurry_strike: { id: 'flurry_strike', kind: 'main', cost: 80, label: '80%', note: 'Multi-hit pressure; leaves a small tactical remainder.', endsTurn: false, consumesMainAction: true, hiddenEffect: false },
   focus_breath: { id: 'focus_breath', kind: 'minor', cost: 25, label: '25%', note: 'Light focus action.', endsTurn: false, consumesMainAction: false, hiddenEffect: false },
@@ -80,6 +82,8 @@ export function createP4ActionEconomyState(turnOwner: P4ActionEconomyState['turn
     maxAp: 100,
     remainingAp: 100,
     mainActionSpent: false,
+    movementTilesSpent: 0,
+    strategicStepUsed: false,
     moved: false,
     turnOwner,
     turnPassed: false,
@@ -93,7 +97,7 @@ export function canUseP4Action(state: P4ActionEconomyState, actionId: P4ActionId
   if (state.turnOwner !== 'player') return { ok: false, reason: 'Not player turn.' };
   if (state.turnPassed) return { ok: false, reason: 'Turn already passed.' };
   if (meta.consumesMainAction && state.mainActionSpent) return { ok: false, reason: 'Main action already spent.' };
-  if ((actionId === 'basic_move' || actionId === 'strategic_step') && state.moved) return { ok: false, reason: 'Movement already used.' };
+  if (actionId === 'strategic_step' && state.strategicStepUsed) return { ok: false, reason: 'Strategic Step already used this turn.' };
   if (meta.cost > state.remainingAp) return { ok: false, reason: 'Not enough action economy.' };
   return { ok: true, reason: '' };
 }
@@ -107,6 +111,8 @@ export function applyP4ActionEconomy(state: P4ActionEconomyState, actionId: P4Ac
     ...state,
     remainingAp,
     mainActionSpent: state.mainActionSpent || meta.consumesMainAction,
+    movementTilesSpent: state.movementTilesSpent + (actionId === 'basic_move' ? 1 : 0),
+    strategicStepUsed: state.strategicStepUsed || actionId === 'strategic_step',
     moved: state.moved || actionId === 'basic_move' || actionId === 'strategic_step',
     turnPassed: state.turnPassed || meta.endsTurn || remainingAp <= 0,
     history: [...state.history, { id: actionId, cost: meta.cost, remainingAp }],
