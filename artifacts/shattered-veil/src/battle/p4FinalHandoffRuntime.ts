@@ -5,27 +5,50 @@ declare global {
     __SV_P4_BATTLE_STATE__?: {
       movement: P4BattleMovementSnapshot;
       lastMessage?: string;
+      validation?: P4ValidationStatus;
       updatedAt: number;
     };
   }
 }
 
+type P4ValidationStatus = {
+  ok: boolean;
+  warnings: string[];
+  playerMovesThisTurn: number;
+  strategicStepUsed: boolean;
+  enemyMovesThisTurn: number;
+  updatedAt: number;
+};
+
 let started = false;
 let lastVersion = -1;
 let frame = 0;
 let timer: number | null = null;
+const recentLogMessages = new Map<string, number>();
 
 function logContainer() {
   return document.querySelector('.battle-bg .blog-sel, .battle-bg .battle-log-card') as HTMLElement | null;
 }
 
+function normalizeLogId(message: string) {
+  return message.replace(/\s+/g, ' ').trim().slice(0, 120);
+}
+
 function appendP4Log(message: string) {
   const log = logContainer();
-  if (!log) return;
-  if (log.querySelector(`[data-sv-p4-log-id="${CSS.escape(message)}"]`)) return;
+  if (!log || !message) return;
+  const id = normalizeLogId(message);
+  const now = Date.now();
+  const prior = recentLogMessages.get(id) || 0;
+  if (now - prior < 2500) return;
+  recentLogMessages.set(id, now);
+  if (recentLogMessages.size > 28) {
+    Array.from(recentLogMessages.keys()).slice(0, 8).forEach((key) => recentLogMessages.delete(key));
+  }
+  if (log.querySelector(`[data-sv-p4-log-id="${CSS.escape(id)}"]`)) return;
   const row = document.createElement('div');
   row.className = 'battle-log-entry sv-p4-runtime-log';
-  row.dataset.svP4LogId = message;
+  row.dataset.svP4LogId = id;
   row.textContent = message;
   log.insertBefore(row, log.firstChild);
 }
@@ -41,13 +64,33 @@ function messageForSnapshot(snapshot: P4BattleMovementSnapshot) {
   return latest.reason || '';
 }
 
+function validateSnapshot(snapshot: P4BattleMovementSnapshot): P4ValidationStatus {
+  const warnings: string[] = [];
+  if (snapshot.playerMovesThisTurn > 3) warnings.push('Player has spent more than 90% AP on tile movement this turn.');
+  if (snapshot.enemyMovesThisTurn > 1) warnings.push('More than one enemy movement was recorded this enemy turn.');
+  if (snapshot.timeline.length > 55) warnings.push('Movement timeline is near cap and should be trimmed soon.');
+  return {
+    ok: warnings.length === 0,
+    warnings,
+    playerMovesThisTurn: snapshot.playerMovesThisTurn,
+    strategicStepUsed: snapshot.strategicStepUsed,
+    enemyMovesThisTurn: snapshot.enemyMovesThisTurn,
+    updatedAt: Date.now(),
+  };
+}
+
 function publishSnapshot(snapshot: P4BattleMovementSnapshot, message?: string) {
+  const validation = validateSnapshot(snapshot);
   window.__SV_P4_BATTLE_STATE__ = {
     movement: snapshot,
     lastMessage: message || window.__SV_P4_BATTLE_STATE__?.lastMessage,
+    validation,
     updatedAt: Date.now(),
   };
   window.dispatchEvent(new CustomEvent('sv:p4-final-battle-state', { detail: window.__SV_P4_BATTLE_STATE__ }));
+  if (!validation.ok) {
+    validation.warnings.forEach((warning) => appendP4Log(`P4 Check: ${warning}`));
+  }
 }
 
 function syncFromSnapshot() {
