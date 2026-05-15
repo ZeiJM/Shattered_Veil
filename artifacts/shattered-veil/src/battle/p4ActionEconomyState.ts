@@ -50,7 +50,7 @@ export type P4ActionEconomyState = {
   moved: boolean;
   turnOwner: 'player' | 'enemy' | 'ally' | 'none';
   turnPassed: boolean;
-  history: Array<{ id: P4ActionId; cost: number; remainingAp: number }>;
+  history: Array<{ id: P4ActionId; cost: number; remainingAp }>;
 };
 
 export const P4_ACTION_COSTS: Record<P4ActionId, P4ActionCostMeta> = {
@@ -127,12 +127,13 @@ export function shouldAutoPassP4Turn(state: P4ActionEconomyState, availableActio
   return !usablePaidActions;
 }
 
-// Browser-only bootstrap: this module is already loaded by battle helpers.
-// Start the native runtime AP wiring without touching the app entrypoint.
 if (typeof window !== 'undefined') {
   window.setTimeout(() => {
     import('./p4NativeRuntimeWiring')
       .then((mod) => mod.startP4NativeRuntimeWiring?.())
+      .catch(() => undefined);
+    import('./p4EnemyMovementRuntime')
+      .then((mod) => mod.startP4EnemyMovementRuntime?.())
       .catch(() => undefined);
   }, 0);
 }
