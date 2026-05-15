@@ -32,10 +32,6 @@ function rowWidth() {
   return count > 0 ? count : Math.max(1, Math.round(Math.sqrt(tileList().length || 1)));
 }
 
-function tileAt(index: number) {
-  return tileList()[index] || null;
-}
-
 function indexOfTile(tile: Element | null) {
   if (!tile) return -1;
   return tileList().indexOf(tile as HTMLElement);
@@ -76,7 +72,7 @@ function chooseEnemyStep(enemyTile: HTMLElement, playerTile: HTMLElement) {
   const occupied = occupiedTileIndexes();
   const candidates = [enemyIndex + 1, enemyIndex - 1, enemyIndex + cols, enemyIndex - cols]
     .filter((index) => index >= 0 && index < tiles.length)
-    .filter((index) => !occupied.has(index) || index === playerIndex)
+    .filter((index) => !occupied.has(index) && index !== playerIndex)
     .map((index) => ({ index, coord: toCoord(index), tile: tiles[index] }))
     .filter((entry) => entry.tile && entry.tile.offsetParent !== null)
     .sort((a, b) => dist(a.coord, player) - dist(b.coord, player));
@@ -93,8 +89,16 @@ function installStyles() {
     .battle-bg .sv-p4-enemy-step-origin{box-shadow:inset 0 0 0 2px rgba(255,109,109,.32)!important;}
     .battle-bg .sv-p4-enemy-step-dest{box-shadow:inset 0 0 0 2px rgba(255,216,107,.58),0 0 14px rgba(255,216,107,.24)!important;}
     .battle-bg .sv-arena-unit.sv-p4-enemy-moving{transition:transform .42s cubic-bezier(.2,.82,.25,1),filter .42s ease!important;filter:drop-shadow(0 0 12px rgba(255,77,77,.35))!important;z-index:12!important;}
+    .battle-bg .sv-arena-unit[data-sv-p4-committed="1"]{filter:drop-shadow(0 0 7px rgba(255,90,90,.18));}
   `;
   document.head.appendChild(style);
+}
+
+function appendUnitToTile(unit: HTMLElement, tile: HTMLElement) {
+  const existingUnitLayer = tile.querySelector(':scope > .sv-arena-unit-layer, :scope > .sv-unit-layer') as HTMLElement | null;
+  const parent = existingUnitLayer || tile;
+  parent.appendChild(unit);
+  unit.dataset.svP4Committed = '1';
 }
 
 function animateEnemyStep() {
@@ -109,7 +113,7 @@ function animateEnemyStep() {
   const step = chooseEnemyStep(enemyTile, playerTile);
   if (!step) {
     lastEnemyTurnKey = key;
-    window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-planned', { detail: { moved: false, reason: 'Enemy holds position.' } }));
+    window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-committed', { detail: { moved: false, reason: 'Enemy holds position.' } }));
     return;
   }
 
@@ -129,9 +133,13 @@ function animateEnemyStep() {
   }));
   window.setTimeout(() => {
     enemy.style.transform = '';
+    appendUnitToTile(enemy, step.tile);
     enemy.classList.remove('sv-p4-enemy-moving');
     enemyTile.classList.remove('sv-p4-enemy-step-origin');
     step.tile.classList.remove('sv-p4-enemy-step-dest');
+    window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-committed', {
+      detail: { moved: true, fromIndex: indexOfTile(enemyTile), toIndex: step.index, reason: 'Enemy committed one tile toward the player.' },
+    }));
     animating = false;
   }, 520);
 }
