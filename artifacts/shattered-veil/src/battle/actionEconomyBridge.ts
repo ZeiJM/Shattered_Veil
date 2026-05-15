@@ -104,14 +104,35 @@ function requestPurePassTurn() {
   return true;
 }
 
-function moveTurnHeaderToChronicle() {
+function syncChronicleTurnClone() {
   const logCard = battleLogCard();
-  const head = document.querySelector('.battle-bg .battle-turn-head') as HTMLElement | null;
+  const head = document.querySelector('.battle-bg .battle-actions-card .battle-turn-head, .battle-bg .battle-turn-head:not(.sv-chronicle-turn-clone)') as HTMLElement | null;
   if (!logCard || !head) return;
-  head.classList.add('sv-chronicle-turn-head');
-  if (head.parentElement === logCard) return;
-  const firstLogBody = logCard.querySelector(':scope > .blog-sel, :scope > .battle-log-list, :scope > [class*="log"]') as HTMLElement | null;
-  logCard.insertBefore(head, firstLogBody || logCard.firstChild);
+
+  let clone = logCard.querySelector(':scope > .sv-chronicle-turn-clone') as HTMLElement | null;
+  if (!clone) {
+    clone = document.createElement('div');
+    clone.className = 'battle-turn-head sv-chronicle-turn-clone';
+    logCard.insertBefore(clone, logCard.firstChild);
+  }
+
+  const turn = /Enemy Turn/i.test(textOf(head)) ? 'Enemy Turn' : (/Your Turn/i.test(textOf(head)) ? 'Your Turn' : 'Battle Turn');
+  const timer = textOf(head.querySelector('.sv-turn-timer')) || '';
+  const note = /Enemy Turn/i.test(textOf(head)) ? 'Await enemy actions.' : '';
+  clone.innerHTML = '';
+  const turnEl = document.createElement('span');
+  turnEl.className = 'sv-chronicle-turn-label';
+  turnEl.textContent = turn;
+  const timerEl = document.createElement('span');
+  timerEl.className = 'sv-turn-timer sv-chronicle-timer';
+  timerEl.textContent = timer;
+  clone.append(turnEl, timerEl);
+  if (note) {
+    const noteEl = document.createElement('span');
+    noteEl.className = 'sv-chronicle-turn-note';
+    noteEl.textContent = note;
+    clone.append(noteEl);
+  }
 }
 
 function updateLeftStrategicViewCard() {
@@ -122,8 +143,8 @@ function updateLeftStrategicViewCard() {
   const state = card.querySelector('.sv-left-strategic-state') as HTMLElement | null;
   const button = card.querySelector('.sv-left-strategic-toggle') as HTMLButtonElement | null;
   if (state) state.textContent = isOn
-    ? 'ON · inspect terrain, objects, and units on the arena.'
-    : 'OFF · grid stays clean for movement and targeting.';
+    ? 'ON · inspect only; movement clicks are locked.'
+    : 'OFF · grid accepts movement and targeting.';
   if (button) {
     button.textContent = isOn ? 'Turn Off' : 'Turn On';
     button.setAttribute('aria-pressed', isOn ? 'true' : 'false');
@@ -286,7 +307,11 @@ function tryAutoEndIfNoActionsRemain() {
 function ensureEndTurnButton() {
   const auxRow = document.querySelector('.battle-bg .battle-aux-row') as HTMLElement | null;
   if (!auxRow) return;
-  if (auxRow.querySelector(':scope > .sv-end-turn-btn')) return;
+  const existing = auxRow.querySelector(':scope > .sv-end-turn-btn') as HTMLButtonElement | null;
+  if (existing) {
+    if (/⏭|>>|»/.test(existing.textContent || '')) existing.textContent = /Passed/i.test(existing.textContent || '') ? 'Turn Passed' : 'End Turn';
+    return;
+  }
 
   const flee = Array.from(auxRow.querySelectorAll('button')).find((button) => /Flee/i.test(textOf(button))) as HTMLElement | undefined;
   const end = document.createElement('button');
@@ -294,12 +319,12 @@ function ensureEndTurnButton() {
   end.className = 'bt bs sv-end-turn-btn';
   end.dataset.svApCost = '100';
   end.dataset.svActionKind = 'end';
-  end.textContent = '⏭ End Turn';
+  end.textContent = 'End Turn';
   end.title = 'Pass the rest of your turn. Does not Guard, Defend, buff, heal, or apply any hidden action.';
   end.addEventListener('click', () => {
     if (!isPlayerTurn()) return;
     requestPurePassTurn();
-    end.textContent = '⏭ Turn Passed';
+    end.textContent = 'Turn Passed';
   });
 
   if (flee?.nextSibling) auxRow.insertBefore(end, flee.nextSibling);
@@ -363,10 +388,22 @@ function updateActionEconomyUi() {
   });
 }
 
+function blockStrategicMovementInput(ev: Event) {
+  const target = ev.target as Element | null;
+  const panel = target?.closest?.('.battle-bg .sv-arena-panel') as HTMLElement | null;
+  if (!panel || panel.dataset.svStrategicView !== 'on') return;
+  if (!target?.closest('.sv-arena-tile')) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  if (typeof (ev as Event & { stopImmediatePropagation?: () => void }).stopImmediatePropagation === 'function') {
+    (ev as Event & { stopImmediatePropagation: () => void }).stopImmediatePropagation();
+  }
+}
+
 export function ensureBattleActionEconomy() {
   if (!document.querySelector('.battle-bg')) return;
   ensureStateForTurn();
-  moveTurnHeaderToChronicle();
+  syncChronicleTurnClone();
   ensureActionEconomyBar();
   ensureLeftStrategicViewCard();
   moveAuxiliaryActionsToRail();
@@ -392,6 +429,8 @@ export function startBattleActionEconomyBridge() {
   });
   document.addEventListener('click', run, { passive: true });
   document.addEventListener('pointerup', run, { passive: true });
+  document.addEventListener('click', blockStrategicMovementInput, true);
+  document.addEventListener('pointerup', blockStrategicMovementInput, true);
   window.addEventListener('resize', run, { passive: true });
   bridgeTimer = window.setInterval(run, 450);
 }
@@ -404,4 +443,6 @@ export function stopBattleActionEconomyBridge() {
   bridgeObserver = null;
   if (bridgeTimer != null) window.clearInterval(bridgeTimer);
   bridgeTimer = null;
+  document.removeEventListener('click', blockStrategicMovementInput, true);
+  document.removeEventListener('pointerup', blockStrategicMovementInput, true);
 }
