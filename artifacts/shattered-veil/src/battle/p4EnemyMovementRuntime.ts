@@ -55,21 +55,22 @@ function findEnemyUnit() {
   return enemies.find((unit) => !unit.classList.contains('is-player') && !/player/i.test(unit.dataset.side || '') && !/ally/i.test(unit.dataset.side || '')) || null;
 }
 
-function occupiedTileIndexes() {
+function occupiedTileIndexes(exceptUnit?: HTMLElement) {
   return new Set((Array.from(document.querySelectorAll('.battle-bg .sv-arena-unit')) as HTMLElement[])
+    .filter((unit) => unit !== exceptUnit)
     .map((unit) => indexOfTile(unit.closest('.sv-arena-tile')))
     .filter((index) => index >= 0));
 }
 
-function chooseEnemyStep(enemyTile: HTMLElement, playerTile: HTMLElement) {
+function chooseEnemyStep(enemyTile: HTMLElement, playerTile: HTMLElement, enemy?: HTMLElement) {
   const enemyIndex = indexOfTile(enemyTile);
   const playerIndex = indexOfTile(playerTile);
   const tiles = tileList();
   const cols = rowWidth();
   if (enemyIndex < 0 || playerIndex < 0 || !cols) return null;
-  const enemy = toCoord(enemyIndex);
+  const enemyCoord = toCoord(enemyIndex);
   const player = toCoord(playerIndex);
-  const occupied = occupiedTileIndexes();
+  const occupied = occupiedTileIndexes(enemy);
   const candidates = [enemyIndex + 1, enemyIndex - 1, enemyIndex + cols, enemyIndex - cols]
     .filter((index) => index >= 0 && index < tiles.length)
     .filter((index) => !occupied.has(index) && index !== playerIndex)
@@ -77,7 +78,7 @@ function chooseEnemyStep(enemyTile: HTMLElement, playerTile: HTMLElement) {
     .filter((entry) => entry.tile && entry.tile.offsetParent !== null)
     .sort((a, b) => dist(a.coord, player) - dist(b.coord, player));
   const best = candidates[0];
-  if (!best || dist(best.coord, player) >= dist(enemy, player)) return null;
+  if (!best || dist(best.coord, player) >= dist(enemyCoord, player)) return null;
   return best;
 }
 
@@ -95,10 +96,17 @@ function installStyles() {
 }
 
 function appendUnitToTile(unit: HTMLElement, tile: HTMLElement) {
+  if (!unit || !tile || !tile.classList.contains('sv-arena-tile')) return false;
+  if (tile.querySelector('.sv-arena-unit') && !tile.contains(unit)) return false;
   const existingUnitLayer = tile.querySelector(':scope > .sv-arena-unit-layer, :scope > .sv-unit-layer') as HTMLElement | null;
   const parent = existingUnitLayer || tile;
   parent.appendChild(unit);
   unit.dataset.svP4Committed = '1';
+  return true;
+}
+
+function emitEnemyCommit(detail: Record<string, unknown>) {
+  window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-committed', { detail }));
 }
 
 function animateEnemyStep() {
@@ -110,10 +118,10 @@ function animateEnemyStep() {
   const enemyTile = enemy?.closest('.sv-arena-tile') as HTMLElement | null;
   const playerTile = player?.closest('.sv-arena-tile') as HTMLElement | null;
   if (!enemy || !enemyTile || !playerTile) return;
-  const step = chooseEnemyStep(enemyTile, playerTile);
+  const step = chooseEnemyStep(enemyTile, playerTile, enemy);
   if (!step) {
     lastEnemyTurnKey = key;
-    window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-committed', { detail: { moved: false, reason: 'Enemy holds position.' } }));
+    emitEnemyCommit({ moved: false, reason: 'Enemy holds position.' });
     return;
   }
 
@@ -122,6 +130,7 @@ function animateEnemyStep() {
   installStyles();
   enemyTile.classList.add('sv-p4-enemy-step-origin');
   step.tile.classList.add('sv-p4-enemy-step-dest');
+  const fromIndexBefore = indexOfTile(enemyTile);
   const from = enemy.getBoundingClientRect();
   const to = step.tile.getBoundingClientRect();
   const dx = to.left + to.width / 2 - (from.left + from.width / 2);
@@ -129,17 +138,17 @@ function animateEnemyStep() {
   enemy.classList.add('sv-p4-enemy-moving');
   enemy.style.transform = `translate(${dx}px, ${dy}px)`;
   window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-planned', {
-    detail: { moved: true, fromIndex: indexOfTile(enemyTile), toIndex: step.index, dx, dy, reason: 'Enemy advances toward the player.' },
+    detail: { moved: true, fromIndex: fromIndexBefore, toIndex: step.index, dx, dy, reason: 'Enemy advances toward the player.' },
   }));
   window.setTimeout(() => {
     enemy.style.transform = '';
-    appendUnitToTile(enemy, step.tile);
+    const committed = appendUnitToTile(enemy, step.tile);
     enemy.classList.remove('sv-p4-enemy-moving');
     enemyTile.classList.remove('sv-p4-enemy-step-origin');
     step.tile.classList.remove('sv-p4-enemy-step-dest');
-    window.dispatchEvent(new CustomEvent('sv:p4-enemy-movement-committed', {
-      detail: { moved: true, fromIndex: indexOfTile(enemyTile), toIndex: step.index, reason: 'Enemy committed one tile toward the player.' },
-    }));
+    emitEnemyCommit(committed
+      ? { moved: true, fromIndex: fromIndexBefore, toIndex: indexOfTile(step.tile), reason: 'Enemy committed one tile toward the player.' }
+      : { moved: false, fromIndex: fromIndexBefore, toIndex: step.index, reason: 'Enemy movement commit was blocked by occupied or invalid tile.' });
     animating = false;
   }, 520);
 }
