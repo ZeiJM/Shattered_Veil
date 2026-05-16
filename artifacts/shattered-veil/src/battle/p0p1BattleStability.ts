@@ -31,15 +31,49 @@ function hideRedundantChainButtons() {
   });
 }
 
+function classifySmallMetaChip(el: HTMLElement, text: string) {
+  if (/\b\d+\s*\/\s*\d+\b|\b\d+\s*%\b|Ready|Charging|Primed|Cooldown|Chain\s*\d/i.test(text)) {
+    el.classList.add('sv-p0p1-meta-chip');
+  }
+}
+
 function polishVeilbreakAndInteractionRows() {
+  const interactions: HTMLElement[] = [];
   document.querySelectorAll('.battle-bg span, .battle-bg div, .battle-bg button').forEach((node) => {
     const el = node as HTMLElement;
     const text = textOf(el);
-    if (!text || text.length > 90) return;
-    if (/Veilbreak|Veil Expansion|Break the Veil/i.test(text)) el.classList.add('sv-p0p1-veilbreak-accent');
-    if (/Skill Interaction|Interaction Ready|Primed/i.test(text)) el.classList.add('sv-p0p1-skill-interaction');
-    if (/Attunement|Timer|Tags|Round\s+\d+|Your Turn|Enemy Turn/i.test(text)) el.parentElement?.classList.add('sv-p0p1-tight-row');
+    if (!text || text.length > 100) return;
+    if (/Veilbreak|Veil Expansion|Break the Veil/i.test(text)) {
+      el.classList.add('sv-p0p1-veilbreak-accent');
+      if (/\d+\s*\/\s*\d+|Ready|Charging|Chain/i.test(text)) el.classList.add('sv-p0p1-veilbreak-counter');
+      el.parentElement?.classList.add('sv-p0p1-tight-row');
+    }
+    if (/Skill Interaction|Interaction Ready|Primed/i.test(text)) {
+      el.classList.add('sv-p0p1-skill-interaction');
+      interactions.push(el);
+    }
+    if (/Attunement|Timer|Tags|Round\s+\d+|Your Turn|Enemy Turn/i.test(text)) {
+      el.parentElement?.classList.add('sv-p0p1-tight-row');
+      classifySmallMetaChip(el, text);
+    }
   });
+  cloneInteractionNearVeilbreak(interactions[0]);
+}
+
+function cloneInteractionNearVeilbreak(source?: HTMLElement) {
+  const rail = document.querySelector('.battle-bg .battle-info-card, .battle-bg .sv-battle-control-rail') as HTMLElement | null;
+  if (!rail || !source) return;
+  const text = textOf(source);
+  if (!text || text.length > 100) return;
+  let clone = rail.querySelector(':scope > .sv-p0p1-interaction-clone') as HTMLElement | null;
+  if (!clone) {
+    clone = document.createElement('div');
+    clone.className = 'sv-p0p1-skill-interaction sv-p0p1-interaction-clone';
+    const anchor = rail.querySelector('.sv-p0p1-veilbreak-accent') as HTMLElement | null;
+    if (anchor?.parentElement?.parentElement === rail) rail.insertBefore(clone, anchor.parentElement.nextSibling);
+    else rail.appendChild(clone);
+  }
+  clone.textContent = text;
 }
 
 function stabilizeBattleTitle() {
