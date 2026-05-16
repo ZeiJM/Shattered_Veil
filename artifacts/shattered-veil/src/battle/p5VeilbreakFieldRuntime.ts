@@ -30,6 +30,8 @@ let timer: number | null = null;
 let observer: MutationObserver | null = null;
 let activeField: P5VeilbreakField | null = null;
 let durationState: P5FieldDurationState | null = null;
+let fieldActivated = false;
+let activatedAt = 0;
 let lastTickId = '';
 let lastEffectPlanTickId = '';
 let lastOccupants = new Set<string>();
@@ -105,8 +107,7 @@ function inferFieldFromDom() {
   });
 }
 
-function rebuildField() {
-  activeField = inferFieldFromDom();
+function resetFieldRuntimeState() {
   durationState = createP5FieldDurationState(activeField);
   lastTickId = '';
   lastEffectPlanTickId = '';
@@ -114,7 +115,47 @@ function rebuildField() {
   lastInfluenceSummary = '';
   lastInfluences = new Map<string, P5UnitFieldInfluence>();
   lastOccupants = new Set<string>();
+}
+
+function rebuildField() {
+  activeField = inferFieldFromDom();
+  resetFieldRuntimeState();
   runSoon();
+}
+
+function activateFieldFromVeilbreak(sourceText = 'Veilbreak') {
+  activeField = inferFieldFromDom();
+  if (!activeField) return;
+  fieldActivated = true;
+  activatedAt = Date.now();
+  resetFieldRuntimeState();
+  appendLog(`Veilbreak Field activated: ${activeField.fieldName} · ${activeField.radius} radius · ${activeField.mpSpentOnRange || 0} MP widening selected.`, `activate_${activatedAt}`);
+  window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-activated', {
+    detail: {
+      field: activeField,
+      sourceText,
+      selectedMpSpend: activeField.mpSpentOnRange || 0,
+      radius: activeField.radius,
+      activatedAt,
+    },
+  }));
+  runSoon();
+}
+
+function isVeilbreakActivationButton(target: EventTarget | null) {
+  const el = target instanceof Element ? target.closest('button, [role="button"]') as HTMLElement | null : null;
+  if (!el || !el.closest('.battle-bg')) return null;
+  if (el.closest('#sv-p5-field-controls')) return null;
+  const txt = textOf(el);
+  if (!/veil\s*break|veilbreak|expansion/i.test(txt)) return null;
+  if (/range|widen|base/i.test(txt)) return null;
+  return el;
+}
+
+function onBattleClick(ev: Event) {
+  const btn = isVeilbreakActivationButton(ev.target);
+  if (!btn) return;
+  window.setTimeout(() => activateFieldFromVeilbreak(textOf(btn)), 60);
 }
 
 function ensureField() {
@@ -222,7 +263,9 @@ function installControls() {
     btn.disabled = !affordable;
     btn.addEventListener('click', () => {
       selectedMpSpend = option.mpCost;
-      appendLog(`Veilbreak Field Range: ${option.name} selected.`, `range_${Date.now()}_${option.mpCost}`);
+      fieldActivated = false;
+      clearFieldClasses();
+      appendLog(`Veilbreak Field Range: ${option.name} selected. Activate Veilbreak to create the field.`, `range_${Date.now()}_${option.mpCost}`);
       rebuildField();
     });
     buttons.appendChild(btn);
@@ -232,6 +275,14 @@ function installControls() {
 function syncField() {
   if (!isBattleScreen()) return;
   installControls();
+  if (!fieldActivated) {
+    clearFieldClasses();
+    const stagedField = activeField || inferFieldFromDom();
+    window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-config', {
+      detail: { field: stagedField, selectedMpSpend, active: false },
+    }));
+    return;
+  }
   const field = ensureField();
   if (!field) return;
   paintField(field);
@@ -248,7 +299,11 @@ function syncField() {
   if (tick && tick.tickId !== lastTickId) {
     lastTickId = tick.tickId;
     appendLog(`Field Tick: ${describeP5FieldTick(tick)}`, `tick_${tick.tickId}`);
-    if (tick.expired) appendLog(`Veilbreak Field expired: ${field.fieldName} faded.`, `expired_${tick.tickId}`);
+    if (tick.expired) {
+      appendLog(`Veilbreak Field expired: ${field.fieldName} faded.`, `expired_${tick.tickId}`);
+      fieldActivated = false;
+      clearFieldClasses();
+    }
   }
   if (effectPlans && effectPlans.tickId !== lastEffectPlanTickId) {
     lastEffectPlanTickId = effectPlans.tickId;
@@ -268,7 +323,7 @@ function syncField() {
     appendLog(`Veilbreak Field ready — ${summary}`, `summary_${field.createdAt}_${field.radius}`);
   }
   window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', {
-    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState, effectPlans },
+    detail: { field, active: fieldActivated, activatedAt, selectedMpSpend: field.mpSpentOnRange || 0, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState, effectPlans },
   }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-influence-state', { detail: influence.snapshot }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-duration-state', { detail: durationState }));
@@ -309,6 +364,7 @@ export function startP5VeilbreakFieldRuntime() {
   runSoon();
   window.addEventListener('sv:p4-final-battle-state', runSoon as EventListener);
   window.addEventListener('sv:p4-integration-snapshot', runSoon as EventListener);
+  document.addEventListener('click', onBattleClick, true);
   observer = new MutationObserver(runSoon);
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'data-sv-p4-committed'] });
   timer = window.setInterval(runSoon, 650);
@@ -320,6 +376,7 @@ export function stopP5VeilbreakFieldRuntime() {
   window.cancelAnimationFrame(frame);
   window.removeEventListener('sv:p4-final-battle-state', runSoon as EventListener);
   window.removeEventListener('sv:p4-integration-snapshot', runSoon as EventListener);
+  document.removeEventListener('click', onBattleClick, true);
   observer?.disconnect();
   observer = null;
   clearFieldClasses();
@@ -328,6 +385,8 @@ export function stopP5VeilbreakFieldRuntime() {
   timer = null;
   activeField = null;
   durationState = null;
+  fieldActivated = false;
+  activatedAt = 0;
   lastTickId = '';
   lastEffectPlanTickId = '';
   lastOccupants = new Set<string>();
