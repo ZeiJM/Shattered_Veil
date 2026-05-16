@@ -4,6 +4,7 @@ import {
   diffP5FieldOccupancy,
   getP5AffordableFieldUpgrades,
   getP5FieldTileIndexes,
+  P5_FIELD_RANGE_UPGRADES,
   type P5VeilbreakField,
 } from './p5VeilbreakFields';
 
@@ -14,6 +15,7 @@ let observer: MutationObserver | null = null;
 let activeField: P5VeilbreakField | null = null;
 let lastOccupants = new Set<string>();
 let lastSummary = '';
+let selectedMpSpend = 0;
 
 function textOf(el: Element | null) {
   return (el?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -67,14 +69,22 @@ function inferFieldFromDom() {
   const originIndex = indexOfTile(player?.closest('.sv-arena-tile') || null);
   if (originIndex < 0) return null;
   const mp = currentMp();
-  const upgrade = getP5AffordableFieldUpgrades(mp).sort((a, b) => b.radiusBonus - a.radiusBonus)[0];
+  const maxAffordable = getP5AffordableFieldUpgrades(mp).sort((a, b) => b.radiusBonus - a.radiusBonus)[0];
+  const mpSpend = selectedMpSpend > 0 && mp >= selectedMpSpend ? selectedMpSpend : (maxAffordable?.mpCost || 0);
   const vbLabel = textOf(document.querySelector('.battle-bg [class*="veilbreak"], .battle-bg [class*="Veilbreak"]')) || 'Veilbreak Field';
   return buildP5VeilbreakField({
     ult: { name: vbLabel.slice(0, 72) || 'Veilbreak Field' },
     owner: 'player',
     originIndex,
-    mpSpentOnRange: upgrade?.mpCost || 0,
+    mpSpentOnRange: mpSpend,
   });
+}
+
+function rebuildField() {
+  activeField = inferFieldFromDom();
+  lastSummary = '';
+  lastOccupants = new Set<string>();
+  runSoon();
 }
 
 function ensureField() {
@@ -96,7 +106,7 @@ function affectedIndexes(field: P5VeilbreakField) {
 
 function clearFieldClasses() {
   tileList().forEach((tile) => {
-    tile.classList.remove('sv-p5-vb-field-tile', 'sv-p5-vb-field-origin');
+    tile.classList.remove('sv-p5-vb-field-tile', 'sv-p5-vb-field-origin', 'sv-p5-vb-field-pulse');
     delete tile.dataset.svP5FieldRadius;
     delete tile.dataset.svP5FieldName;
   });
@@ -105,12 +115,13 @@ function clearFieldClasses() {
 function paintField(field: P5VeilbreakField) {
   clearFieldClasses();
   const tiles = tileList();
-  affectedIndexes(field).forEach((index) => {
+  affectedIndexes(field).forEach((index, pulseIndex) => {
     const tile = tiles[index];
     if (!tile) return;
-    tile.classList.add('sv-p5-vb-field-tile');
+    tile.classList.add('sv-p5-vb-field-tile', 'sv-p5-vb-field-pulse');
     tile.dataset.svP5FieldRadius = String(field.radius);
     tile.dataset.svP5FieldName = field.fieldName;
+    tile.style.setProperty('--sv-p5-field-delay', `${(pulseIndex % 7) * 130}ms`);
   });
   const origin = tiles[field.originIndex];
   origin?.classList.add('sv-p5-vb-field-origin');
@@ -141,8 +152,55 @@ function appendLog(message: string, key: string) {
   log.insertBefore(row, log.firstChild);
 }
 
+function controlsMount() {
+  return document.querySelector('.battle-bg .sv-left-rail, .battle-bg .battle-side-panel, .battle-bg .sv-battle-command-rail, .battle-bg') as HTMLElement | null;
+}
+
+function installControls() {
+  if (!isBattleScreen()) return;
+  const mount = controlsMount();
+  if (!mount) return;
+  let panel = document.getElementById('sv-p5-field-controls') as HTMLElement | null;
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'sv-p5-field-controls';
+    panel.className = 'sv-p5-field-controls';
+    panel.innerHTML = `
+      <div class="sv-p5-field-controls-title">Veilbreak Field Range</div>
+      <div class="sv-p5-field-controls-sub">Choose MP widening before activation.</div>
+      <div class="sv-p5-field-controls-buttons"></div>
+    `;
+    mount.appendChild(panel);
+  }
+  const buttons = panel.querySelector('.sv-p5-field-controls-buttons') as HTMLElement | null;
+  if (!buttons) return;
+  const mp = currentMp();
+  const options = [{ id: 'base', name: 'Base', mpCost: 0, radiusBonus: 0, summary: 'Radius 1 field.' }, ...P5_FIELD_RANGE_UPGRADES];
+  buttons.innerHTML = '';
+  options.forEach((option) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sv-p5-field-upgrade-btn';
+    btn.dataset.svP5FieldMp = String(option.mpCost);
+    btn.textContent = option.mpCost > 0 ? `${option.name} · ${option.mpCost} MP` : 'Base · 0 MP';
+    btn.title = option.summary;
+    const affordable = mp >= option.mpCost;
+    const selected = selectedMpSpend === option.mpCost;
+    btn.classList.toggle('is-selected', selected);
+    btn.classList.toggle('is-locked', !affordable);
+    btn.disabled = !affordable;
+    btn.addEventListener('click', () => {
+      selectedMpSpend = option.mpCost;
+      appendLog(`Veilbreak Field Range: ${option.name} selected.`, `range_${Date.now()}_${option.mpCost}`);
+      rebuildField();
+    });
+    buttons.appendChild(btn);
+  });
+}
+
 function syncField() {
   if (!isBattleScreen()) return;
+  installControls();
   const field = ensureField();
   if (!field) return;
   paintField(field);
@@ -164,9 +222,20 @@ function installStyles() {
   const style = document.createElement('style');
   style.id = 'sv-p5-veilbreak-field-style';
   style.textContent = `
-    .battle-bg .sv-p5-vb-field-tile{box-shadow:inset 0 0 0 2px rgba(184,125,255,.24),0 0 16px rgba(155,93,255,.13)!important;}
+    @keyframes svP5FieldPulse{0%,100%{filter:brightness(1);opacity:.82}50%{filter:brightness(1.28);opacity:1}}
+    @keyframes svP5FieldRune{0%{transform:scale(.75) rotate(0deg);opacity:.12}50%{transform:scale(1.08) rotate(10deg);opacity:.42}100%{transform:scale(.75) rotate(0deg);opacity:.12}}
+    .battle-bg .sv-p5-vb-field-tile{position:relative!important;box-shadow:inset 0 0 0 2px rgba(184,125,255,.24),0 0 16px rgba(155,93,255,.13)!important;}
+    .battle-bg .sv-p5-vb-field-pulse{animation:svP5FieldPulse 2.6s ease-in-out infinite!important;animation-delay:var(--sv-p5-field-delay,0ms)!important;}
+    .battle-bg .sv-p5-vb-field-tile::after{content:"";position:absolute;inset:18%;border-radius:999px;border:1px solid rgba(222,195,255,.28);background:radial-gradient(circle,rgba(204,160,255,.18),rgba(120,70,255,.04) 58%,transparent 70%);pointer-events:none;animation:svP5FieldRune 3.1s ease-in-out infinite;animation-delay:var(--sv-p5-field-delay,0ms);}
     .battle-bg .sv-p5-vb-field-origin{box-shadow:inset 0 0 0 2px rgba(244,219,139,.68),0 0 20px rgba(244,219,139,.22)!important;}
     .battle-bg .sv-p5-vb-field-log{color:rgba(230,212,255,.95)!important;border-left:2px solid rgba(184,125,255,.64)!important;padding-left:7px!important;background:rgba(155,93,255,.055)!important;}
+    .battle-bg .sv-p5-field-controls{margin:8px 0;padding:9px;border:1px solid rgba(184,125,255,.28);border-radius:14px;background:linear-gradient(135deg,rgba(38,26,70,.72),rgba(19,16,34,.82));box-shadow:0 8px 22px rgba(0,0,0,.22);color:rgba(246,239,255,.96);font-size:12px;}
+    .battle-bg .sv-p5-field-controls-title{font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:rgba(244,219,139,.96);font-size:11px;}
+    .battle-bg .sv-p5-field-controls-sub{opacity:.78;font-size:11px;margin:2px 0 7px;}
+    .battle-bg .sv-p5-field-controls-buttons{display:flex;flex-wrap:wrap;gap:6px;}
+    .battle-bg .sv-p5-field-upgrade-btn{border:1px solid rgba(184,125,255,.32);border-radius:999px;background:rgba(255,255,255,.06);color:rgba(246,239,255,.94);padding:5px 8px;font-size:11px;cursor:pointer;}
+    .battle-bg .sv-p5-field-upgrade-btn.is-selected{border-color:rgba(244,219,139,.75);box-shadow:0 0 12px rgba(244,219,139,.18);color:rgba(255,239,184,.98);}
+    .battle-bg .sv-p5-field-upgrade-btn.is-locked{opacity:.42;cursor:not-allowed;}
   `;
   document.head.appendChild(style);
 }
@@ -197,6 +266,7 @@ export function stopP5VeilbreakFieldRuntime() {
   observer?.disconnect();
   observer = null;
   clearFieldClasses();
+  document.getElementById('sv-p5-field-controls')?.remove();
   if (timer != null) window.clearInterval(timer);
   timer = null;
   activeField = null;
