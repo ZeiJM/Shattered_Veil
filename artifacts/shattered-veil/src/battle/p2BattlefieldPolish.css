@@ -1,0 +1,125 @@
+/* P2 battlefield polish: strategic view, movement highlights, tile glow, and token travel feel. */
+
+.battle-bg .sv-arena-panel {
+  position: relative !important;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(102,155,255,0.13), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(255,216,107,0.10), transparent 28%),
+    radial-gradient(circle at 50% 92%, rgba(132,76,255,0.12), transparent 34%),
+    linear-gradient(180deg, rgba(13,18,41,0.96), rgba(5,9,24,0.98)) !important;
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.28),
+    inset 0 0 0 1px rgba(255,255,255,0.04),
+    inset 0 0 44px rgba(86,178,255,0.06) !important;
+}
+
+.battle-bg .sv-arena-panel::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 10px !important;
+  border-radius: 18px !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.018) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+  opacity: 0.42 !important;
+  mask-image: radial-gradient(circle at center, black 52%, transparent 96%) !important;
+}
+
+.battle-bg .sv-arena-grid {
+  filter: drop-shadow(0 18px 24px rgba(0,0,0,0.24)) !important;
+}
+
+.battle-bg .sv-arena-tile {
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease, opacity 160ms ease !important;
+}
+
+.battle-bg .sv-arena-tile:not(.sv-arena-tile-void) {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.045),
+    inset 0 -10px 16px rgba(0,0,0,0.10) !important;
+}
+
+.battle-bg .sv-arena-tile[class*="special"],
+.battle-bg .sv-arena-tile[class*="field"],
+.battle-bg .sv-arena-tile[class*="terrain"],
+.battle-bg .sv-arena-tile[data-sv-special-tile="1"] {
+  box-shadow:
+    0 0 14px rgba(255,216,107,0.20),
+    inset 0 0 0 1px rgba(255,216,107,0.18),
+    inset 0 -10px 18px rgba(0,0,0,0.12) !important;
+}
+
+.battle-bg .sv-arena-tile[data-sv-occupied-tile="1"] {
+  outline: 1px solid rgba(185,218,255,0.18) !important;
+  outline-offset: -2px !important;
+}
+
+.battle-bg .sv-arena-grid:not(.sv-arena-movement-mode):not(.sv-arena-targeting-mode) .is-in-move,
+.battle-bg .sv-arena-grid:not(.sv-arena-movement-mode):not(.sv-arena-targeting-mode) [class*="move"],
+.battle-bg .sv-arena-grid:not(.sv-arena-movement-mode):not(.sv-arena-targeting-mode) [class*="Move"] {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.045), inset 0 -10px 16px rgba(0,0,0,0.10) !important;
+  filter: none !important;
+}
+
+.battle-bg .sv-arena-grid.sv-arena-movement-mode .is-in-move,
+.battle-bg .sv-arena-grid.sv-arena-movement-mode [class*="move"],
+.battle-bg .sv-arena-grid.sv-arena-movement-mode [class*="Move"] {
+  box-shadow:
+    0 0 18px rgba(96,190,255,0.35),
+    inset 0 0 0 1px rgba(138,219,255,0.34),
+    inset 0 -10px 18px rgba(0,0,0,0.10) !important;
+}
+
+.battle-bg .sv-arena-panel[data-sv-strategic-view="off"] .sv-arena-tooltip,
+.battle-bg .sv-arena-panel[data-sv-strategic-view="off"] .sv-tile-inspect,
+.battle-bg .sv-arena-panel[data-sv-strategic-view="off"] [class*="inspect"],
+.battle-bg .sv-arena-panel[data-sv-strategic-view="off"] [class*="Inspect"] {
+  display: none !important;
+}
+
+.battle-bg .sv-arena-panel[data-sv-strategic-view="on"] {
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.30),
+    inset 0 0 0 1px rgba(107,178,255,0.16),
+    inset 0 0 48px rgba(86,178,255,0.11) !important;
+}
+
+.battle-bg .sv-arena-unit {
+  transition: transform 190ms ease, left 190ms ease, top 190ms ease, opacity 160ms ease, filter 160ms ease !important;
+  will-change: transform, left, top !important;
+}
+
+.battle-bg .sv-arena-unit[data-sv-p2-unit-moving="1"] {
+  filter: drop-shadow(0 0 10px rgba(107,178,255,0.34)) !important;
+  transform: translateY(-2px) scale(1.035) !important;
+}
+
+.battle-bg .sv-p2-travel-pulse {
+  animation: sv-p2-travel-pulse 520ms ease-out both !important;
+}
+
+@keyframes sv-p2-travel-pulse {
+  0% { box-shadow: 0 0 0 rgba(107,178,255,0); }
+  35% { box-shadow: 0 0 22px rgba(107,178,255,0.42), inset 0 0 0 1px rgba(107,178,255,0.28); }
+  100% { box-shadow: 0 0 0 rgba(107,178,255,0); }
+}
+
+.battle-bg .sv-p2-occupied-info {
+  display: block !important;
+  margin-top: 4px !important;
+  color: rgba(224,238,255,0.76) !important;
+  font-size: 8px !important;
+  line-height: 1.25 !important;
+}
+
+.battle-bg .sv-p2-strategic-defaulted [data-sv-zero-cost-toggle="1"]::after {
+  content: " · 0 AP" !important;
+  opacity: 0.75 !important;
+}
+
+@media (max-width: 760px) {
+  .battle-bg .sv-arena-panel::before { inset: 6px !important; background-size: 24px 24px !important; }
+  .battle-bg .sv-arena-unit { transition-duration: 150ms !important; }
+}
