@@ -147,5 +147,8 @@ if (typeof window !== 'undefined') {
     import('./p4IntegrationFacade')
       .then((mod) => mod.startP4IntegrationFacade?.())
       .catch(() => undefined);
+    import('./p4FacadeRuntimeDriver')
+      .then((mod) => mod.startP4FacadeRuntimeDriver?.())
+      .catch(() => undefined);
   }, 0);
 }
