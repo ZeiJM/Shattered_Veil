@@ -7,6 +7,11 @@ import {
   P5_FIELD_RANGE_UPGRADES,
   type P5VeilbreakField,
 } from './p5VeilbreakFields';
+import {
+  describeP5InfluenceSnapshot,
+  updateP5FieldInfluences,
+  type P5UnitFieldInfluence,
+} from './p5FieldInfluenceState';
 
 let started = false;
 let frame = 0;
@@ -14,6 +19,8 @@ let timer: number | null = null;
 let observer: MutationObserver | null = null;
 let activeField: P5VeilbreakField | null = null;
 let lastOccupants = new Set<string>();
+let lastInfluences = new Map<string, P5UnitFieldInfluence>();
+let lastInfluenceSummary = '';
 let lastSummary = '';
 let selectedMpSpend = 0;
 
@@ -83,6 +90,8 @@ function inferFieldFromDom() {
 function rebuildField() {
   activeField = inferFieldFromDom();
   lastSummary = '';
+  lastInfluenceSummary = '';
+  lastInfluences = new Map<string, P5UnitFieldInfluence>();
   lastOccupants = new Set<string>();
   runSoon();
 }
@@ -209,12 +218,24 @@ function syncField() {
   if (diff.entered.length) appendLog(`Veilbreak Field: ${diff.entered.length} unit(s) entered ${field.fieldName}.`, `enter_${field.createdAt}_${diff.entered.join('_')}`);
   if (diff.exited.length) appendLog(`Veilbreak Field: ${diff.exited.length} unit(s) left ${field.fieldName}.`, `exit_${field.createdAt}_${diff.exited.join('_')}`);
   lastOccupants = occupants;
+  const influence = updateP5FieldInfluences({ field, previous: lastInfluences, occupants: Array.from(occupants) });
+  lastInfluences = influence.next;
+  influence.snapshot.entered.forEach((item) => appendLog(`Field Influence: ${item.logLine}`, `influence_enter_${item.enteredAt}_${item.unitId}`));
+  influence.snapshot.exited.forEach((item) => appendLog(`Field Influence ended: ${item.unitId} left ${item.fieldName}.`, `influence_exit_${item.lastSeenAt}_${item.unitId}`));
+  const influenceSummary = describeP5InfluenceSnapshot(influence.snapshot);
+  if (influenceSummary && influenceSummary !== lastInfluenceSummary) {
+    lastInfluenceSummary = influenceSummary;
+    appendLog(`Field Influence: ${influenceSummary}`, `influence_summary_${field.createdAt}_${influence.snapshot.activeInfluences.length}`);
+  }
   const summary = describeP5Field(field);
   if (summary && summary !== lastSummary) {
     lastSummary = summary;
     appendLog(`Veilbreak Field ready — ${summary}`, `summary_${field.createdAt}_${field.radius}`);
   }
-  window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', { detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field) } }));
+  window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', {
+    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot },
+  }));
+  window.dispatchEvent(new CustomEvent('sv:p5-field-influence-state', { detail: influence.snapshot }));
 }
 
 function installStyles() {
@@ -271,6 +292,7 @@ export function stopP5VeilbreakFieldRuntime() {
   timer = null;
   activeField = null;
   lastOccupants = new Set<string>();
+  lastInfluences = new Map<string, P5UnitFieldInfluence>();
 }
 
 if (typeof window !== 'undefined') {
