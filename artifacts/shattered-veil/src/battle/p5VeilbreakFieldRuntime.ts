@@ -19,6 +19,10 @@ import {
   tickP5FieldDuration,
   type P5FieldDurationState,
 } from './p5FieldTickState';
+import {
+  buildP5FieldEffectPlans,
+  describeP5FieldEffectPlans,
+} from './p5FieldEffectPlans';
 
 let started = false;
 let frame = 0;
@@ -27,6 +31,7 @@ let observer: MutationObserver | null = null;
 let activeField: P5VeilbreakField | null = null;
 let durationState: P5FieldDurationState | null = null;
 let lastTickId = '';
+let lastEffectPlanTickId = '';
 let lastOccupants = new Set<string>();
 let lastInfluences = new Map<string, P5UnitFieldInfluence>();
 let lastInfluenceSummary = '';
@@ -104,6 +109,7 @@ function rebuildField() {
   activeField = inferFieldFromDom();
   durationState = createP5FieldDurationState(activeField);
   lastTickId = '';
+  lastEffectPlanTickId = '';
   lastSummary = '';
   lastInfluenceSummary = '';
   lastInfluences = new Map<string, P5UnitFieldInfluence>();
@@ -238,10 +244,16 @@ function syncField() {
   lastInfluences = influence.next;
   durationState = tickP5FieldDuration({ state: durationState, field, influence: influence.snapshot, turnKey: currentTurnKey() });
   const tick = latestP5FieldTick(durationState);
+  const effectPlans = buildP5FieldEffectPlans(tick);
   if (tick && tick.tickId !== lastTickId) {
     lastTickId = tick.tickId;
     appendLog(`Field Tick: ${describeP5FieldTick(tick)}`, `tick_${tick.tickId}`);
     if (tick.expired) appendLog(`Veilbreak Field expired: ${field.fieldName} faded.`, `expired_${tick.tickId}`);
+  }
+  if (effectPlans && effectPlans.tickId !== lastEffectPlanTickId) {
+    lastEffectPlanTickId = effectPlans.tickId;
+    appendLog(`Field Effects: ${describeP5FieldEffectPlans(effectPlans)}`, `effect_plan_${effectPlans.tickId}`);
+    window.dispatchEvent(new CustomEvent('sv:p5-field-effect-plans', { detail: effectPlans }));
   }
   influence.snapshot.entered.forEach((item) => appendLog(`Field Influence: ${item.logLine}`, `influence_enter_${item.enteredAt}_${item.unitId}`));
   influence.snapshot.exited.forEach((item) => appendLog(`Field Influence ended: ${item.unitId} left ${item.fieldName}.`, `influence_exit_${item.lastSeenAt}_${item.unitId}`));
@@ -256,7 +268,7 @@ function syncField() {
     appendLog(`Veilbreak Field ready — ${summary}`, `summary_${field.createdAt}_${field.radius}`);
   }
   window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', {
-    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState },
+    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState, effectPlans },
   }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-influence-state', { detail: influence.snapshot }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-duration-state', { detail: durationState }));
@@ -317,6 +329,7 @@ export function stopP5VeilbreakFieldRuntime() {
   activeField = null;
   durationState = null;
   lastTickId = '';
+  lastEffectPlanTickId = '';
   lastOccupants = new Set<string>();
   lastInfluences = new Map<string, P5UnitFieldInfluence>();
 }
