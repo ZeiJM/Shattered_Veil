@@ -41,7 +41,7 @@ function resetForNewTurnIfNeeded() {
 }
 
 function legacyTacticalStepButton() {
-  return Array.from(document.querySelectorAll('.battle-bg button')).find((button) => /Tactical Step/i.test(textOf(button)) && !button.closest('.sv-p4-combat-movement')) as HTMLButtonElement | undefined;
+  return Array.from(document.querySelectorAll('.battle-bg button')).find((button) => /Tactical Step/i.test(textOf(button)) && !button.closest('.sv-p4-combat-movement') && !button.closest('.sv-p4-combat-movement-choice')) as HTMLButtonElement | undefined;
 }
 function isArenaMovementModeOn() { return !!document.querySelector('.battle-bg .sv-arena-grid.sv-arena-movement-mode'); }
 
@@ -66,7 +66,7 @@ function activeCombatGrid() {
     return getComputedStyle(el).display !== 'none' && !el.classList.contains('battle-aux-shared');
   }) as HTMLElement[];
   const combat = visibleSections.find((section) => /combat/i.test(textOf(section.querySelector('.battle-section-title'))));
-  return (combat || visibleSections[0] || actions).querySelector('.battle-action-grid') as HTMLElement | null;
+  return combat ? combat.querySelector('.battle-action-grid') as HTMLElement | null : null;
 }
 
 function legacyTacticalCardWrap() { const button = legacyTacticalStepButton(); return button?.closest('.battle-action-card-wrap') as HTMLElement | null; }
@@ -129,28 +129,44 @@ function afterP4MoveCommitted(kind: 'basic_move' | 'strategic_step') {
   window.setTimeout(runSoon, 80);
 }
 
+function makeMovementChoice(actionId: 'basic_move' | 'strategic_step') {
+  const wrap = document.createElement('div');
+  wrap.className = `battle-action-card-wrap sv-p4-combat-movement-choice sv-p4-${actionId}-choice`;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `bt battle-action-btn sv-p4-normal-move-choice ${actionId === 'basic_move' ? 'sv-p4-basic-move' : 'sv-p4-strategic-step'}`;
+  button.dataset.svP4Action = actionId;
+  button.innerHTML = actionId === 'basic_move'
+    ? `<div class="sv-p4-choice-title">👣 Move</div><div class="sv-p4-choice-note">1 tile · 30% AP</div>`
+    : `<div class="sv-p4-choice-title">🌀 Strategic Step</div><div class="sv-p4-choice-note">Up to 5 tiles · 30% AP</div>`;
+  button.addEventListener('click', () => {
+    if (actionId === 'basic_move' && p4RuntimeAp < P4_ACTION_COSTS.basic_move.cost) return;
+    if (actionId === 'strategic_step' && (p4RuntimeAp < P4_ACTION_COSTS.strategic_step.cost || p4StrategicStepUsed)) return;
+    triggerExistingMovementHook(actionId);
+  });
+  wrap.appendChild(button);
+  return wrap;
+}
+
 function ensureCombatMovementButtons() {
   resetForNewTurnIfNeeded();
   hideLegacyTacticalStep();
+  document.querySelectorAll('.battle-bg .sv-p4-combat-movement').forEach((node) => node.remove());
   const grid = activeCombatGrid();
   if (!grid) return;
-  let wrap = grid.querySelector(':scope > .sv-p4-combat-movement') as HTMLElement | null;
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.className = 'battle-action-card-wrap sv-p4-combat-movement';
-    wrap.innerHTML = `
-      <button type="button" class="bt battle-action-btn sv-p4-basic-move" data-sv-p4-action="basic_move"><div class="sv-p4-card-head">👣 Move</div><div class="sv-p4-card-body">1 tile · 30% AP · repeat while AP remains</div></button>
-      <button type="button" class="bt battle-action-btn sv-p4-strategic-step" data-sv-p4-action="strategic_step"><div class="sv-p4-card-head">🌀 Strategic Step</div><div class="sv-p4-card-body">Up to 5 tiles instantly · 30% AP once</div></button>
-    `;
-    wrap.querySelector('.sv-p4-basic-move')?.addEventListener('click', () => { if (p4RuntimeAp < P4_ACTION_COSTS.basic_move.cost) return; triggerExistingMovementHook('basic_move'); });
-    wrap.querySelector('.sv-p4-strategic-step')?.addEventListener('click', () => { if (p4RuntimeAp < P4_ACTION_COSTS.strategic_step.cost || p4StrategicStepUsed) return; triggerExistingMovementHook('strategic_step'); });
-  }
-  if (wrap.parentElement !== grid) grid.insertBefore(wrap, grid.firstChild);
+  let basicWrap = grid.querySelector(':scope > .sv-p4-basic_move-choice') as HTMLElement | null;
+  let stepWrap = grid.querySelector(':scope > .sv-p4-strategic_step-choice') as HTMLElement | null;
+  if (!basicWrap) basicWrap = makeMovementChoice('basic_move');
+  if (!stepWrap) stepWrap = makeMovementChoice('strategic_step');
+  if (basicWrap.parentElement !== grid) grid.insertBefore(basicWrap, grid.firstChild);
+  if (stepWrap.parentElement !== grid) grid.insertBefore(stepWrap, basicWrap.nextSibling);
   const movementOn = isArenaMovementModeOn();
-  wrap.classList.toggle('is-selecting', movementOn);
-  wrap.dataset.svP4RuntimeAp = String(p4RuntimeAp);
-  const basic = wrap.querySelector('.sv-p4-basic-move') as HTMLButtonElement | null;
-  const step = wrap.querySelector('.sv-p4-strategic-step') as HTMLButtonElement | null;
+  [basicWrap, stepWrap].forEach((wrap) => {
+    wrap.classList.toggle('is-selecting', movementOn);
+    wrap.dataset.svP4RuntimeAp = String(p4RuntimeAp);
+  });
+  const basic = basicWrap.querySelector('.sv-p4-basic-move') as HTMLButtonElement | null;
+  const step = stepWrap.querySelector('.sv-p4-strategic-step') as HTMLButtonElement | null;
   const legacy = legacyTacticalStepButton();
   const sourceDisabled = !legacy || legacy.disabled;
   if (basic) { basic.disabled = sourceDisabled || !isPlayerTurn() || p4RuntimeAp < P4_ACTION_COSTS.basic_move.cost; basic.title = P4_ACTION_COSTS.basic_move.note; }
@@ -197,7 +213,7 @@ function installRuntimeStyles() {
   if (document.getElementById('sv-p4-runtime-style')) return;
   const style = document.createElement('style');
   style.id = 'sv-p4-runtime-style';
-  style.textContent = `.battle-bg .sv-p4-movement-options{display:none!important}.battle-bg .sv-p4-combat-movement{display:grid!important;grid-template-columns:repeat(2,minmax(160px,1fr))!important;gap:7px!important;grid-column:1/-1!important}.battle-bg .sv-p4-combat-movement>button{min-height:72px!important;border-radius:16px!important;text-align:left!important;padding:10px 12px!important;border:1px solid rgba(115,184,255,.35)!important;background:radial-gradient(circle at 10% 0%,rgba(104,187,255,.18),transparent 48%),rgba(14,24,52,.92)!important;color:#f3f7ff!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04),0 8px 18px rgba(0,0,0,.18)!important}.battle-bg .sv-p4-combat-movement .sv-p4-card-head{font-size:13px!important;font-weight:900!important;color:#f8fbff!important}.battle-bg .sv-p4-combat-movement .sv-p4-card-body{margin-top:4px!important;font-size:9px!important;color:rgba(222,235,255,.78)!important}.battle-bg .sv-p4-combat-movement.is-selecting>button{box-shadow:0 0 18px rgba(86,178,255,.22),inset 0 0 0 1px rgba(255,255,255,.08)!important}.battle-bg [data-sv-p4-hidden-tactical-step="1"]{display:none!important}.battle-bg .sv-left-aux-proxy-card{display:block!important;order:25!important}.battle-bg .sv-left-command-tabs{order:30!important}.battle-bg .sv-left-command-tab-row{display:grid!important;grid-template-columns:1fr!important;gap:7px!important}.battle-bg .sv-left-command-tab-row>button{position:relative!important;min-height:44px!important;border-radius:15px!important;padding:8px 10px!important;display:flex!important;align-items:center!important;gap:8px!important;color:#f7edc9!important;background:radial-gradient(circle at 0% 0%,rgba(255,216,107,.18),transparent 48%),linear-gradient(135deg,rgba(49,36,83,.96),rgba(12,18,42,.98))!important;border:1px solid rgba(255,216,107,.34)!important;box-shadow:0 7px 16px rgba(0,0,0,.16),inset 0 0 0 1px rgba(255,255,255,.05)!important}.battle-bg .sv-left-command-tab-row>button.is-active{border-color:rgba(255,216,107,.76)!important;box-shadow:0 0 18px rgba(255,216,107,.2)!important}.battle-bg .sv-command-tab-icon{font-size:17px!important}.battle-bg .sv-command-tab-title{font-family:'Cinzel',serif!important;font-size:10px!important;font-weight:900!important;letter-spacing:.06em!important;text-transform:uppercase!important}.battle-bg .sv-command-tab-pop{position:absolute!important;left:calc(100% + 8px)!important;top:50%!important;transform:translateY(-50%) scale(.96)!important;min-width:190px!important;padding:8px 10px!important;border-radius:12px!important;background:rgba(8,12,28,.96)!important;border:1px solid rgba(255,216,107,.35)!important;color:#ffe6a0!important;opacity:0!important;pointer-events:none!important;z-index:30!important;box-shadow:0 10px 24px rgba(0,0,0,.32)!important}.battle-bg .sv-command-tab-pop small{display:block!important;margin-top:3px!important;color:rgba(230,236,255,.76)!important;font-size:8px!important;text-transform:none!important}.battle-bg .sv-left-command-tab-row>button:hover .sv-command-tab-pop,.battle-bg .sv-left-command-tab-row>button:focus .sv-command-tab-pop,.battle-bg .sv-left-command-tab-row>button:active .sv-command-tab-pop{opacity:1!important;transform:translateY(-50%) scale(1)!important}`;
+  style.textContent = `.battle-bg .sv-p4-movement-options{display:none!important}.battle-bg .sv-p4-combat-movement{display:none!important}.battle-bg .sv-p4-combat-movement-choice{display:block!important;grid-column:auto!important}.battle-bg .sv-p4-normal-move-choice{min-height:unset!important;border-radius:12px!important;text-align:left!important;padding:8px 9px!important;border:1px solid rgba(115,184,255,.28)!important;background:rgba(14,24,52,.82)!important;color:#f3f7ff!important}.battle-bg .sv-p4-normal-move-choice .sv-p4-choice-title{font-size:11px!important;font-weight:900!important;color:#f8fbff!important}.battle-bg .sv-p4-normal-move-choice .sv-p4-choice-note{margin-top:2px!important;font-size:8px!important;color:rgba(222,235,255,.72)!important}.battle-bg .sv-p4-combat-movement-choice.is-selecting .sv-p4-normal-move-choice{box-shadow:0 0 12px rgba(86,178,255,.2),inset 0 0 0 1px rgba(255,255,255,.06)!important}.battle-bg [data-sv-p4-hidden-tactical-step="1"]{display:none!important}.battle-bg .sv-left-aux-proxy-card{display:block!important;order:25!important}.battle-bg .sv-left-command-tabs{order:30!important}.battle-bg .sv-left-command-tab-row{display:grid!important;grid-template-columns:1fr!important;gap:7px!important}.battle-bg .sv-left-command-tab-row>button{position:relative!important;min-height:44px!important;border-radius:15px!important;padding:8px 10px!important;display:flex!important;align-items:center!important;gap:8px!important;color:#f7edc9!important;background:radial-gradient(circle at 0% 0%,rgba(255,216,107,.18),transparent 48%),linear-gradient(135deg,rgba(49,36,83,.96),rgba(12,18,42,.98))!important;border:1px solid rgba(255,216,107,.34)!important;box-shadow:0 7px 16px rgba(0,0,0,.16),inset 0 0 0 1px rgba(255,255,255,.05)!important}.battle-bg .sv-left-command-tab-row>button.is-active{border-color:rgba(255,216,107,.76)!important;box-shadow:0 0 18px rgba(255,216,107,.2)!important}.battle-bg .sv-command-tab-icon{font-size:17px!important}.battle-bg .sv-command-tab-title{font-family:'Cinzel',serif!important;font-size:10px!important;font-weight:900!important;letter-spacing:.06em!important;text-transform:uppercase!important}.battle-bg .sv-command-tab-pop{position:absolute!important;left:calc(100% + 8px)!important;top:50%!important;transform:translateY(-50%) scale(.96)!important;min-width:190px!important;padding:8px 10px!important;border-radius:12px!important;background:rgba(8,12,28,.96)!important;border:1px solid rgba(255,216,107,.35)!important;color:#ffe6a0!important;opacity:0!important;pointer-events:none!important;z-index:30!important;box-shadow:0 10px 24px rgba(0,0,0,.32)!important}.battle-bg .sv-command-tab-pop small{display:block!important;margin-top:3px!important;color:rgba(230,236,255,.76)!important;font-size:8px!important;text-transform:none!important}.battle-bg .sv-left-command-tab-row>button:hover .sv-command-tab-pop,.battle-bg .sv-left-command-tab-row>button:focus .sv-command-tab-pop,.battle-bg .sv-left-command-tab-row>button:active .sv-command-tab-pop{opacity:1!important;transform:translateY(-50%) scale(1)!important}`;
   document.head.appendChild(style);
 }
 
