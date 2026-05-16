@@ -144,5 +144,8 @@ if (typeof window !== 'undefined') {
     import('./p4FinalHandoffRuntime')
       .then((mod) => mod.startP4FinalHandoffRuntime?.())
       .catch(() => undefined);
+    import('./p4IntegrationFacade')
+      .then((mod) => mod.startP4IntegrationFacade?.())
+      .catch(() => undefined);
   }, 0);
 }
