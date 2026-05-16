@@ -12,12 +12,21 @@ import {
   updateP5FieldInfluences,
   type P5UnitFieldInfluence,
 } from './p5FieldInfluenceState';
+import {
+  createP5FieldDurationState,
+  describeP5FieldTick,
+  latestP5FieldTick,
+  tickP5FieldDuration,
+  type P5FieldDurationState,
+} from './p5FieldTickState';
 
 let started = false;
 let frame = 0;
 let timer: number | null = null;
 let observer: MutationObserver | null = null;
 let activeField: P5VeilbreakField | null = null;
+let durationState: P5FieldDurationState | null = null;
+let lastTickId = '';
 let lastOccupants = new Set<string>();
 let lastInfluences = new Map<string, P5UnitFieldInfluence>();
 let lastInfluenceSummary = '';
@@ -30,6 +39,10 @@ function textOf(el: Element | null) {
 
 function isBattleScreen() {
   return !!document.querySelector('.battle-bg');
+}
+
+function currentTurnKey() {
+  return textOf(document.querySelector('.battle-bg .battle-turn-head:not(.sv-chronicle-turn-clone), .battle-bg .sv-turn-head-v101')) || 'unknown-turn';
 }
 
 function arenaGrid() {
@@ -89,6 +102,8 @@ function inferFieldFromDom() {
 
 function rebuildField() {
   activeField = inferFieldFromDom();
+  durationState = createP5FieldDurationState(activeField);
+  lastTickId = '';
   lastSummary = '';
   lastInfluenceSummary = '';
   lastInfluences = new Map<string, P5UnitFieldInfluence>();
@@ -99,6 +114,7 @@ function rebuildField() {
 function ensureField() {
   if (activeField && activeField.originIndex >= 0) return activeField;
   activeField = inferFieldFromDom();
+  durationState = createP5FieldDurationState(activeField);
   return activeField;
 }
 
@@ -220,6 +236,13 @@ function syncField() {
   lastOccupants = occupants;
   const influence = updateP5FieldInfluences({ field, previous: lastInfluences, occupants: Array.from(occupants) });
   lastInfluences = influence.next;
+  durationState = tickP5FieldDuration({ state: durationState, field, influence: influence.snapshot, turnKey: currentTurnKey() });
+  const tick = latestP5FieldTick(durationState);
+  if (tick && tick.tickId !== lastTickId) {
+    lastTickId = tick.tickId;
+    appendLog(`Field Tick: ${describeP5FieldTick(tick)}`, `tick_${tick.tickId}`);
+    if (tick.expired) appendLog(`Veilbreak Field expired: ${field.fieldName} faded.`, `expired_${tick.tickId}`);
+  }
   influence.snapshot.entered.forEach((item) => appendLog(`Field Influence: ${item.logLine}`, `influence_enter_${item.enteredAt}_${item.unitId}`));
   influence.snapshot.exited.forEach((item) => appendLog(`Field Influence ended: ${item.unitId} left ${item.fieldName}.`, `influence_exit_${item.lastSeenAt}_${item.unitId}`));
   const influenceSummary = describeP5InfluenceSnapshot(influence.snapshot);
@@ -233,9 +256,10 @@ function syncField() {
     appendLog(`Veilbreak Field ready — ${summary}`, `summary_${field.createdAt}_${field.radius}`);
   }
   window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', {
-    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot },
+    detail: { field, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState },
   }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-influence-state', { detail: influence.snapshot }));
+  window.dispatchEvent(new CustomEvent('sv:p5-field-duration-state', { detail: durationState }));
 }
 
 function installStyles() {
@@ -291,6 +315,8 @@ export function stopP5VeilbreakFieldRuntime() {
   if (timer != null) window.clearInterval(timer);
   timer = null;
   activeField = null;
+  durationState = null;
+  lastTickId = '';
   lastOccupants = new Set<string>();
   lastInfluences = new Map<string, P5UnitFieldInfluence>();
 }
