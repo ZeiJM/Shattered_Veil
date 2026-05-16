@@ -1,0 +1,132 @@
+/* P0/P1 battle stability and mobile cleanup layer. */
+
+.battle-bg .battle-viewport {
+  width: min(100%, 1440px) !important;
+  margin-inline: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  contain: layout style !important;
+}
+
+.battle-bg .sv-arena-panel,
+.battle-bg .sv-arena-panel-fit {
+  min-height: 0 !important;
+  overflow: hidden !important;
+  contain: layout paint !important;
+}
+
+.battle-bg .sv-arena-grid {
+  margin: auto !important;
+  max-width: min(100%, 760px) !important;
+  max-height: min(54dvh, 570px) !important;
+  transform-origin: center center !important;
+}
+
+.battle-bg .sv-arena-tile {
+  --sv-arena-tile-size: clamp(25px, min(calc((100vw - 760px) / 13), calc((100dvh - 300px) / 7)), 50px) !important;
+}
+
+.battle-bg .sv-arena-footer,
+.battle-bg .sv-arena-tooltip {
+  max-width: min(100%, 620px) !important;
+  max-height: min(26dvh, 190px) !important;
+  overflow: auto !important;
+  z-index: 8 !important;
+}
+
+.battle-bg [data-sv-p0p1-overflow-safe="1"],
+.battle-bg .battle-info-card,
+.battle-bg .battle-log-card,
+.battle-bg .battle-actions-card {
+  min-width: 0 !important;
+}
+
+.battle-bg .sv-action-economy-bar { order: 10 !important; flex: 0 0 auto !important; }
+.battle-bg .sv-left-aux-proxy-card { order: 20 !important; display: block !important; flex: 0 0 auto !important; }
+.battle-bg .sv-left-command-tabs { order: 30 !important; flex: 0 0 auto !important; }
+
+.battle-bg .battle-log-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+.battle-bg .battle-log-card .battle-turn-head,
+.battle-bg .battle-log-card .sv-chronicle-turn-clone {
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-top: 0 !important;
+}
+
+.battle-bg .blog-sel,
+.battle-bg .battle-log-list {
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+.battle-bg .battle-chip,
+.battle-bg .tag,
+.battle-bg [class*="chip"],
+.battle-bg [class*="Chip"],
+.battle-bg [class*="badge"],
+.battle-bg [class*="Badge"] {
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  line-height: 1.2 !important;
+}
+
+.battle-bg .sv-ap-cost-pill,
+.battle-bg .sv-p0p1-suppress-pill > .sv-ap-cost-pill,
+.battle-bg .sv-p0p1-suppress-pill .sv-ap-cost-pill {
+  display: none !important;
+}
+
+.battle-bg .sv-p0p1-chain-hidden { display: none !important; }
+.battle-bg .sv-p0p1-veilbreak-accent {
+  color: #ffe28a !important;
+  border-color: rgba(255,216,107,0.48) !important;
+  box-shadow: 0 0 12px rgba(255,216,107,0.14) !important;
+}
+
+.battle-bg .sv-p0p1-skill-interaction {
+  color: #dfe9ff !important;
+  border-color: rgba(132,190,255,0.32) !important;
+  background: rgba(14,24,52,0.74) !important;
+}
+
+.battle-bg .sv-p0p1-tight-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+@media (max-width: 1280px) {
+  .battle-bg .battle-viewport { width: 100% !important; max-width: 100% !important; }
+  .battle-bg .sv-arena-grid { max-width: min(100%, 690px) !important; max-height: min(50dvh, 515px) !important; }
+  .battle-bg .sv-arena-tile { --sv-arena-tile-size: clamp(24px, min(calc((100vw - 390px) / 13), calc((100dvh - 330px) / 7)), 45px) !important; }
+}
+
+@media (max-width: 760px) {
+  .battle-bg .battle-viewport {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-areas: "title" "arena" "left" "right-log" "actions" !important;
+    gap: 7px !important;
+    padding: 6px !important;
+    overflow-x: hidden !important;
+  }
+  .battle-bg .battle-info-card,
+  .battle-bg .battle-log-card,
+  .battle-bg .battle-actions-card { max-height: none !important; overflow: visible !important; }
+  .battle-bg .sv-arena-grid { max-width: 100% !important; max-height: min(48dvh, 430px) !important; }
+  .battle-bg .sv-arena-tile { --sv-arena-tile-size: clamp(20px, min(calc((100vw - 28px) / 13), calc((100dvh - 430px) / 7)), 34px) !important; }
+  .battle-bg .sv-arena-footer,
+  .battle-bg .sv-arena-tooltip { max-height: 160px !important; }
+  .battle-bg .sv-left-command-tab-row,
+  .battle-bg .sv-left-aux-proxy-row,
+  .battle-bg .battle-aux-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
