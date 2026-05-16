@@ -150,5 +150,8 @@ if (typeof window !== 'undefined') {
     import('./p4FacadeRuntimeDriver')
       .then((mod) => mod.startP4FacadeRuntimeDriver?.())
       .catch(() => undefined);
+    import('./p5VeilbreakFieldRuntime')
+      .then((mod) => mod.startP5VeilbreakFieldRuntime?.())
+      .catch(() => undefined);
   }, 0);
 }
