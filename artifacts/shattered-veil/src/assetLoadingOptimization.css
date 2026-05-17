@@ -1,0 +1,46 @@
+/* P3 asset loading optimization: reduce stale/low-res flashing without replacing assets. */
+
+img[data-sv-asset-tracked="1"] {
+  transition: opacity 180ms ease, filter 180ms ease !important;
+}
+
+img[data-sv-asset-tracked="1"]:not(.sv-asset-loaded) {
+  opacity: 0.72 !important;
+  filter: blur(0.35px) saturate(0.92) !important;
+}
+
+img.sv-asset-loaded {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+img.sv-asset-failed {
+  opacity: 0.45 !important;
+  filter: grayscale(0.35) !important;
+}
+
+.sv-background-asset-failed {
+  background-color: rgba(8, 12, 28, 0.96) !important;
+}
+
+.battle-bg[data-sv-background-asset-tracked="1"],
+.map-bg[data-sv-background-asset-tracked="1"],
+.create-bg[data-sv-background-asset-tracked="1"],
+.town-bg[data-sv-background-asset-tracked="1"],
+.home-bg[data-sv-background-asset-tracked="1"],
+.sv-arena-panel[data-sv-background-asset-tracked="1"] {
+  transition: background-image 220ms ease, filter 180ms ease, opacity 180ms ease !important;
+}
+
+.battle-bg[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded),
+.map-bg[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded),
+.create-bg[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded),
+.town-bg[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded),
+.home-bg[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded),
+.sv-arena-panel[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded) {
+  filter: saturate(0.96) brightness(0.98) !important;
+}
+
+.sv-arena-tile[data-sv-background-asset-tracked="1"]:not(.sv-background-assets-loaded) {
+  background-color: rgba(17, 24, 48, 0.92) !important;
+}
