@@ -228,6 +228,41 @@ function controlsMount() {
   return document.querySelector('.battle-bg .sv-left-rail, .battle-bg .battle-side-panel, .battle-bg .sv-battle-command-rail, .battle-bg') as HTMLElement | null;
 }
 
+function ensureStatusHud(panel: HTMLElement) {
+  let hud = panel.querySelector('.sv-p5-field-status-hud') as HTMLElement | null;
+  if (!hud) {
+    hud = document.createElement('div');
+    hud.className = 'sv-p5-field-status-hud';
+    hud.innerHTML = `
+      <div class="sv-p5-field-status-title">Field Status</div>
+      <div class="sv-p5-field-status-grid">
+        <span data-sv-p5-status="state"></span>
+        <span data-sv-p5-status="radius"></span>
+        <span data-sv-p5-status="tiles"></span>
+        <span data-sv-p5-status="occupants"></span>
+      </div>
+    `;
+    panel.appendChild(hud);
+  }
+  return hud;
+}
+
+function updateStatusHud(field: P5VeilbreakField | null, occupants = new Set<string>()) {
+  const panel = document.getElementById('sv-p5-field-controls') as HTMLElement | null;
+  if (!panel) return;
+  const hud = ensureStatusHud(panel);
+  const indexes = field ? affectedIndexes(field) : [];
+  const state = hud.querySelector('[data-sv-p5-status="state"]') as HTMLElement | null;
+  const radius = hud.querySelector('[data-sv-p5-status="radius"]') as HTMLElement | null;
+  const tiles = hud.querySelector('[data-sv-p5-status="tiles"]') as HTMLElement | null;
+  const occ = hud.querySelector('[data-sv-p5-status="occupants"]') as HTMLElement | null;
+  hud.dataset.svP5FieldActive = fieldActivated ? '1' : '0';
+  if (state) state.textContent = fieldActivated ? 'Active' : 'Staged';
+  if (radius) radius.textContent = field ? `Radius ${field.radius}` : 'Radius —';
+  if (tiles) tiles.textContent = field ? `${indexes.length} tiles` : '0 tiles';
+  if (occ) occ.textContent = fieldActivated ? `${occupants.size} inside` : `${selectedMpSpend || 0} MP widening`;
+}
+
 function installControls() {
   if (!isBattleScreen()) return;
   const mount = controlsMount();
@@ -244,6 +279,7 @@ function installControls() {
     `;
     mount.appendChild(panel);
   }
+  ensureStatusHud(panel);
   const buttons = panel.querySelector('.sv-p5-field-controls-buttons') as HTMLElement | null;
   if (!buttons) return;
   const mp = currentMp();
@@ -271,6 +307,7 @@ function installControls() {
     });
     buttons.appendChild(btn);
   });
+  updateStatusHud(activeField || inferFieldFromDom());
 }
 
 function syncField() {
@@ -279,6 +316,7 @@ function syncField() {
   if (!fieldActivated) {
     clearFieldClasses();
     const stagedField = activeField || inferFieldFromDom();
+    updateStatusHud(stagedField);
     window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-config', {
       detail: { field: stagedField, selectedMpSpend, active: false },
     }));
@@ -288,6 +326,7 @@ function syncField() {
   if (!field) return;
   paintField(field);
   const occupants = occupantsInside(field);
+  updateStatusHud(field, occupants);
   const diff = diffP5FieldOccupancy(lastOccupants, occupants);
   if (diff.entered.length) appendLog(`Veilbreak Field: ${diff.entered.length} unit(s) entered ${field.fieldName}.`, `enter_${field.createdAt}_${diff.entered.join('_')}`);
   if (diff.exited.length) appendLog(`Veilbreak Field: ${diff.exited.length} unit(s) left ${field.fieldName}.`, `exit_${field.createdAt}_${diff.exited.join('_')}`);
@@ -305,6 +344,7 @@ function syncField() {
       fieldActivated = false;
       activatedAt = 0;
       clearFieldClasses();
+      updateStatusHud(field, new Set());
     }
   }
   if (effectPlans && effectPlans.tickId !== lastEffectPlanTickId) {
@@ -325,7 +365,7 @@ function syncField() {
     appendLog(`Veilbreak Field ready — ${summary}`, `summary_${field.createdAt}_${field.radius}`);
   }
   window.dispatchEvent(new CustomEvent('sv:p5-veilbreak-field-state', {
-    detail: { field, active: fieldActivated, activatedAt, selectedMpSpend: field.mpSpentOnRange || 0, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), influence: influence.snapshot, duration: durationState, effectPlans },
+    detail: { field, active: fieldActivated, activatedAt, selectedMpSpend: field.mpSpentOnRange || 0, occupants: Array.from(occupants), affectedIndexes: affectedIndexes(field), affectedTileCount: affectedIndexes(field).length, influence: influence.snapshot, duration: durationState, effectPlans },
   }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-influence-state', { detail: influence.snapshot }));
   window.dispatchEvent(new CustomEvent('sv:p5-field-duration-state', { detail: durationState }));
@@ -350,6 +390,11 @@ function installStyles() {
     .battle-bg .sv-p5-field-upgrade-btn{border:1px solid rgba(184,125,255,.32);border-radius:999px;background:rgba(255,255,255,.06);color:rgba(246,239,255,.94);padding:5px 8px;font-size:11px;cursor:pointer;}
     .battle-bg .sv-p5-field-upgrade-btn.is-selected{border-color:rgba(244,219,139,.75);box-shadow:0 0 12px rgba(244,219,139,.18);color:rgba(255,239,184,.98);}
     .battle-bg .sv-p5-field-upgrade-btn.is-locked{opacity:.42;cursor:not-allowed;}
+    .battle-bg .sv-p5-field-status-hud{margin-top:8px;padding:7px;border:1px solid rgba(244,219,139,.22);border-radius:12px;background:rgba(255,255,255,.045);}
+    .battle-bg .sv-p5-field-status-title{font-size:10px;font-weight:800;color:rgba(244,219,139,.94);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
+    .battle-bg .sv-p5-field-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;}
+    .battle-bg .sv-p5-field-status-grid span{border:1px solid rgba(184,125,255,.18);border-radius:999px;padding:3px 6px;background:rgba(0,0,0,.16);font-size:10px;color:rgba(246,239,255,.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .battle-bg .sv-p5-field-status-hud[data-sv-p5-field-active="1"]{border-color:rgba(244,219,139,.48);box-shadow:0 0 14px rgba(244,219,139,.12);}
   `;
   document.head.appendChild(style);
 }
