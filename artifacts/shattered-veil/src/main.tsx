@@ -12,6 +12,7 @@ import { startP4RuntimeBridge } from "./battle/p4RuntimeBridge";
 import { startP4IntegrationFacade } from "./battle/p4IntegrationFacade";
 import { startP0P1BattleStabilityPolish } from "./battle/p0p1BattleStability";
 import { startP2BattlefieldPolish } from "./battle/p2BattlefieldPolish";
+import { startP5FieldLifecycleBridge } from "./battle/p5FieldLifecycleBridge";
 import { startAssetLoadingOptimization } from "./assetLoadingOptimization";
 import { startCreateInlineInnateTitlePolish } from "./createInlineInnateTitle";
 
@@ -20,6 +21,7 @@ startP4RuntimeBridge();
 startP4IntegrationFacade();
 startP0P1BattleStabilityPolish();
 startP2BattlefieldPolish();
+startP5FieldLifecycleBridge();
 startAssetLoadingOptimization();
 startCreateInlineInnateTitlePolish();
 
