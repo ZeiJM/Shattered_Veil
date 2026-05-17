@@ -1,3 +1,5 @@
+import { detectCurrentAssetScreen, getAssetPreloadProfile } from './assetPreloadManifest';
+
 let started = false;
 let frame = 0;
 let observer: MutationObserver | null = null;
@@ -5,6 +7,7 @@ let timer: number | null = null;
 const seenUrls = new Set<string>();
 const loadedUrls = new Set<string>();
 const failedUrls = new Set<string>();
+let lastScreen = 'general';
 
 function normalizeUrl(url: string) {
   return url.trim().replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
@@ -20,11 +23,23 @@ function urlsFromBackground(value: string) {
   return out;
 }
 
-function preload(url: string) {
+function urlsFromElement(el: Element) {
+  const urls: string[] = [];
+  if (el instanceof HTMLImageElement) {
+    if (el.currentSrc) urls.push(el.currentSrc);
+    if (el.src) urls.push(el.src);
+  }
+  const style = getComputedStyle(el as HTMLElement);
+  urls.push(...urlsFromBackground(style.backgroundImage), ...urlsFromBackground(style.borderImageSource));
+  return Array.from(new Set(urls));
+}
+
+function preload(url: string, priority: 'high' | 'auto' = 'auto') {
   if (!url || seenUrls.has(url) || failedUrls.has(url)) return;
   seenUrls.add(url);
   const img = new Image();
   img.decoding = 'async';
+  img.fetchPriority = priority;
   img.onload = () => {
     loadedUrls.add(url);
     document.documentElement.dataset.svAssetLoadTick = String(Date.now());
@@ -38,6 +53,32 @@ function preload(url: string) {
   img.src = url;
 }
 
+function preloadFromSelectors(selectors: string[], limit: number, priority: 'high' | 'auto') {
+  const urls: string[] = [];
+  selectors.forEach((selector) => {
+    document.querySelectorAll(selector).forEach((el) => {
+      urls.push(...urlsFromElement(el));
+      if (el instanceof HTMLImageElement) {
+        el.decoding = 'async';
+        if (priority === 'high') {
+          el.loading = 'eager';
+          el.fetchPriority = 'high';
+        }
+      }
+    });
+  });
+  Array.from(new Set(urls)).slice(0, limit).forEach((url) => preload(url, priority));
+}
+
+function preloadPriorityProfile() {
+  const screen = detectCurrentAssetScreen();
+  lastScreen = screen;
+  document.documentElement.dataset.svAssetPreloadScreen = screen;
+  const profile = getAssetPreloadProfile(screen);
+  preloadFromSelectors(profile.prioritySelectors, profile.maxPriorityUrls, 'high');
+  preloadFromSelectors(profile.secondarySelectors, profile.maxSecondaryUrls, 'auto');
+}
+
 function discoverAssetUrls() {
   document.querySelectorAll('img').forEach((img) => {
     const el = img as HTMLImageElement;
@@ -46,7 +87,7 @@ function discoverAssetUrls() {
   });
   document.querySelectorAll<HTMLElement>('[style], .battle-bg, .map-bg, .create-bg, .town-bg, .home-bg, .sv-arena-panel, .sv-arena-tile').forEach((el) => {
     const style = getComputedStyle(el);
-    [...urlsFromBackground(style.backgroundImage), ...urlsFromBackground(style.borderImageSource)].forEach(preload);
+    [...urlsFromBackground(style.backgroundImage), ...urlsFromBackground(style.borderImageSource)].forEach((url) => preload(url));
   });
 }
 
@@ -86,6 +127,7 @@ function prioritizeVisibleImages() {
 }
 
 function run() {
+  preloadPriorityProfile();
   discoverAssetUrls();
   prioritizeVisibleImages();
   markLoadedAssets();
@@ -104,7 +146,12 @@ export function startAssetLoadingOptimization() {
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset', 'style', 'class'] });
   window.addEventListener('resize', runSoon, { passive: true });
   document.addEventListener('visibilitychange', runSoon, { passive: true });
-  timer = window.setInterval(runSoon, 1200);
+  window.addEventListener('popstate', runSoon, { passive: true });
+  timer = window.setInterval(() => {
+    const screen = detectCurrentAssetScreen();
+    if (screen !== lastScreen) runSoon();
+    else markLoadedAssets();
+  }, 1200);
 }
 
 export function stopAssetLoadingOptimization() {
@@ -117,4 +164,5 @@ export function stopAssetLoadingOptimization() {
   timer = null;
   window.removeEventListener('resize', runSoon);
   document.removeEventListener('visibilitychange', runSoon);
+  window.removeEventListener('popstate', runSoon);
 }
